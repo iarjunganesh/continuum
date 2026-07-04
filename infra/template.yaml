@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Continuum — agentic incident-response orchestrator.
+  Deliberately NOT using ProvisionedConcurrencyConfig — see ADR 002.
+  Every invocation must prove it can recover state from CockroachDB cold.
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.12
+
+Resources:
+  ContinuumOrchestratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: continuum-orchestrator
+      Handler: infra.lambda_handler.lambda_handler
+      CodeUri: ../
+      Environment:
+        Variables:
+          COCKROACH_DATABASE_URL: !Ref CockroachDatabaseUrl
+          BEDROCK_EMBEDDING_MODEL_ID: !Ref BedrockEmbeddingModelId
+          BEDROCK_REASONING_MODEL_ID: !Ref BedrockReasoningModelId
+          LOG_LEVEL: INFO
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: '*'
+      # No ProvisionedConcurrencyConfig — cold starts are intentional (ADR 002)
+
+Parameters:
+  CockroachDatabaseUrl:
+    Type: String
+    NoEcho: true
+  BedrockEmbeddingModelId:
+    Type: String
+    Default: amazon.titan-embed-text-v2:0
+  BedrockReasoningModelId:
+    Type: String
+    Default: anthropic.claude-3-5-sonnet-20241022-v2:0
+
+Outputs:
+  OrchestratorFunctionArn:
+    Value: !GetAtt ContinuumOrchestratorFunction.Arn

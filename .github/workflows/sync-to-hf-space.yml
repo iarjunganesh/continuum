@@ -1,0 +1,36 @@
+name: Sync to Hugging Face Space
+
+# Pushes the full repo to the HF Space on every push to main, so the Space
+# (README frontmatter + ui/app.py) always matches what's on GitHub — one
+# source of truth, per CLAUDE.md conventions.
+#
+# Setup (one-time, see docs/DEPLOY.md):
+#   1. Create the Space manually at huggingface.co/new-space
+#      - SDK: Gradio, name: continuum, visibility: public
+#   2. Generate an HF access token (write scope): huggingface.co/settings/tokens
+#   3. Add it as a GitHub repo secret named HF_TOKEN
+#      (Settings -> Secrets and variables -> Actions -> New repository secret)
+#   4. Add COCKROACH_DATABASE_URL as a secret on the Space itself
+#      (Space Settings -> Repository secrets) — NOT this GitHub secret, a
+#      separate one on huggingface.co, since that's what the running app reads.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  sync-to-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git remote add space https://iarjunganesh:$HF_TOKEN@huggingface.co/spaces/iarjunganesh/continuum
+          git push --force space main

@@ -1,0 +1,25 @@
+[project]
+name = "continuum"
+version = "0.2.0"
+description = "Agentic incident-response memory that survives the agent being killed — CockroachDB × AWS Hackathon 2026"
+requires-python = ">=3.14"
+license = { file = "LICENSE" }
+authors = [{ name = "Arjun Ganesh" }]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["."]
+
+[tool.coverage.run]
+source = ["agents", "api", "observability"]
+
+[tool.coverage.report]
+show_missing = true

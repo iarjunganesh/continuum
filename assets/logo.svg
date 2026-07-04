@@ -1,0 +1,25 @@
+<svg width="560" height="150" viewBox="0 0 560 150" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Continuum — memory that outlives the failure">
+  <defs>
+    <linearGradient id="loop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6933FF"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6933FF"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+
+  <!-- infinity loop: memory that survives the break -->
+  <g transform="translate(28,38)">
+    <path d="M37 37 C37 17 9 17 9 37 C9 57 37 57 51 37 C65 17 93 17 93 37 C93 57 65 57 51 37"
+          stroke="url(#loop)" stroke-width="11" stroke-linecap="round" fill="none"/>
+    <!-- the "kill" mark: the loop is severed... -->
+    <line x1="44" y1="24" x2="58" y2="50" stroke="#FF9900" stroke-width="7" stroke-linecap="round"/>
+    <!-- ...but the path continues -->
+    <circle cx="93" cy="37" r="7" fill="#FF9900"/>
+  </g>
+
+  <text x="150" y="84" font-family="Georgia, 'Times New Roman', serif" font-size="52" font-weight="700" letter-spacing="2" fill="url(#word)">CONTINUUM</text>
+  <text x="152" y="114" font-family="Verdana, Geneva, sans-serif" font-size="15" letter-spacing="1" fill="#8B8B94">memory that outlives the failure</text>
+</svg>

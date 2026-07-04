@@ -1,0 +1,48 @@
+name: CI Quality Gate
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    # Fake credentials satisfy Settings(); unit tests mock all outbound calls
+    env:
+      COCKROACH_DATABASE_URL: "postgresql://mock:mock@localhost:26257/defaultdb?sslmode=disable"
+      AWS_REGION: "us-east-1"
+      AWS_ACCESS_KEY_ID: "mock-access-key-for-testing-only"
+      AWS_SECRET_ACCESS_KEY: "mock-secret-key-for-testing-only"
+      STEP_EXECUTION_SECONDS: "0"
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint (Ruff)
+        run: ruff check .
+
+      - name: Tests + coverage
+        run: |
+          pytest tests/unit tests/integration \
+            --cov=agents --cov=api --cov=observability \
+            --cov-report=xml \
+            --cov-fail-under=60
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
