@@ -13,10 +13,16 @@ Usage:
     python scripts/chaos_kill.py --pid 12345     # kill a specific PID
 """
 import argparse
+import os
+import sys
 
 import psutil
 
-from observability.structured_logger import get_logger
+# Running as `python scripts/chaos_kill.py` puts scripts/ (not the repo root)
+# on sys.path, so observability won't import otherwise.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from observability.structured_logger import get_logger  # noqa: E402
 
 log = get_logger(__name__)
 

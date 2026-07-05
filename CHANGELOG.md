@@ -5,6 +5,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-07-05 — Space actually boots; Windows setup script; scripts/*.py import fix
+
+### Fixed
+- **The 0.3.0 Space still didn't boot**: Gradio's launch-time analytics telemetry compares the app's theme against its built-in themes; built-in themes use `Font` objects for `font`/`font_mono` while ours used plain strings, and Gradio's own `Font.__eq__` doesn't guard against comparing to a non-`Font` — crashing with `AttributeError: 'str' object has no attribute 'name'` whenever analytics is enabled (the Spaces default). Fixed via `analytics_enabled=False` on the `Blocks` constructor, which also means this read-only demo doesn't phone telemetry home
+- **`scripts/seed_memory.py`, `demo_run.py`, and `chaos_kill.py` had the same subdir-import bug as `ui/app.py`** (fixed for that file in 0.3.0, missed here): running `python scripts/x.py` puts `scripts/` — not the repo root — on `sys.path`, so `from agents…`/`from config…`/`from observability…` raised `ModuleNotFoundError`. This meant `make seed-data`, `make demo`, and `make chaos-demo` — the actual kill-and-recover sequence `docs/DEMO_RUNBOOK.md` calls the thing being graded — never worked via their documented entrypoints, only discovered while running the Windows seed script end to end for the first time. All three now bootstrap the repo root the same way `ui/app.py` does
+- `seed_memory.py` paces its Bedrock embedding calls (1s between records) — a tight back-to-back loop of 40 calls was hitting `ThrottlingException` immediately
+
+### Added
+- `scripts/migrate_and_seed.ps1` — Windows equivalent of `make migrate` + `make seed-data` (no `make` on Windows), matching the existing `chaos_demo.ps1` pattern. Checks `COCKROACH_DATABASE_URL` and (unless `-SkipSeed`) AWS credentials up front with a clear message instead of a bare traceback, and checks `$LASTEXITCODE` after every external `python` call — `$ErrorActionPreference = "Stop"` only covers PowerShell cmdlets/terminating errors, not external command exit codes, so a failed step would otherwise print a traceback and the script would carry on and report success anyway (caught by testing the schema step against an unreachable DB)
+
+### Changed
+- Space pins **Python 3.14** (`python_version: "3.14"` in README frontmatter), matching CI (`python-version: "3.14"`) and local dev — previously unset, so the Space picked whatever Hugging Face's own default was (observed: 3.13) rather than the project's actual target
+- CockroachDB Cloud TLS guidance corrected to `sslmode=require`: `sslrootcert=system` doesn't work for CockroachDB Cloud, since its clusters use a cluster-specific CA rather than one chained to a public root — `verify-full` fails there with `certificate verify failed` even once the root-cert-file-missing error is resolved. `require` encrypts without needing any CA file, an acceptable trade-off since Continuum only ever stores synthetic data (ADR 005) and this connection only ever reaches CockroachDB Cloud's own endpoint
+
 ## [0.3.0] — 2026-07-05 — demo Space redesigned as a live incident-memory console
 
 ### Added

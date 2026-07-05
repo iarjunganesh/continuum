@@ -23,7 +23,7 @@ The Space runs **Gradio 6** (pinned via `sdk_version: 6.19.0` in the README fron
 
 4. **Add secrets on the Space itself** (not GitHub — this is separate)
    - Space page → Settings → Repository secrets → New secret
-   - `COCKROACH_DATABASE_URL` — required; the live incident table reads directly from CockroachDB
+   - `COCKROACH_DATABASE_URL` — required; the live incident table reads directly from CockroachDB. Use `?sslmode=require` (see `.env.example`) — CockroachDB Cloud's cert is signed by a cluster-specific CA, so `verify-full` needs that exact CA file on disk (not present in a fresh container) or it fails with `root certificate file does not exist` / `certificate verify failed`. `require` still encrypts the connection; it's an acceptable trade-off here since Continuum only ever stores synthetic data (ADR 005)
    - `COCKROACH_MCP_API_KEY` — optional; without it the "Ask via MCP" panel fails gracefully with a visible error instead of crashing the Space, so it's safe to omit if you haven't provisioned an MCP service-account key yet
    - `ui/app.py` never calls Bedrock or writes anything — no AWS credentials belong on the Space
 

@@ -21,9 +21,10 @@ Tracks directly against the [official rules](https://cockroachdb-ai.devpost.com/
 - [ ] Public GitHub repo with OSS license visible in About section (MIT — see `LICENSE`)
 - [ ] README with clear setup/run instructions, dependencies, example config
 - [ ] Functional demo app URL
-  - [ ] Deployed to Hugging Face Spaces (`docs/DEPLOY.md`) — free, no card, permanent hosting
-  - [ ] Space secret `COCKROACH_DATABASE_URL` set and Space builds successfully
+  - [x] Deployed to Hugging Face Spaces (`docs/DEPLOY.md`) — free, no card, permanent hosting
+  - [x] Space secret `COCKROACH_DATABASE_URL` set and Space builds successfully
   - [ ] URL confirmed publicly accessible in a private/incognito browser before submitting
+  - [ ] Populated with seeded synthetic incidents — blocked on an AWS Bedrock quota/model-access issue (Titan Embed V2 throttling, Claude Sonnet 4.5 model access), not code; Space itself runs correctly empty in the meantime
 - [ ] Demo video (<3 min, YouTube/Vimeo, public)
   - [ ] Shows the project functioning on its intended platform
   - [ ] Shows the CockroachDB memory layer at work (the kill-and-resume beat)

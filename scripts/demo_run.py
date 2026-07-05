@@ -14,11 +14,17 @@ Usage:
 """
 import argparse
 import json
+import os
+import sys
 import uuid
 
 import httpx
 
-from observability.structured_logger import get_logger
+# Running as `python scripts/demo_run.py` puts scripts/ (not the repo root)
+# on sys.path, so observability won't import otherwise.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from observability.structured_logger import get_logger  # noqa: E402
 
 log = get_logger(__name__)
 

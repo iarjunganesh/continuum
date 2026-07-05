@@ -9,13 +9,20 @@ Usage:
 """
 import argparse
 import json
+import os
+import sys
+import time
 
 import psycopg
 from psycopg.types.json import Json
 
-from agents.correlation_agent import CorrelationAgent
-from config import settings
-from observability.structured_logger import get_logger
+# Running as `python scripts/seed_memory.py` puts scripts/ (not the repo
+# root) on sys.path, so agents/config/observability won't import otherwise.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from agents.correlation_agent import CorrelationAgent  # noqa: E402
+from config import settings  # noqa: E402
+from observability.structured_logger import get_logger  # noqa: E402
 
 log = get_logger(__name__)
 
@@ -49,6 +56,8 @@ def seed(file_path: str):
                     (rec["incident_id"], idx, action, Json({"seeded": True})),
                 )
             embedding = correlation.embed(rec["summary"])
+            time.sleep(1.0)  # space out Bedrock calls — default on-demand TPS
+            # quotas throttle a tight back-to-back loop even after boto3's own retries
             vector_literal = "[" + ",".join(str(v) for v in embedding) + "]"
             cur.execute(
                 """
