@@ -12,3 +12,6 @@ If ccloud CLI is included at all, its only job is: before the chaos-kill demo ru
 ## Consequences
 - If build time runs short, this is the first thing cut — 2 tools done well (Vector Index + MCP Server) beats 3 tools done thin, per our own scoring discussion
 - If included, it must appear in the demo video doing this specific check, not just in a README bullet point
+
+## Resolution
+Cut. Continuum's two CockroachDB tools are **Distributed Vector Indexing** (`correlation_agent.py`) and the **Managed MCP Server** (`agents/query_agent.py`, ADR 003) — both load-bearing in the running application, satisfying the "≥2 tools, meaningfully integrated" requirement without a third, thinner integration. ccloud CLI is not referenced in the submission as a tool used; it remains available as roadmap work (ADR 006) if there's time after the core demo is solid.

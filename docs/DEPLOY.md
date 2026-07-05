@@ -1,6 +1,6 @@
 # Deploying the Demo to Hugging Face Spaces
 
-Continuum's public demo (`ui/app.py`) needs almost nothing running behind it — it's a read-only Gradio view straight into CockroachDB. No AWS credentials are needed on the Space itself; only the orchestrator (running separately, via `make run-api` locally or on Lambda) needs AWS access. This keeps the public Space's secret surface to exactly one value.
+Continuum's public demo (`ui/app.py`) needs almost nothing running behind it — it's a read-only Gradio view straight into CockroachDB, plus an "Ask via MCP" panel that queries the same state through the CockroachDB Cloud Managed MCP Server. No AWS credentials are needed on the Space itself; only the orchestrator (running separately, via `make run-api` locally or on Lambda) needs AWS access.
 
 ## One-time setup
 
@@ -19,10 +19,11 @@ Continuum's public demo (`ui/app.py`) needs almost nothing running behind it —
    - Name: `HF_TOKEN` · Value: the token from step 2
    - This lets `.github/workflows/sync-to-hf-space.yml` push to your Space on every merge to `main`
 
-4. **Add the database secret on the Space itself** (not GitHub — this is separate)
+4. **Add secrets on the Space itself** (not GitHub — this is separate)
    - Space page → Settings → Repository secrets → New secret
-   - Name: `COCKROACH_DATABASE_URL` · Value: your CockroachDB connection string
-   - This is the only secret the public Space needs — `ui/app.py` only reads incident/remediation state, it never calls Bedrock or writes anything
+   - `COCKROACH_DATABASE_URL` — required; the live incident table reads directly from CockroachDB
+   - `COCKROACH_MCP_API_KEY` — optional; without it the "Ask via MCP" panel fails gracefully with a visible error instead of crashing the Space, so it's safe to omit if you haven't provisioned an MCP service-account key yet
+   - `ui/app.py` never calls Bedrock or writes anything — no AWS credentials belong on the Space
 
 5. **Push to `main`**
    - The workflow force-pushes the full repo to the Space

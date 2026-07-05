@@ -4,11 +4,17 @@ Continuum demo UI — live incident feed + recovery visualization.
 Reads live from CockroachDB. Intended for the recorded demo video
 (docs/DEMO_RUNBOOK.md) and the public Hugging Face Space, not production.
 """
+import asyncio
+import json
+
 import gradio as gr
 import psycopg
 from psycopg.rows import dict_row
 
+from agents.query_agent import QueryAgent
 from config import settings
+
+query_agent = QueryAgent()
 
 
 def fetch_incidents():
@@ -35,6 +41,18 @@ def fetch_incidents():
             for r in rows]
 
 
+def ask_via_mcp():
+    """Runs the live query-interface beat through the CockroachDB Cloud
+    Managed MCP Server (read-only) instead of a direct psycopg connection —
+    the same table above, but driven over MCP so the demo can show both
+    paths hitting the same durable state (ADR 003)."""
+    try:
+        result = asyncio.run(query_agent.list_open_incidents())
+    except Exception as exc:  # MCP endpoint unreachable/misconfigured
+        return f"MCP query failed: {exc}"
+    return json.dumps(result.rows, indent=2, default=str)
+
+
 with gr.Blocks(title="Continuum — Live Incident Memory") as demo:
     gr.Markdown("# 🔁 Continuum\nAgentic memory for incident response — CockroachDB × AWS Hackathon 2026")
     gr.Markdown(
@@ -50,6 +68,14 @@ with gr.Blocks(title="Continuum — Live Incident Memory") as demo:
     refresh_btn = gr.Button("Refresh")
     refresh_btn.click(fn=fetch_incidents, outputs=table)
     demo.load(fn=fetch_incidents, outputs=table)
+
+    gr.Markdown(
+        "## Ask via CockroachDB Managed MCP Server\n"
+        "Same durable state, queried over MCP (read-only) instead of a direct connection."
+    )
+    mcp_output = gr.Code(label="Open incidents (via MCP)", language="json")
+    mcp_btn = gr.Button("Ask via MCP: what's open right now?")
+    mcp_btn.click(fn=ask_via_mcp, outputs=mcp_output)
 
 if __name__ == "__main__":
     demo.launch()

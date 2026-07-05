@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agents.orchestrator import handle_alert
+from agents.orchestrator import handle_alert, lambda_handler
 
 ALERT = {
     "correlation_id": "test-corr-001",
@@ -107,6 +107,26 @@ def test_recovery_read_happens_before_any_write(mock_memory, mock_correlation, m
 @patch("agents.orchestrator.remediation")
 @patch("agents.orchestrator.correlation")
 @patch("agents.orchestrator.memory")
+def test_resuming_past_max_steps_closes_loop_without_new_reasoning(mock_memory, mock_correlation, mock_remediation):
+    """If every planned step already executed (last_step_index at the max),
+    the orchestrator resolves immediately without correlating/proposing
+    a step that was never going to run."""
+    existing = MagicMock(incident_id="existing-id", state="remediating",
+                         last_step_index=2, last_step_status="executed")
+    mock_memory.get_open_incident.return_value = existing
+
+    result = handle_alert(ALERT)
+
+    assert result["state"] == "resolved"
+    assert result["resumed"] is True
+    mock_memory.set_state.assert_called_once_with("existing-id", "resolved")
+    mock_correlation.embed.assert_not_called()
+    mock_remediation.propose_next_step.assert_not_called()
+
+
+@patch("agents.orchestrator.remediation")
+@patch("agents.orchestrator.correlation")
+@patch("agents.orchestrator.memory")
 def test_resolves_after_final_step(mock_memory, mock_correlation, mock_remediation):
     """With max_remediation_steps=3, executing step index 2 resolves the incident."""
     existing = MagicMock(incident_id="existing-id", state="remediating",
@@ -121,3 +141,19 @@ def test_resolves_after_final_step(mock_memory, mock_correlation, mock_remediati
     assert result["step_index"] == 2
     assert result["state"] == "resolved"
     mock_memory.set_state.assert_any_call("existing-id", "resolved")
+
+
+@patch("agents.orchestrator.remediation")
+@patch("agents.orchestrator.correlation")
+@patch("agents.orchestrator.memory")
+def test_lambda_handler_delegates_to_handle_alert(mock_memory, mock_correlation, mock_remediation):
+    """infra/lambda_handler.py re-exports this as the SAM entrypoint."""
+    mock_memory.get_open_incident.return_value = None
+    mock_memory.open_incident.return_value = "new-id"
+    mock_correlation.embed.return_value = [0.0] * 8
+    mock_correlation.find_similar.return_value = []
+    mock_remediation.propose_next_step.return_value = _proposed()
+
+    result = lambda_handler(ALERT, context=None)
+
+    assert result["incident_id"] == "new-id"

@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(pytest*)",
+      "Bash(python -m pytest*)",
+      "Bash(python -m ruff*)",
+      "Bash(ruff*)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(uvicorn*)",
+      "Bash(curl -X GET http://localhost*)",
+      "Bash(curl -X POST http://localhost*)",
+      "Bash(gh run *)",
+      "Bash(gh release list*)",
+      "Bash(gh repo view*)",
+      "Bash(gh pr view*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "FILE=$(tr \",\" \"\\n\" | grep file_path | grep -oE \"[a-zA-Z0-9._/-]+\\.py\" | head -1); case \"$FILE\" in *.py) ruff check --fix \"$FILE\" 2>/dev/null; true;; esac",
+            "statusMessage": "Auto-fixing Python imports...",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

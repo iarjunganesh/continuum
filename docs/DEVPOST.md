@@ -15,7 +15,7 @@ Submission Period: **June 30 – August 18, 2026 (5 PM ET)** · Judging: **Aug 1
 | Criterion | How Continuum Addresses It |
 | --- | --- |
 | **Agentic Memory Design** | Dual memory in **one** CockroachDB store — ACID incident/remediation state *and* vector embeddings — not a toy chat log. `SERIALIZABLE` isolation guarantees a resuming invocation never reads a half-written state transition. |
-| **Technical Implementation** | Distributed Vector Indexing doing real correlation work, MCP Server as a live read-only query surface, a single-write-path Memory Agent enforced by convention and tests, recovery semantics pinned by CI (5 unit tests assert read-before-write ordering, interrupted-step re-execution, and resolve-after-final-step). |
+| **Technical Implementation** | Distributed Vector Indexing doing real correlation work, MCP Server as a live read-only query surface the app itself calls (not only Claude Code), a single-write-path Memory Agent enforced by convention and tests, recovery semantics pinned by CI — 42 unit tests (100% coverage) plus an integration test that runs the real kill-and-recover cycle against a live CockroachDB instance, not just mocks. |
 | **Real-World Impact** | Every engineering org runs production incidents; MTTR reduction from precedent-based remediation is directly measurable, not a hypothetical use case. |
 | **Product Readiness** | The kill-and-resume beat *is* the readiness proof, not a slide about it. structlog JSON logging throughout; secrets via environment only; explicit scope cuts documented in ADR 006 instead of hidden. |
 | **Creativity & Originality** | A literal, load-bearing answer to the hackathon's own brief — *"an agent whose memory goes offline doesn't degrade gracefully, it stops"* — built as the single demo beat rather than a footnote. |
@@ -40,7 +40,7 @@ A synthetic alert fires. The Orchestrator (designed for AWS Lambda, deliberately
 
 ### How we built it
 
-Four agents, one write path: `orchestrator.py` (recovery-read-first control flow), `correlation_agent.py` (Bedrock embeddings + CockroachDB vector search), `remediation_agent.py` (Claude-on-Bedrock reasoning with a deterministic precedent-replay fallback), and `memory_agent.py` — the *only* module permitted to write `incidents` or `remediation_steps`, so a resuming invocation can trust everything it reads. The schema unifies transactional and vector memory in one CockroachDB store: `incidents` and `remediation_steps` under `SERIALIZABLE` isolation, `incident_embeddings` with a `service`-prefixed C-SPANN vector index. The CockroachDB Cloud Managed MCP Server gives a live, read-only query surface into the same cluster from Claude Code during development and the demo.
+Five agents, one write path: `orchestrator.py` (recovery-read-first control flow), `correlation_agent.py` (Bedrock embeddings + CockroachDB vector search), `remediation_agent.py` (Claude-on-Bedrock reasoning with a deterministic precedent-replay fallback), `memory_agent.py` — the *only* module permitted to write `incidents` or `remediation_steps`, so a resuming invocation can trust everything it reads — and `query_agent.py`, a real MCP client (official `mcp` SDK) that calls the CockroachDB Cloud Managed MCP Server's read-only SQL tool at runtime, exposed through `GET /api/v1/incidents/open` and the Gradio UI. The schema unifies transactional and vector memory in one CockroachDB store: `incidents` and `remediation_steps` under `SERIALIZABLE` isolation, `incident_embeddings` with a `service`-prefixed C-SPANN vector index.
 
 ### Challenges we ran into
 
@@ -52,7 +52,7 @@ Four agents, one write path: `orchestrator.py` (recovery-read-first control flow
 
 ### Accomplishments that we're proud of
 
-- A resilience guarantee that's actually exercised end-to-end by CI (5 unit tests pin the exact recovery semantics: read-before-write, re-execute-if-interrupted, resolve-after-final-step) — not just asserted in a README
+- A resilience guarantee that's actually exercised end-to-end by CI — 42 unit tests pin the exact recovery semantics (read-before-write, re-execute-if-interrupted, resolve-after-final-step), and an integration test runs that same cycle against a real CockroachDB instance CI provisions on every push — not just asserted in a README
 - One CockroachDB store doing double duty as both the transactional system of record and the vector index, with a single query joining structured filters and semantic ranking
 - A demo script honest enough to admit its own earlier bug and fix the root cause instead of hiding it
 
@@ -80,8 +80,9 @@ Python, FastAPI, psycopg 3, CockroachDB Cloud (Distributed Vector Indexing, Mana
 | Tool | What the agent actually does with it |
 | --- | --- |
 | **Distributed Vector Indexing** | `incident_embeddings.embedding VECTOR(1024)` with a C-SPANN index prefixed by `service`; the Correlation Agent's live query filters by structured columns *and* ranks by `<->` distance in one round trip |
-| **CockroachDB Cloud Managed MCP Server** | Read-only mode; live questions ("open incidents and their current step") run through Claude Code against the cluster during development and the demo's query-interface beat |
-| **ccloud CLI** *(stretch)* | Scripted backup/replication health check as the chaos-demo pre-flight — memory you can't verify isn't memory (ADR 004) |
+| **CockroachDB Cloud Managed MCP Server** | Read-only mode; `agents/query_agent.py` is the app's own MCP client (official `mcp` SDK, streamable HTTP) — `GET /api/v1/incidents/open` and the Gradio UI's "Ask via MCP" button run live questions ("open incidents and their current step") through the protocol at runtime, not only via Claude Code during development |
+
+ccloud CLI was evaluated and intentionally not included — see ADR 004's resolution: two tools done well outscores three done thin.
 
 ## AWS Services Used
 

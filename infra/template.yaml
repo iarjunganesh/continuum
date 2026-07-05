@@ -9,7 +9,7 @@ Globals:
   Function:
     Timeout: 30
     MemorySize: 512
-    Runtime: python3.12
+    Runtime: python3.14
 
 Resources:
   ContinuumOrchestratorFunction:
@@ -41,7 +41,7 @@ Parameters:
     Default: amazon.titan-embed-text-v2:0
   BedrockReasoningModelId:
     Type: String
-    Default: anthropic.claude-3-5-sonnet-20241022-v2:0
+    Default: eu.anthropic.claude-sonnet-4-5-20250929-v1:0
 
 Outputs:
   OrchestratorFunctionArn:

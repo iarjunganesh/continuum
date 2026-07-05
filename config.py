@@ -6,7 +6,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    # extra="ignore": AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY (read by boto3's
+    # own credential chain, never by this class) and any other ambient env
+    # var must not crash Settings() at import time — pydantic-settings
+    # defaults to extra="forbid", which turns "this shell happens to have
+    # AWS creds exported" into an app-wide startup failure.
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # CockroachDB
     cockroach_database_url: str
@@ -17,15 +22,16 @@ class Settings(BaseSettings):
     ccloud_api_key: str = ""
     ccloud_cluster_id: str = ""
 
-    # AWS
-    aws_region: str = "us-east-1"
+    # AWS — eu-central-1 co-locates the Lambda with the CockroachDB Cloud
+    # cluster used for this build (see docs/adr/007-eu-central-1-region.md).
+    aws_region: str = "eu-central-1"
     # Titan Text Embeddings V2 — outputs 256/512/1024 dims; must match
     # infra/schema.sql VECTOR(1024) and embedding_dimensions below.
     bedrock_embedding_model_id: str = "amazon.titan-embed-text-v2:0"
     embedding_dimensions: int = 1024
-    # Claude on Bedrock via a cross-region inference profile. Verify the exact
-    # ID under Bedrock console -> Model access before the demo.
-    bedrock_reasoning_model_id: str = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    # Claude Sonnet 4.5 via the EU cross-region inference profile. Verify the
+    # exact ID under Bedrock console -> Cross-region inference before the demo.
+    bedrock_reasoning_model_id: str = "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
     lambda_function_name: str = "continuum-orchestrator"
 
     # Remediation loop — each incident resolves after max_remediation_steps
