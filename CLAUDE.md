@@ -5,7 +5,7 @@ Project context for Claude Code / agentic coding assistants working in this repo
 ## What this project is
 Continuum — an agentic incident-response system built for the CockroachDB × AWS Hackathon 2026. The single differentiating claim: the agent's memory (incident state + remediation progress) survives the agent process being killed mid-incident, because it lives in CockroachDB, not in local process memory.
 
-**Current phase**: core build complete — recovery loop, dual memory model, both CockroachDB tools, Lambda + Bedrock, 100% unit coverage, a real (not stubbed) integration test against a live cluster. Remaining before submission: cut a GitHub release, record the demo video (`docs/DEMO_RUNBOOK.md`), deploy to Hugging Face Spaces + Lambda, fill in the `docs/SUBMISSION.md` checklist end to end.
+**Current phase**: core build complete — recovery loop, dual memory model, both CockroachDB tools, Bedrock, 100% unit coverage, a real (not stubbed) integration test against a live cluster. The Hugging Face Space is deployed and live (`docs/DEPLOY.md`); synthetic seeding is blocked on an AWS-side Bedrock quota/model-access issue, not code. Remaining before submission: deploy the orchestrator to Lambda, record the demo video (`docs/DEMO_RUNBOOK.md`), fill in the `docs/SUBMISSION.md` checklist end to end.
 
 ## Key Commands
 ```bash

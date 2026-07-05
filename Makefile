@@ -3,6 +3,7 @@
 install:
 	pip install -r requirements.txt
 
+# migrate + seed-data (Windows, no `make`: scripts/migrate_and_seed.ps1)
 migrate:
 	python -c "import psycopg, os; \
 	conn = psycopg.connect(os.environ['COCKROACH_DATABASE_URL']); \

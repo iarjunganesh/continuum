@@ -5,6 +5,7 @@ colorFrom: purple
 colorTo: blue
 sdk: gradio
 sdk_version: 6.19.0
+python_version: "3.14"
 app_file: ui/app.py
 pinned: false
 license: mit
@@ -172,10 +173,11 @@ make run-ui
 make chaos-demo
 ```
 
-On Windows, run the chaos demo via PowerShell:
+On Windows (no `make`), use the PowerShell equivalents:
 
 ```powershell
-.\scripts\chaos_demo.ps1
+.\scripts\migrate_and_seed.ps1   # step 4 — schema + synthetic seed data
+.\scripts\chaos_demo.ps1         # step 6 — the resilience demo
 ```
 
 The API is versioned under `/api/v1` — e.g. `GET /api/v1/health`, `POST /api/v1/alert` — so the wire contract can evolve without breaking the Gradio UI or demo scripts.
