@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     # AWS — eu-central-1 co-locates the Lambda with the CockroachDB Cloud
     # cluster used for this build (see docs/adr/007-eu-central-1-region.md).
     aws_region: str = "eu-central-1"
+    # bedrock-runtime clients call THIS region, not aws_region — this account
+    # has a hard 0 on-demand/cross-region quota for every Bedrock model in
+    # eu-central-1 (and us-east-1), and that quota isn't self-service
+    # adjustable. eu-west-1 already has full default quota. See ADR 008;
+    # Lambda + CockroachDB stay in eu-central-1 (ADR 007) — only the Bedrock
+    # calls cross regions.
+    bedrock_region: str = "eu-west-1"
     # Titan Text Embeddings V2 — outputs 256/512/1024 dims; must match
     # infra/schema.sql VECTOR(1024) and embedding_dimensions below.
     bedrock_embedding_model_id: str = "amazon.titan-embed-text-v2:0"

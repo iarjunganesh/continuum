@@ -44,7 +44,7 @@ class TestEmbed:
             agent.embed("alert one")
             agent.embed("alert two")
 
-        mock_boto3.client.assert_called_once_with("bedrock-runtime", region_name=settings.aws_region)
+        mock_boto3.client.assert_called_once_with("bedrock-runtime", region_name=settings.bedrock_region)
 
 
 class TestFindSimilar:

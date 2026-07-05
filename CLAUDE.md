@@ -54,6 +54,7 @@ CockroachDB tools used: **Distributed Vector Indexing** + **Managed MCP Server**
 
 ## Deployment
 - Region: **eu-central-1** — co-locates the Lambda with the CockroachDB Cloud cluster (ADR 007). Keep `AWS_REGION` / `config.py` defaults / `infra/template.yaml` in sync; a drift between them fails silently as a Bedrock access error, not a config error.
+- Bedrock calls target a **separate** `BEDROCK_REGION` (default `eu-west-1`), not `AWS_REGION` — this account has a hard, non-adjustable `0` on-demand/cross-region Bedrock quota in eu-central-1 (and us-east-1) for every model (ADR 008). This is intentional, not the drift the line above warns about; don't "fix" it back to `AWS_REGION`.
 - Lambda runtime: `python3.14` (`infra/template.yaml`) — matches the rest of the codebase; do not downgrade to chase an older SAM example.
 - Demo UI: Gradio on Hugging Face Spaces (`docs/DEPLOY.md`), auto-synced on push to `main` (`.github/workflows/sync-to-hf-space.yml`)
 
