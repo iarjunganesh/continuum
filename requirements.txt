@@ -25,8 +25,8 @@ psutil>=6.1
 # Observability
 structlog>=24.4
 
-# Demo UI
-gradio>=5.4
+# Demo UI (Space pins sdk_version in README frontmatter; keep the two in sync)
+gradio>=6.0
 
 # Dev / test
 pytest>=8.3

@@ -1,6 +1,8 @@
 # Deploying the Demo to Hugging Face Spaces
 
-Continuum's public demo (`ui/app.py`) needs almost nothing running behind it — it's a read-only Gradio view straight into CockroachDB, plus an "Ask via MCP" panel that queries the same state through the CockroachDB Cloud Managed MCP Server. No AWS credentials are needed on the Space itself; only the orchestrator (running separately, via `make run-api` locally or on Lambda) needs AWS access.
+Continuum's public demo (`ui/app.py`) needs almost nothing running behind it — it's a read-only Gradio console straight into CockroachDB: a live incident feed with KPI tiles, a per-incident **recovery-timeline replay** (the step frozen in `executing` is where the process died), and an "Ask via MCP" panel that queries the same state through the CockroachDB Cloud Managed MCP Server. No AWS credentials are needed on the Space itself; only the orchestrator (running separately, via `make run-api` locally or on Lambda) needs AWS access.
+
+The Space runs **Gradio 6** (pinned via `sdk_version: 6.19.0` in the README frontmatter). Because `app_file` is `ui/app.py` — a subdirectory — the app bootstraps the repo root onto `sys.path` before importing `agents`/`config`, so it builds whether the host runs it as a script or launches `demo` directly.
 
 ## One-time setup
 
@@ -27,7 +29,7 @@ Continuum's public demo (`ui/app.py`) needs almost nothing running behind it —
 
 5. **Push to `main`**
    - The workflow force-pushes the full repo to the Space
-   - The Space picks up the README frontmatter (`sdk: gradio`, `app_file: ui/app.py`) and builds automatically
+   - The Space picks up the README frontmatter (`sdk: gradio`, `sdk_version: 6.19.0`, `app_file: ui/app.py`) and builds automatically
    - Build takes ~1-2 minutes on CPU Basic; watch progress on the Space page
 
 ## Local test before deploying

@@ -19,15 +19,16 @@ Trigger a synthetic alert (`python scripts/demo_run.py --tick`).
 Show, live:
 - Correlation Agent embeds the alert, queries `incident_embeddings` via CockroachDB vector search → matches a past incident
 - Memory Agent writes `incidents.state = 'remediating'` + first `remediation_steps` row
-- Gradio UI updates showing the matched precedent and proposed action
+- Gradio console updates: the incident card appears with its step tracker; the matched precedent and proposed action are shown
 
 **0:50–1:30 — The kill**
 Run `python scripts/chaos_kill.py --port 8000` (or `.\scripts\chaos_demo.ps1` for the full sequence) live on screen, timed inside a step's ~5s execution window so the step is durably stuck in `executing`.
 Voiceover: the process is dead. No graceful shutdown, no checkpoint call — just gone, the way a real production failure would kill it.
+On screen: refresh the console — the resilience banner flips to "1 step in-flight" and the recovery-timeline drill-down shows that step frozen in `executing`, flagged *"the process died here."* The state outlived the process.
 
 **1:30–2:10 — The recovery**
 Trigger the next alert-stream tick. A fresh Lambda invocation starts cold.
-Show, live, in the logs or UI: the orchestrator's first action is a CockroachDB read of `incidents` + `remediation_steps` for the open correlation_id — it finds step 0 already logged, resumes at step 1, does not restart from scratch.
+Show, live, in the logs or UI: the orchestrator's first action is a CockroachDB read of `incidents` + `remediation_steps` for the open correlation_id — it finds step 0 already logged, resumes at step 1, does not restart from scratch. In the console's recovery timeline, the frozen step advances to `executed` and the next step begins — the same log a cold invocation replays, shown on screen.
 This is the single most important shot in the video. Do not rush it.
 
 **2:10–2:40 — The query interface**

@@ -5,6 +5,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-07-05 — demo Space redesigned as a live incident-memory console
+
+### Added
+- **`ui/app.py` rebuilt into a dark, NOC-style incident console** (from a single Dataframe). The resilience story is now visible on screen, not only in the video:
+  - **Recovery timeline** drill-down — pick an incident and replay its `remediation_steps` log; the step stuck in `executing` pulses and is flagged *"the process died here — the next cold invocation resumes at exactly this step"*
+  - **Resilience banner** that reads the live count of in-flight (`executing`) steps and states the resume guarantee in plain terms
+  - **KPI tiles** (Open · In-flight now · Resolved · Steps committed) using the accessible status palette (icon + label, never colour alone)
+  - **Incident cards** with a per-incident mini step-tracker, and `gr.Timer` auto-refresh (5s) so the feed stays live during the demo
+  - Still read-only: direct psycopg for the feed, `query_agent` (MCP) for the "Ask via MCP" panel — `memory_agent.py` remains the only write path
+- Static preview of the console for design review (rendered from the app's own functions over synthetic incidents)
+
+### Changed
+- Space now pins **Gradio 6** (`sdk_version: 6.19.0` in README frontmatter; `requirements.txt` floor `gradio>=6.0`), matching the development environment
+- README Screenshots / Demo-UI wording updated to describe the console + recovery timeline rather than a bare incident feed
+- `docs/DEPLOY.md` and `docs/DEMO_RUNBOOK.md` updated to reflect the new UI (recovery-timeline drill-down as the demo's visual proof) and the Gradio-6 pin
+
+### Fixed
+- **HF Space build was broken in 0.2.0**: `app_file: ui/app.py` is in a subdirectory, so running it as a script put `ui/` (not the repo root) on `sys.path`, and `from agents…`/`from config…` failed with `ModuleNotFoundError`. `ui/app.py` now bootstraps the repo root onto `sys.path` before those imports
+- Gradio 5→6 API move: `css`/`theme`/`js` relocated from `Blocks()` to `launch()`. The stylesheet is now injected as a `<style>` component (renders on any version) and `launch()` kwargs are guarded by a signature check, so the app can't crash on a version mismatch
+
 ## [0.2.0] — 2026-07-05 — working core, MCP hardening, 100% coverage
 
 ### Added

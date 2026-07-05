@@ -4,7 +4,7 @@ emoji: 🔁
 colorFrom: purple
 colorTo: blue
 sdk: gradio
-sdk_version: 5.4.0
+sdk_version: 6.19.0
 app_file: ui/app.py
 pinned: false
 license: mit
@@ -141,7 +141,7 @@ Judging-criteria mapping and full submission narrative: [`docs/DEVPOST.md`](docs
 | **Compute** | [![Lambda](https://img.shields.io/badge/AWS-Lambda-FF9900?logo=awslambda&logoColor=white)](https://aws.amazon.com/lambda/) | Stateless orchestrator, cold by design (SAM: [`infra/template.yaml`](infra/template.yaml)) |
 | **Agents** | [![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](https://www.python.org/) [![psycopg3](https://img.shields.io/badge/psycopg-3-336791?logo=postgresql&logoColor=white)](https://www.psycopg.org/psycopg3/) | Orchestrator · Correlation · Memory · Remediation |
 | **API** | [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/) | Versioned gateway (`/api/v1`) around the orchestrator |
-| **Demo UI** | [![Gradio](https://img.shields.io/badge/Gradio-F97316?logo=gradio&logoColor=white)](https://gradio.app/) [![HF Spaces](https://img.shields.io/badge/🤗-Spaces-FFD21E)](https://huggingface.co/spaces/iarjunganesh/continuum) | Live incident feed, reading straight from CockroachDB |
+| **Demo UI** | [![Gradio](https://img.shields.io/badge/Gradio-F97316?logo=gradio&logoColor=white)](https://gradio.app/) [![HF Spaces](https://img.shields.io/badge/🤗-Spaces-FFD21E)](https://huggingface.co/spaces/iarjunganesh/continuum) | Live incident console with recovery-timeline replay, reading straight from CockroachDB |
 | **Observability** | [![structlog](https://img.shields.io/badge/structlog-JSON-4A90E2)](https://www.structlog.org/) | Structured event logging across every agent |
 | **Quality** | [![Ruff](https://img.shields.io/badge/Ruff-lint-D7FF64)](https://docs.astral.sh/ruff/) [![pytest](https://img.shields.io/badge/pytest-coverage-0A9EDC?logo=pytest&logoColor=white)](https://pytest.org) | CI gate + Codecov |
 
@@ -203,7 +203,7 @@ continuum/
 │   ├── chaos_kill.py          # cross-platform hard kill (psutil) — the demo beat
 │   ├── chaos_demo.ps1         # Windows kill-and-recover sequence
 │   └── demo_run.py            # drives one remediation step per --tick
-├── ui/app.py                  # Gradio — live incident feed from CockroachDB
+├── ui/app.py                  # Gradio — live incident console + recovery-timeline replay
 ├── tests/
 │   ├── unit/                  # recovery-semantics tests (all I/O mocked)
 │   └── integration/           # full kill-and-recover cycle vs a real cluster
@@ -271,7 +271,7 @@ Submission checklist: [`docs/SUBMISSION.md`](docs/SUBMISSION.md) · Judging alig
 | Recovery Flow | Memory Layer |
 | --- | --- |
 | Kill-and-resume terminal sequence | CockroachDB console: `remediation_steps` mid-crash |
-| Gradio live incident feed | MCP Server answering a live query in Claude Code |
+| Gradio recovery-timeline console — the step frozen in `executing` | MCP Server answering a live query in Claude Code |
 
 ---
 
