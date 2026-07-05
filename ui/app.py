@@ -472,7 +472,13 @@ theme = gr.themes.Base(
     font=["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
 )
 
-with gr.Blocks(title="Continuum — Live Incident Memory") as demo:
+with gr.Blocks(title="Continuum — Live Incident Memory", analytics_enabled=False) as demo:
+    # analytics_enabled=False: Gradio's launch-time telemetry compares this
+    # theme's font list against built-in themes' Font objects; Font.__eq__
+    # doesn't guard against comparing to a plain str, so a custom string font
+    # list crashes with AttributeError('str' object has no attribute 'name')
+    # whenever analytics is on (the Spaces default). Disabling it sidesteps
+    # the crash and means this read-only demo doesn't phone home either way.
     # Inject the stylesheet as a <style> block rather than via the css= param:
     # css/theme/js moved from Blocks() to launch() in Gradio 6.0, so a <style>
     # component is the one delivery that renders identically on 5.x and 6.x.
