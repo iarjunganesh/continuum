@@ -8,14 +8,14 @@ Tracks directly against the [official rules](https://cockroachdb-ai.devpost.com/
 - [ ] All third-party data/APIs authorized for use (synthetic data only — see ADR 005)
 
 ## Required Project Requirements
-- [ ] Uses CockroachDB as persistent memory layer, deployed on AWS
-- [ ] ≥2 CockroachDB tools meaningfully integrated (not just initialized):
-  - [ ] Distributed Vector Indexing — `incident_embeddings` + correlation queries
-  - [ ] CockroachDB Cloud Managed MCP Server — read-only live query interface
-  - [ ] *(stretch)* ccloud CLI — backup/replication verification (ADR 004)
-- [ ] ≥1 AWS service:
-  - [ ] AWS Lambda — orchestrator execution
-  - [ ] Amazon Bedrock — embeddings + reasoning
+- [ ] Uses CockroachDB as persistent memory layer, deployed on AWS — *code complete; AWS deployment (Lambda) still pending*
+- [x] ≥2 CockroachDB tools meaningfully integrated (not just initialized):
+  - [x] Distributed Vector Indexing — `incident_embeddings` + correlation queries
+  - [x] CockroachDB Cloud Managed MCP Server — `agents/query_agent.py` calls it at runtime (not just a Claude Code dev convenience); see ADR 003
+  - [x] ccloud CLI — evaluated and cut, not claimed as used (ADR 004 resolution)
+- ≥1 AWS service:
+  - [ ] AWS Lambda — SAM template (`infra/template.yaml`) ready; not yet deployed
+  - [x] Amazon Bedrock — embeddings + reasoning, code complete and unit-tested
 
 ## Submission Materials
 - [ ] Public GitHub repo with OSS license visible in About section (MIT — see `LICENSE`)

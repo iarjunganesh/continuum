@@ -63,12 +63,12 @@ Nothing about step 6 is optional or best-effort — it's the first branch in `or
 - Query pattern: filter by `service`/`region`, order by `embedding <-> $query_vector`, `LIMIT k`
 
 ### 4.2 CockroachDB Cloud Managed MCP Server
-- Used in **read-only mode** (the server's default safe mode) for live inspection during development and for the demo's query-interface beat
-- Example queries run through MCP during the demo: *"list all open incidents"*, *"show remediation history for incident X"*, *"which past incidents correlate with this one"*
+- Used in **read-only mode** (the server's default safe mode)
+- `agents/query_agent.py` is a real client of the server — official `mcp` Python SDK, streamable HTTP transport, calling its read-only SQL tool at runtime. This is invoked from `GET /api/v1/incidents/open` and the Gradio UI's "Ask via MCP" button, so the *running application* uses MCP, not only Claude Code/Cursor during development (see ADR 003's update)
+- Example queries: *"list all open incidents"*, *"show remediation history for incident X"*, *"which past incidents correlate with this one"*
 - Audit logging on the MCP server itself doubles as a lightweight compliance trail for "what did the agent actually look at"
 
-### 4.3 ccloud CLI
-- Given a real, non-decorative job: scripted verification that cluster backups and cross-region replication are healthy, run as a pre-flight check before the chaos-kill demo. The narrative point: an incident-memory system that can't verify its own durability isn't trustworthy — this is that verification, not a checkbox integration.
+CockroachDB tool count stops at two (Vector Indexing + MCP Server) by design — see ADR 004's resolution on why ccloud CLI was evaluated and cut rather than added as a thinner third integration.
 
 ---
 

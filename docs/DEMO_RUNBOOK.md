@@ -6,7 +6,6 @@ Target runtime: **under 3 minutes**. Every second should show either CockroachDB
 ```bash
 make migrate        # apply schema.sql
 make seed-data       # load incidents_seed.jsonl + embeddings
-ccloud <backup/replication check>   # if ADR 004 stretch goal is built
 ```
 
 ## Recording Script
@@ -32,7 +31,7 @@ Show, live, in the logs or UI: the orchestrator's first action is a CockroachDB 
 This is the single most important shot in the video. Do not rush it.
 
 **2:10–2:40 — The query interface**
-Via MCP Server (Claude Code or Cursor on screen), ask a live question: *"show me all open incidents and their current remediation step."* Show the real-time, correct answer.
+Click "Ask via MCP" in the Gradio UI (or `curl /api/v1/incidents/open`) — the app itself, not a human in Claude Code, calling the CockroachDB Cloud Managed MCP Server's read-only SQL tool live. Show the real-time, correct answer next to the same state in the incidents table above it.
 
 **2:40–3:00 — Close**
 Restate in one sentence: the memory outlived the failure. Link to repo + architecture doc.

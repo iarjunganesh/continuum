@@ -12,8 +12,8 @@ jobs:
 
     # Fake credentials satisfy Settings(); unit tests mock all outbound calls
     env:
-      COCKROACH_DATABASE_URL: "postgresql://mock:mock@localhost:26257/defaultdb?sslmode=disable"
-      AWS_REGION: "us-east-1"
+      COCKROACH_DATABASE_URL: "postgresql://root@localhost:26257/defaultdb?sslmode=disable"
+      AWS_REGION: "eu-central-1"
       AWS_ACCESS_KEY_ID: "mock-access-key-for-testing-only"
       AWS_SECRET_ACCESS_KEY: "mock-secret-key-for-testing-only"
       STEP_EXECUTION_SECONDS: "0"
@@ -34,12 +34,29 @@ jobs:
       - name: Lint (Ruff)
         run: ruff check .
 
+      # Ephemeral, insecure, single-node — CI-only, never how a real cluster
+      # is run. This is what lets tests/integration exercise the recovery
+      # guarantee (ARCHITECTURE.md §3) against a real CockroachDB instance
+      # instead of only against mocks.
+      - name: Start ephemeral CockroachDB (single-node, insecure, CI-only)
+        run: |
+          docker run -d --name crdb -p 26257:26257 cockroachdb/cockroach:latest-v25.2 start-single-node --insecure
+          for i in $(seq 1 30); do
+            docker exec crdb ./cockroach sql --insecure -e "SELECT 1" && break
+            sleep 1
+          done
+
+      - name: Apply schema (enables vector index preview feature first)
+        run: |
+          docker exec crdb ./cockroach sql --insecure -e "SET CLUSTER SETTING feature.vector_index.enabled = true;"
+          docker exec -i crdb ./cockroach sql --insecure < infra/schema.sql
+
       - name: Tests + coverage
         run: |
           pytest tests/unit tests/integration \
             --cov=agents --cov=api --cov=observability \
             --cov-report=xml \
-            --cov-fail-under=60
+            --cov-fail-under=90
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

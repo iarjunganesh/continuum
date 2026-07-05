@@ -24,12 +24,11 @@ license: mit
 
 [![CI](https://github.com/iarjunganesh/continuum/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iarjunganesh/continuum/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/iarjunganesh/continuum/graph/badge.svg)](https://codecov.io/gh/iarjunganesh/continuum)
-[![Release](https://img.shields.io/badge/release-0.2.0-2ea44f)](CHANGELOG.md)
+[![Release](https://img.shields.io/github/v/release/iarjunganesh/continuum?label=release&color=2ea44f)](https://github.com/iarjunganesh/continuum/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Watch Video](https://img.shields.io/badge/%E2%96%B6_Watch-3--min_demo-FF0000?logo=youtube&logoColor=white)](#live-demo)
 
 [![CockroachDB Managed MCP Server](https://img.shields.io/badge/CockroachDB-Managed_MCP_Server-6933FF?logo=cockroachlabs&logoColor=white)](https://cockroachlabs.cloud/mcp)
 [![CockroachDB Vector Index](https://img.shields.io/badge/CockroachDB-Vector_Index-6933FF?logo=cockroachlabs&logoColor=white)](https://www.cockroachlabs.com/docs/stable/vector-indexes)
-[![ccloud CLI](https://img.shields.io/badge/ccloud-CLI_(stretch)-6933FF)](https://www.cockroachlabs.com/docs/cockroachcloud/ccloud-get-started)
 [![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-FF9900?logo=amazonwebservices&logoColor=white)](https://aws.amazon.com/bedrock/)
 [![AWS Lambda](https://img.shields.io/badge/AWS-Lambda-FF9900?logo=awslambda&logoColor=white)](https://aws.amazon.com/lambda/)
 
@@ -64,7 +63,7 @@ Every state transition is committed to **CockroachDB** before and after it happe
 4. The **Remediation Agent** reasons over the matched precedent (Claude on Bedrock) and proposes the next step
 5. The **Memory Agent** — the *only* module allowed to write state — commits every transition: `proposed → executing → executed`, then `resolved` after the final step
 6. **`chaos_kill.py`** hard-kills the process mid-execution; the step stays durably `executing` in CockroachDB — the fingerprint the next invocation resumes from
-7. Everything is queryable live through the **CockroachDB Cloud Managed MCP Server**: *"show me all open incidents and their current remediation step"*
+7. The **Query Agent** answers live questions through the **CockroachDB Cloud Managed MCP Server** — *"show me all open incidents and their current remediation step"* — from `GET /api/v1/incidents/open` and the Gradio UI's "Ask via MCP" button, not just from a human typing into Claude Code
 
 ---
 
@@ -87,6 +86,7 @@ graph LR
         C["🔗 Correlation Agent"]:::agent
         R["🛠️ Remediation Agent"]:::agent
         M["🧠 Memory Agent<br/>single write path"]:::agent
+        Q["🔍 Query Agent<br/>MCP client"]:::agent
         L --> C --> R --> M
     end
 
@@ -103,9 +103,8 @@ graph LR
     C ==>|ANN search| V
 
     MCP["🔍 Managed MCP Server<br/>read-only live queries"]:::tool
-    CC["🩺 ccloud CLI<br/>backup / replication pre-flight"]:::tool
-    T --- MCP
-    T --- CC
+    Q ==>|select_query tool call| MCP
+    MCP --- T
 
     lambda --> crdb
 
@@ -119,9 +118,10 @@ Full spec: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ## CockroachDB Tools Used — and what the agent actually does with them
 
+Two tools, both load-bearing in the running application (see ADR 004's resolution on why that's two done well rather than three done thin):
+
 - **Distributed Vector Indexing** — `incident_embeddings.embedding VECTOR(1024)` with a C-SPANN index prefixed by `service`, so ANN search partitions per-service. The Correlation Agent's live query filters by structured columns *and* ranks by `<->` distance in one round trip. See [`infra/schema.sql`](infra/schema.sql).
-- **CockroachDB Cloud Managed MCP Server** — read-only mode; the demo's query-interface beat runs live questions ("open incidents and their current step") through Claude Code against the cluster, with the server's audit log doubling as a trail of what the agent looked at.
-- ***(Stretch)* ccloud CLI** — scripted backup/replication health check as the chaos-demo pre-flight: memory you can't verify isn't memory (ADR 004).
+- **CockroachDB Cloud Managed MCP Server** — read-only mode; `agents/query_agent.py` is a real MCP client (official `mcp` SDK, streamable HTTP) that the app itself calls from `GET /api/v1/incidents/open` and the Gradio UI's "Ask via MCP" button — not only a Claude Code/Cursor development convenience. The server's audit log doubles as a trail of what the agent looked at.
 
 ## AWS Services Used
 
@@ -190,7 +190,8 @@ continuum/
 │   ├── orchestrator.py        # Lambda entrypoint — recovery read FIRST, one step per invocation
 │   ├── correlation_agent.py   # Bedrock Titan embeddings + CockroachDB vector search
 │   ├── memory_agent.py        # THE single write path to incidents/remediation_steps
-│   └── remediation_agent.py   # Claude-on-Bedrock reasoning + precedent-replay fallback
+│   ├── remediation_agent.py   # Claude-on-Bedrock reasoning + precedent-replay fallback
+│   └── query_agent.py         # CockroachDB Managed MCP Server client (read-only live queries)
 ├── api/main.py                # FastAPI gateway, versioned under /api/v1
 ├── infra/
 │   ├── schema.sql             # incidents · remediation_steps · incident_embeddings VECTOR(1024)
@@ -222,9 +223,10 @@ continuum/
 | [001](docs/adr/001-dual-memory-model.md) | Dual transactional + vector memory in one CockroachDB store — no separate vector DB to drift |
 | [002](docs/adr/002-stateless-lambda-recovery.md) | Stateless Lambda, no provisioned concurrency — every invocation must recover cold |
 | [003](docs/adr/003-mcp-readonly-queries.md) | MCP Server in read-only mode as the live query interface |
-| [004](docs/adr/004-ccloud-cli-audit-role.md) | ccloud CLI as durability pre-flight, not a checkbox integration |
+| [004](docs/adr/004-ccloud-cli-audit-role.md) | ccloud CLI evaluated, then cut — 2 tools done well beats 3 done thin |
 | [005](docs/adr/005-synthetic-incident-data.md) | Synthetic incident corpus only — no real infra, ever |
 | [006](docs/adr/006-scope-cuts.md) | Explicit scope cuts, documented instead of hidden |
+| [007](docs/adr/007-eu-central-1-region.md) | eu-central-1 deployment region, kept in sync across config/template/ADR |
 
 ---
 
@@ -241,11 +243,12 @@ python scripts/generate_synthetic_incidents.py --out data/synthetic/incidents_se
 ## CI / CD
 
 ```text
-push → ruff lint → pytest (recovery-semantics unit tests) → coverage → Codecov
+push → ruff lint → ephemeral single-node CockroachDB → schema apply → pytest (42 unit + integration) → coverage (≥90% gate) → Codecov
 push to main → auto-sync to Hugging Face Space (public demo)
+tag v*.*.* → GitHub Release, notes pulled from CHANGELOG.md
 ```
 
-See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) and [`docs/DEPLOY.md`](docs/DEPLOY.md). The unit suite pins the properties the demo depends on: recovery read happens before any write, interrupted steps are re-executed (never skipped, never duplicated), and incidents resolve after the final step.
+See [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`.github/workflows/release.yml`](.github/workflows/release.yml), and [`docs/DEPLOY.md`](docs/DEPLOY.md). The unit suite (42 tests, one file per agent/module, 100% coverage) pins the properties the demo depends on: recovery read happens before any write, interrupted steps are re-executed (never skipped, never duplicated), and incidents resolve after the final step. `tests/integration/test_recovery_e2e.py` runs that same cycle against the real schema on a real CockroachDB instance CI spins up — not just against mocks.
 
 ---
 

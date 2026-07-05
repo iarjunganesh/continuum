@@ -13,6 +13,9 @@ psycopg[binary]>=3.2
 # AWS
 boto3>=1.35
 
+# CockroachDB Cloud Managed MCP Server client (agents/query_agent.py)
+mcp>=1.2
+
 # HTTP / demo driver
 httpx>=0.27
 
