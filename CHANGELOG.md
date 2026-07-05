@@ -5,6 +5,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-07-05 — Bedrock region split; Anthropic use-case form + EULA agreement resolved
+
+### Fixed
+- **eu-central-1 has a `0`, non-adjustable Bedrock quota on this account for every model** (Titan Embed V2 and every Claude Sonnet variant, both on-demand and cross-region) — confirmed via `aws service-quotas list-service-quotas`, not assumed. `seed_memory.py`'s single-transaction seeding was failing silently on the first embedding call and rolling back every record. Added `bedrock_region` (`BEDROCK_REGION`, default `eu-west-1`) used only by the `bedrock-runtime` clients in `correlation_agent.py`/`remediation_agent.py`; `aws_region`/Lambda/CockroachDB stay in eu-central-1 (ADR 007 untouched, split documented in ADR 008)
+- **Anthropic models required a one-time, account-wide "use case details" form** (`agreementAvailability: NOT_AVAILABLE` on every Claude version checked, not just 4.5) before any Anthropic model could be invoked — submitted via `aws bedrock put-use-case-for-model-access`, followed by `create-foundation-model-agreement` to accept Claude Sonnet 4.5's EULA specifically. Confirmed via `get-foundation-model-availability`: `agreementAvailability` now `AVAILABLE`
+- `seed_memory.py` now retries `ThrottlingException` with exponential backoff (5s → 160s over 6 attempts) and commits per record instead of one final commit for the whole file, so a mid-run throttle no longer discards already-seeded rows
+
+### Known issue (not code — AWS account state)
+- Even with the above fixed, this brand-new AWS account still hits sustained `ThrottlingException`/`"Too many tokens per day"` on both Titan Embed V2 and Claude Sonnet 4.5 that a 6-retry/~5-minute backoff didn't clear — an automated new-account trust ramp that published Service Quotas values don't reflect. No CLI lever for this; expect it to loosen with time/usage. `remediation_agent.py`'s deterministic precedent-replay fallback keeps the app functional in the meantime
+
 ## [0.3.1] — 2026-07-05 — Space actually boots; Windows setup script; scripts/*.py import fix
 
 ### Fixed

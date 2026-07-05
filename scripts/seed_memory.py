@@ -14,6 +14,7 @@ import sys
 import time
 
 import psycopg
+from botocore.exceptions import ClientError
 from psycopg.types.json import Json
 
 # Running as `python scripts/seed_memory.py` puts scripts/ (not the repo
@@ -25,6 +26,26 @@ from config import settings  # noqa: E402
 from observability.structured_logger import get_logger  # noqa: E402
 
 log = get_logger(__name__)
+
+# New/low-volume Bedrock accounts throttle on-demand embedding calls well
+# below the account's published per-minute quota (ADR 008) — a flat 1s sleep
+# isn't enough headroom, so back off exponentially on ThrottlingException
+# instead of failing the whole run on the first busy moment.
+EMBED_MAX_RETRIES = 6
+EMBED_BACKOFF_BASE_SECONDS = 5.0
+
+
+def _embed_with_retry(correlation: CorrelationAgent, text: str) -> list[float]:
+    for attempt in range(EMBED_MAX_RETRIES):
+        try:
+            return correlation.embed(text)
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") != "ThrottlingException":
+                raise
+            wait = EMBED_BACKOFF_BASE_SECONDS * (2 ** attempt)
+            log.warning("embed_throttled_retrying", attempt=attempt + 1, wait_seconds=wait)
+            time.sleep(wait)
+    raise RuntimeError(f"Bedrock embedding still throttled after {EMBED_MAX_RETRIES} retries")
 
 
 def seed(file_path: str):
@@ -55,9 +76,7 @@ def seed(file_path: str):
                     """,
                     (rec["incident_id"], idx, action, Json({"seeded": True})),
                 )
-            embedding = correlation.embed(rec["summary"])
-            time.sleep(1.0)  # space out Bedrock calls — default on-demand TPS
-            # quotas throttle a tight back-to-back loop even after boto3's own retries
+            embedding = _embed_with_retry(correlation, rec["summary"])
             vector_literal = "[" + ",".join(str(v) for v in embedding) + "]"
             cur.execute(
                 """
@@ -68,8 +87,9 @@ def seed(file_path: str):
                 (rec["incident_id"], rec["service"], rec["region"], vector_literal,
                  settings.bedrock_embedding_model_id),
             )
+            conn.commit()  # commit per record — a later throttle must not roll back seeded rows
             count += 1
-        conn.commit()
+            time.sleep(1.0)  # space out Bedrock calls — default on-demand TPS
         log.info("seed_complete", records=count)
 
 

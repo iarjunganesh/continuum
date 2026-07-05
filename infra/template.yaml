@@ -21,6 +21,7 @@ Resources:
       Environment:
         Variables:
           COCKROACH_DATABASE_URL: !Ref CockroachDatabaseUrl
+          BEDROCK_REGION: !Ref BedrockRegion
           BEDROCK_EMBEDDING_MODEL_ID: !Ref BedrockEmbeddingModelId
           BEDROCK_REASONING_MODEL_ID: !Ref BedrockReasoningModelId
           LOG_LEVEL: INFO
@@ -42,6 +43,13 @@ Parameters:
   CockroachDatabaseUrl:
     Type: String
     NoEcho: true
+  # eu-central-1 (this function's own region) has a 0, non-adjustable
+  # on-demand/cross-region Bedrock quota on this account for every model —
+  # see ADR 008. eu-west-1 has full default quota, so Bedrock calls target
+  # it directly while the function itself stays in eu-central-1 (ADR 007).
+  BedrockRegion:
+    Type: String
+    Default: eu-west-1
   BedrockEmbeddingModelId:
     Type: String
     Default: amazon.titan-embed-text-v2:0

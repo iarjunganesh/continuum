@@ -34,7 +34,7 @@ class CorrelationAgent:
 
     def _client(self):
         if self._bedrock is None:
-            self._bedrock = boto3.client("bedrock-runtime", region_name=settings.aws_region)
+            self._bedrock = boto3.client("bedrock-runtime", region_name=settings.bedrock_region)
         return self._bedrock
 
     def embed(self, alert_text: str) -> List[float]:
