@@ -24,7 +24,7 @@ Tracks directly against the [official rules](https://cockroachdb-ai.devpost.com/
   - [x] Deployed to Hugging Face Spaces (`docs/DEPLOY.md`) — free, no card, permanent hosting
   - [x] Space secret `COCKROACH_DATABASE_URL` set and Space builds successfully
   - [ ] URL confirmed publicly accessible in a private/incognito browser before submitting
-  - [ ] Populated with seeded synthetic incidents — region quota, the Anthropic use-case form, and the Claude Sonnet 4.5 EULA agreement are all resolved (ADR 008); still blocked on a persistent new-AWS-account Bedrock throttle that a 6-retry/~5min exponential backoff hasn't cleared (both Titan Embed V2 and Claude Sonnet 4.5 affected). Not code — retry `make seed-data` after the account's throttle ramp-up window passes. Space itself runs correctly empty in the meantime
+  - [ ] Populated with seeded synthetic incidents — the new-AWS-account Bedrock throttle (ADR 008) **no longer blocks this**: `make seed-data-offline` (or `.\scripts\migrate_and_seed.ps1 -Offline`) seeds incidents + remediation history + deterministic vectors with **no AWS call**, so the Space renders populated regardless. Honest, semantically-ranked Titan vectors can be captured once where Bedrock is reachable (`scripts/capture_seed_embeddings.py`) and seeded `--from-fixture`. Run the offline seed against the Space's cluster, then check this
 - [ ] Demo video (<3 min, YouTube/Vimeo, public)
   - [ ] Shows the project functioning on its intended platform
   - [ ] Shows the CockroachDB memory layer at work (the kill-and-resume beat)
