@@ -3,11 +3,14 @@
 # (with Bedrock embeddings) into $env:COCKROACH_DATABASE_URL.
 #
 # Usage:
-#   .\scripts\migrate_and_seed.ps1                # migrate + seed (40 incidents)
+#   .\scripts\migrate_and_seed.ps1                # migrate + seed (40 incidents, Bedrock)
 #   .\scripts\migrate_and_seed.ps1 -SkipSeed       # migrate only (no AWS creds needed)
+#   .\scripts\migrate_and_seed.ps1 -Offline        # migrate + seed with deterministic
+#                                                  #   vectors — no Bedrock/AWS creds needed
 #   .\scripts\migrate_and_seed.ps1 -Count 100      # migrate + seed with 100 incidents
 param(
     [switch]$SkipSeed,
+    [switch]$Offline,
     [int]$Count = 40
 )
 $ErrorActionPreference = "Stop"
@@ -39,9 +42,9 @@ if ($SkipSeed) {
     exit 0
 }
 
-if (-not $env:AWS_ACCESS_KEY_ID -or -not $env:AWS_SECRET_ACCESS_KEY) {
+if (-not $Offline -and (-not $env:AWS_ACCESS_KEY_ID -or -not $env:AWS_SECRET_ACCESS_KEY)) {
     Write-Host "AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY not set — seeding needs Bedrock for embeddings." -ForegroundColor Red
-    Write-Host "Set both, or re-run with -SkipSeed to leave the schema applied but tables empty." -ForegroundColor Yellow
+    Write-Host "Set both, re-run with -Offline for deterministic vectors (no AWS), or -SkipSeed to leave tables empty." -ForegroundColor Yellow
     exit 1
 }
 
@@ -49,8 +52,13 @@ Write-Host "[2/3] Generating $Count synthetic incidents..." -ForegroundColor Cya
 python scripts/generate_synthetic_incidents.py --out data/synthetic/incidents_seed.jsonl --count $Count
 Assert-LastExitCode "Synthetic incident generation"
 
-Write-Host "[3/3] Seeding CockroachDB (incidents + remediation_steps + Bedrock embeddings)..." -ForegroundColor Cyan
-python scripts/seed_memory.py --file data/synthetic/incidents_seed.jsonl
+if ($Offline) {
+    Write-Host "[3/3] Seeding CockroachDB (incidents + remediation_steps + deterministic vectors, no Bedrock)..." -ForegroundColor Cyan
+    python scripts/seed_memory.py --file data/synthetic/incidents_seed.jsonl --no-embeddings
+} else {
+    Write-Host "[3/3] Seeding CockroachDB (incidents + remediation_steps + Bedrock embeddings)..." -ForegroundColor Cyan
+    python scripts/seed_memory.py --file data/synthetic/incidents_seed.jsonl
+}
 Assert-LastExitCode "Seeding"
 
 Write-Host "Done. Refresh the console / Space to see the seeded incidents." -ForegroundColor Green
