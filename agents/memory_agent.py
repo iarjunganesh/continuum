@@ -104,32 +104,74 @@ class MemoryAgent:
             conn.commit()
             log.info("incident_state_changed", incident_id=str(incident_id), state=state)
 
-    def log_step(self, incident_id: UUID, step_index: int, action: str,
-                 status: str = "proposed", detail: dict | None = None) -> None:
-        """Insert a step row, or advance its status if the row already exists
-        (proposed -> executing -> executed). Rows are never deleted."""
-        with self._conn() as conn, conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO remediation_steps (incident_id, step_index, action, status, detail)
-                VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (incident_id, step_index) DO UPDATE SET status = EXCLUDED.status
-                """,
-                (incident_id, step_index, action, status, Json(detail or {})),
-            )
-            conn.commit()
-            log.info("remediation_step_logged", incident_id=str(incident_id),
-                      step_index=step_index, status=status)
+    # --- Transactional step checkpoints (the orchestrator's STEP 3 boundary) ---
+    # These wrap the two durable checkpoints of a remediation step in explicit
+    # CockroachDB transactions (BEGIN/COMMIT via psycopg's conn.transaction()),
+    # which run at SERIALIZABLE by default. The `time.sleep` execution window
+    # lives BETWEEN the two, so a kill mid-step still commits status='executing'
+    # and nothing else — the fingerprint the next invocation resumes from.
+    def checkpoint_step_start(self, incident_id: UUID, step_index: int, action: str,
+                              detail: dict | None = None, resuming: bool = False) -> bool:
+        """Atomically begin one remediation step: record the proposed action,
+        move the step to 'executing', and mark the incident 'remediating' — all
+        in a single transaction, so the durable checkpoint a resuming invocation
+        reads is never half-written.
 
-    def set_step_status(self, incident_id: UUID, step_index: int, status: str) -> None:
-        """Advance an existing step's status. Committed BEFORE and AFTER the
-        simulated execution so a kill mid-execution leaves status='executing'
-        durably in CockroachDB — the fingerprint the next invocation reads."""
-        with self._conn() as conn, conn.cursor() as cur:
+        Concurrency-safe exactly-once for the FORWARD path: a brand-new step is
+        claimed with INSERT ... ON CONFLICT DO NOTHING. If another invocation
+        already owns this (incident_id, step_index), the insert affects 0 rows,
+        this returns False, and the caller must NOT execute the step.
+
+        The RESUME path (resuming=True) re-runs an interrupted step whose row
+        already exists (left 'proposed'/'executing' by the killed invocation).
+        It updates the row idempotently and always returns True — re-running the
+        interrupted step is required, and the ON CONFLICT key makes it harmless.
+        """
+        with self._conn() as conn, conn.transaction(), conn.cursor() as cur:
+            if resuming:
+                cur.execute(
+                    "UPDATE remediation_steps SET status = 'executing' "
+                    "WHERE incident_id = %s AND step_index = %s",
+                    (incident_id, step_index),
+                )
+                claimed = True
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO remediation_steps (incident_id, step_index, action, status, detail)
+                    VALUES (%s, %s, %s, 'executing', %s)
+                    ON CONFLICT (incident_id, step_index) DO NOTHING
+                    """,
+                    (incident_id, step_index, action, Json(detail or {})),
+                )
+                claimed = cur.rowcount == 1
+            if claimed:
+                cur.execute(
+                    "UPDATE incidents SET state = 'remediating', updated_at = now() "
+                    "WHERE incident_id = %s",
+                    (incident_id,),
+                )
+        log.info("step_checkpoint_start", incident_id=str(incident_id),
+                 step_index=step_index, resuming=resuming, claimed=claimed)
+        return claimed
+
+    def checkpoint_step_done(self, incident_id: UUID, step_index: int,
+                             resolve: bool = False) -> None:
+        """Second transaction of the step: mark it 'executed', and resolve the
+        incident when this was the final step. The `status = 'executing'` guard
+        makes the transition idempotent and refuses to mark a step executed
+        twice or out of order."""
+        with self._conn() as conn, conn.transaction(), conn.cursor() as cur:
             cur.execute(
-                "UPDATE remediation_steps SET status = %s WHERE incident_id = %s AND step_index = %s",
-                (status, incident_id, step_index),
+                "UPDATE remediation_steps SET status = 'executed' "
+                "WHERE incident_id = %s AND step_index = %s AND status = 'executing'",
+                (incident_id, step_index),
             )
-            conn.commit()
-            log.info("remediation_step_status", incident_id=str(incident_id),
-                      step_index=step_index, status=status)
+            if resolve:
+                cur.execute(
+                    "UPDATE incidents SET state = 'resolved', updated_at = now(), "
+                    "resolved_at = now() WHERE incident_id = %s",
+                    (incident_id,),
+                )
+        log.info("step_checkpoint_done", incident_id=str(incident_id),
+                 step_index=step_index, resolved=resolve)
