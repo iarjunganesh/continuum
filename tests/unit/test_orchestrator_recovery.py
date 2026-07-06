@@ -66,8 +66,12 @@ def test_reexecutes_step_interrupted_mid_execution(mock_memory, mock_correlation
 
     assert result["step_index"] == 1
     assert result["reexecuted_after_interrupt"] is True
-    mock_memory.set_step_status.assert_any_call("existing-id", 1, "executing")
-    mock_memory.set_step_status.assert_any_call("existing-id", 1, "executed")
+    # The interrupted step is re-run via the resume path of checkpoint_step_start
+    # (resuming=True) and then completed — not skipped, not restarted at 0.
+    args, kwargs = mock_memory.checkpoint_step_start.call_args
+    assert args[0] == "existing-id" and args[1] == 1
+    assert kwargs["resuming"] is True
+    mock_memory.checkpoint_step_done.assert_called_once_with("existing-id", 1, resolve=False)
 
 
 @patch("agents.orchestrator.remediation")
@@ -140,7 +144,51 @@ def test_resolves_after_final_step(mock_memory, mock_correlation, mock_remediati
 
     assert result["step_index"] == 2
     assert result["state"] == "resolved"
-    mock_memory.set_state.assert_any_call("existing-id", "resolved")
+    # Resolution is committed atomically with the final step's completion.
+    mock_memory.checkpoint_step_done.assert_called_once_with("existing-id", 2, resolve=True)
+
+
+@patch("agents.orchestrator.remediation")
+@patch("agents.orchestrator.correlation")
+@patch("agents.orchestrator.memory")
+def test_skips_execution_when_step_already_claimed(mock_memory, mock_correlation, mock_remediation):
+    """Concurrency guard: if checkpoint_step_start reports the step was already
+    claimed by a racing invocation, this invocation must NOT execute it or
+    advance it to 'executed'."""
+    existing = MagicMock(incident_id="existing-id", state="remediating",
+                         last_step_index=0, last_step_status="executed")
+    mock_memory.get_open_incident.return_value = existing
+    mock_correlation.embed.return_value = [0.0] * 8
+    mock_correlation.find_similar.return_value = []
+    mock_remediation.propose_next_step.return_value = _proposed()
+    mock_memory.checkpoint_step_start.return_value = False
+
+    result = handle_alert(ALERT)
+
+    assert result["skipped_duplicate"] is True
+    assert result["step_index"] == 1  # last executed (0) + 1
+    mock_memory.checkpoint_step_done.assert_not_called()
+
+
+@patch("agents.orchestrator.remediation")
+@patch("agents.orchestrator.correlation")
+@patch("agents.orchestrator.memory")
+def test_correlation_failure_does_not_abort_incident(mock_memory, mock_correlation, mock_remediation):
+    """Bedrock is best-effort: an embed/vector-search failure must not stop the
+    incident from being made durable and driven — remediation simply gets no
+    precedents (matches=[])."""
+    mock_memory.get_open_incident.return_value = None
+    mock_memory.open_incident.return_value = "new-id"
+    mock_correlation.embed.side_effect = RuntimeError("bedrock unreachable")
+    mock_remediation.propose_next_step.return_value = _proposed()
+
+    result = handle_alert(ALERT)
+
+    assert result["step_index"] == 0
+    assert result["state"] in ("remediating", "resolved")
+    mock_remediation.propose_next_step.assert_called_once()
+    matches_arg = mock_remediation.propose_next_step.call_args[0][0]
+    assert matches_arg == []
 
 
 @patch("agents.orchestrator.remediation")

@@ -7,13 +7,15 @@ existing open incident state for this alert's correlation_id. If found,
 resume from there. Never assume the previous invocation's in-memory state
 is available — it isn't, by design.
 
-Each invocation drives exactly ONE remediation step through
-propose -> executing -> executed (with a simulated execution window in the
-middle — the window scripts/chaos_kill.py strikes in). After
-settings.max_remediation_steps executed steps, the incident resolves.
-A kill mid-execution leaves status='executing' durably in CockroachDB;
-the next cold invocation reads that and re-runs the interrupted step
-instead of starting over or double-running completed steps.
+Each invocation drives exactly ONE remediation step through two explicit
+CockroachDB transactions (memory.checkpoint_step_start / checkpoint_step_done)
+with a simulated execution window between them — the window
+scripts/chaos_kill.py strikes in. After settings.max_remediation_steps
+executed steps, the incident resolves. A kill mid-execution leaves
+status='executing' durably in CockroachDB; the next cold invocation reads that
+and re-runs the interrupted step instead of starting over or double-running
+completed steps. Concurrent invocations racing on the same step are made
+exactly-once by the claim in checkpoint_step_start (ON CONFLICT DO NOTHING).
 """
 from __future__ import annotations
 
@@ -83,26 +85,45 @@ def handle_alert(alert: Dict[str, Any]) -> Dict[str, Any]:
             "resumed": existing is not None,
         }
 
-    # --- STEP 2: correlate against past incidents ---
-    embedding = correlation.embed(alert["text"])
-    matches = correlation.find_similar(alert["service"], embedding)
+    # --- STEP 2: correlate against past incidents (best-effort) ---
+    # Bedrock is deliberately NOT on the critical path for the recovery
+    # guarantee. If embedding or vector search is unavailable we proceed with
+    # no precedent (remediation falls back to paging on-call) rather than
+    # aborting the incident before it's even durable — otherwise a red Bedrock
+    # endpoint would take down the very thing this project exists to prove.
+    matches = []
+    try:
+        embedding = correlation.embed(alert["text"])
+        matches = correlation.find_similar(alert["service"], embedding)
+    except Exception as exc:  # noqa: BLE001 — correlation is best-effort by design
+        log.warning("correlation_unavailable", correlation_id=correlation_id, error=str(exc))
 
-    # --- STEP 3: propose + execute this step, committing every transition ---
-    memory.set_state(incident_id, "remediating")
+    # --- STEP 3: propose + execute this step across two explicit transactions ---
     proposed = remediation.propose_next_step(matches, step_index, alert_text=alert["text"])
-    memory.log_step(incident_id, step_index, proposed.action, status="proposed",
-                     detail={"rationale": proposed.rationale,
-                             "based_on": proposed.based_on_incident_id,
-                             "reexecuted_after_interrupt": interrupted})
+    claimed = memory.checkpoint_step_start(
+        incident_id, step_index, proposed.action,
+        detail={"rationale": proposed.rationale,
+                "based_on": proposed.based_on_incident_id,
+                "reexecuted_after_interrupt": interrupted},
+        resuming=interrupted,
+    )
+    if not claimed:
+        # A concurrent invocation already claimed this step — do not re-execute.
+        log.info("step_already_claimed", correlation_id=correlation_id, step_index=step_index)
+        return {
+            "incident_id": str(incident_id),
+            "step_index": step_index,
+            "state": existing.state if existing else "remediating",
+            "resumed": existing is not None,
+            "reexecuted_after_interrupt": interrupted,
+            "skipped_duplicate": True,
+        }
 
-    memory.set_step_status(incident_id, step_index, "executing")
     # Simulated execution — long enough for chaos_kill.py to strike mid-step.
     time.sleep(settings.step_execution_seconds)
-    memory.set_step_status(incident_id, step_index, "executed")
 
     resolved = step_index >= settings.max_remediation_steps - 1
-    if resolved:
-        memory.set_state(incident_id, "resolved")
+    memory.checkpoint_step_done(incident_id, step_index, resolve=resolved)
 
     return {
         "incident_id": str(incident_id),
