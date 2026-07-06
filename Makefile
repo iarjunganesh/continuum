@@ -1,4 +1,4 @@
-.PHONY: install migrate seed-data run-api run-ui demo chaos-demo test lint coverage
+.PHONY: install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark test lint coverage
 
 install:
 	pip install -r requirements.txt
@@ -15,6 +15,13 @@ migrate:
 seed-data:
 	python scripts/generate_synthetic_incidents.py --out data/synthetic/incidents_seed.jsonl --count 40
 	python scripts/seed_memory.py --file data/synthetic/incidents_seed.jsonl
+
+# Populate the Space with NO Bedrock/AWS dependency (deterministic vectors) —
+# useful while Bedrock is throttled (ADR 008). Real Titan vectors: capture once
+# with scripts/capture_seed_embeddings.py, then seed_memory.py --from-fixture.
+seed-data-offline:
+	python scripts/generate_synthetic_incidents.py --out data/synthetic/incidents_seed.jsonl --count 40
+	python scripts/seed_memory.py --file data/synthetic/incidents_seed.jsonl --no-embeddings
 
 run-api:
 	python -m uvicorn api.main:app --port 8000
@@ -40,6 +47,10 @@ chaos-demo:
 	sleep 3; \
 	python scripts/demo_run.py --tick --via-api --resume-check; \
 	python scripts/chaos_kill.py --port 8000
+
+# Latency benchmarks against $COCKROACH_DATABASE_URL — writes docs/BENCHMARKS.md.
+benchmark:
+	python scripts/benchmark.py --out docs/BENCHMARKS.md
 
 test:
 	pytest tests/unit tests/integration -v

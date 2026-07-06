@@ -5,6 +5,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Bedrock-free seeding** so the demo Space can be populated without the throttled Bedrock account (ADR 008): `make seed-data-offline` / `.\scripts\migrate_and_seed.ps1 -Offline` seed deterministic synthetic vectors (`scripts/synthetic_vectors.py`) with no AWS call, and `scripts/capture_seed_embeddings.py` + `seed_memory.py --from-fixture` load real Titan vectors captured once where Bedrock is reachable
+- **Latency benchmarks** (`scripts/benchmark.py`, `make benchmark`, `docs/BENCHMARKS.md`): p50/p95/p99 for recovery read, per-step transaction commits, C-SPANN vector search, and the full cold-resume path — against a live cluster, no Bedrock dependency
+- **Real-kill chaos integration test** (`tests/integration/test_chaos_kill_e2e.py`): spawns the orchestrator as a uvicorn subprocess, hard-kills it mid-step with `scripts/chaos_kill.py` (real SIGKILL/TerminateProcess), and asserts a cold restart resumes the interrupted step exactly-once from CockroachDB — the literal process-kill path that `test_recovery_e2e.py` only simulated with a SQL UPDATE. Shared integration fixtures moved to `tests/integration/conftest.py`
+
 ## [0.4.0] — 2026-07-06 — claims-vs-code integrity: real transactions, exactly-once, Bedrock-hardened recovery
 
 ### Added
