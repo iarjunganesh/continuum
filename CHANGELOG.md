@@ -5,6 +5,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-07-06 — claims-vs-code integrity: real transactions, exactly-once, Bedrock-hardened recovery
+
+### Added
+
+- **Explicit per-step transaction boundaries (ADR 009).** The orchestrator's STEP 3 now goes through `MemoryAgent.checkpoint_step_start` / `checkpoint_step_done`, each an explicit `with conn.transaction()` block (CockroachDB `SERIALIZABLE`), with the `time.sleep` execution window between them so a kill still commits `executing` and nothing else. Makes the "transactional memory" claim literally true, not just per-statement autocommit
+- **Concurrency-safe exactly-once forward claim (ADR 009).** A new step is claimed with `INSERT ... ON CONFLICT (incident_id, step_index) DO NOTHING`; a racing invocation that loses the claim skips execution instead of double-running the step. `checkpoint_step_done` guards its transition with `AND status = 'executing'`. Proven on a real cluster by `tests/integration/test_recovery_e2e.py::test_forward_step_claim_is_exactly_once`
+- **Best-effort correlation.** Orchestrator STEP 2 (`embed` + `find_similar`) is wrapped in try/except — a throttled/misconfigured Bedrock endpoint now degrades to "no precedent" (remediation falls back to `page_on_call_engineer`) instead of throwing before the incident is durable. Removes the single point of failure that a red Bedrock endpoint (ADR 008's 0-quota risk) posed to the whole recovery demo
+
+### Changed
+
+- Aligned docs/claims to the code after auditing the whole repo: corrected "6 ADRs" → 9, unit-test count → 46 (100% measured coverage against the 90% gate), and the ARCHITECTURE.md §3 recovery sequence (it inaccurately showed a killed step being *skipped*; the code re-runs the interrupted step). `docs/DEMO_RUNBOOK.md` 0:20 now uses `--via-api` (a bare `--tick` runs in-process, leaving nothing for `chaos_kill.py` to strike) and notes `make chaos-demo` is POSIX-only
+
+### Removed
+
+- `MemoryAgent.log_step` / `set_step_status` — dead code once STEP 3 moved to the transactional checkpoints; their docstrings described a mechanism the orchestrator no longer used
+
 ## [0.3.2] — 2026-07-05 — Bedrock region split; Anthropic use-case form + EULA agreement resolved
 
 ### Fixed

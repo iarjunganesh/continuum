@@ -4,9 +4,14 @@ Target runtime: **under 3 minutes**. Every second should show either CockroachDB
 
 ## Pre-flight (not recorded, or recorded as a fast cut)
 ```bash
-make migrate        # apply schema.sql
+make migrate        # apply schema.sql   (Windows: .\scripts\migrate_and_seed.ps1)
 make seed-data       # load incidents_seed.jsonl + embeddings
+make run-api        # the orchestrator must run as a killable process on :8000
 ```
+
+`make chaos-demo` is POSIX-only; on Windows drive the whole sequence with
+`.\scripts\chaos_demo.ps1`, which starts the API, ticks via it, kills it, and
+restarts — the beats below map onto that script.
 
 ## Recording Script
 
@@ -15,7 +20,7 @@ On screen: the CockroachDB brief quote — *"An agent whose memory goes offline 
 Voiceover: most agent demos never test this. Continuum is built specifically to test this.
 
 **0:20–0:50 — Normal operation**
-Trigger a synthetic alert (`python scripts/demo_run.py --tick`).
+Trigger a synthetic alert against the running API (`python scripts/demo_run.py --tick --via-api`) — `--via-api` is required so the orchestrator runs inside the killable :8000 process the next beat strikes; a bare `--tick` runs in-process and finishes before you could kill it.
 Show, live:
 - Correlation Agent embeds the alert, queries `incident_embeddings` via CockroachDB vector search → matches a past incident
 - Memory Agent writes `incidents.state = 'remediating'` + first `remediation_steps` row

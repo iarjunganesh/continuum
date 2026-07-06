@@ -27,10 +27,13 @@ CREATE TABLE IF NOT EXISTS incidents (
 CREATE INDEX IF NOT EXISTS idx_incidents_state ON incidents (state);
 CREATE INDEX IF NOT EXISTS idx_incidents_correlation ON incidents (correlation_id);
 
--- Remediation log. One row per (incident, step_index) — rows are never deleted;
--- only the status column advances in place (proposed -> executing -> executed),
--- so a resuming agent replays this log to know exactly which steps already ran
--- and whether the last one was interrupted mid-execution.
+-- Remediation log. One row per (incident, step_index) — rows are never deleted.
+-- A forward step is claimed at 'executing' via INSERT ... ON CONFLICT DO NOTHING
+-- (so a racing invocation can't create a duplicate), then advances in place to
+-- 'executed'; a resuming agent re-sets an interrupted step back to 'executing'.
+-- The UNIQUE (incident_id, step_index) below is what makes that claim atomic, so
+-- a resuming agent replays this log to know exactly which steps already ran and
+-- whether the last one was interrupted mid-execution. See ADR 009.
 CREATE TABLE IF NOT EXISTS remediation_steps (
     step_id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     incident_id       UUID NOT NULL REFERENCES incidents(incident_id),

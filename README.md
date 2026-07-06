@@ -62,7 +62,7 @@ Every state transition is committed to **CockroachDB** before and after it happe
 2. The **Orchestrator** (AWS Lambda) starts cold — its *first action, always*, is a CockroachDB recovery read for open incident state matching this alert
 3. The **Correlation Agent** embeds the alert via **Amazon Bedrock** (Titan v2, 1024-dim) and queries CockroachDB's **C-SPANN vector index** for semantically similar past incidents — structured filters and semantic ranking in one SQL round trip
 4. The **Remediation Agent** reasons over the matched precedent (Claude on Bedrock) and proposes the next step
-5. The **Memory Agent** — the *only* module allowed to write state — commits every transition: `proposed → executing → executed`, then `resolved` after the final step
+5. The **Memory Agent** — the *only* module allowed to write state — commits each step in explicit `SERIALIZABLE` transactions: the proposed action and `executing` status together (a forward step is claimed exactly once, `ON CONFLICT DO NOTHING`), then `executed`, with `resolved` committed atomically alongside the final step
 6. **`chaos_kill.py`** hard-kills the process mid-execution; the step stays durably `executing` in CockroachDB — the fingerprint the next invocation resumes from
 7. The **Query Agent** answers live questions through the **CockroachDB Cloud Managed MCP Server** — *"show me all open incidents and their current remediation step"* — from `GET /api/v1/incidents/open` and the Gradio UI's "Ask via MCP" button, not just from a human typing into Claude Code
 
@@ -100,7 +100,7 @@ graph LR
         T[("incidents<br/>remediation_steps<br/>SERIALIZABLE txns")]:::crdb
         V[("incident_embeddings<br/>VECTOR(1024) · C-SPANN index")]:::crdb
     end
-    M ==>|every transition committed| T
+    M ==>|every step committed · SERIALIZABLE| T
     C ==>|ANN search| V
 
     MCP["🔍 Managed MCP Server<br/>read-only live queries"]:::tool
@@ -212,7 +212,7 @@ continuum/
 ├── observability/structured_logger.py
 ├── docs/
 │   ├── ARCHITECTURE.md · DEMO_RUNBOOK.md · SUBMISSION.md · DEVPOST.md · DEPLOY.md
-│   └── adr/                   # 6 Architecture Decision Records
+│   └── adr/                   # 9 Architecture Decision Records
 └── .github/workflows/         # ci.yml (lint → test → coverage → Codecov) · sync-to-hf-space.yml
 ```
 
@@ -230,6 +230,7 @@ continuum/
 | [006](docs/adr/006-scope-cuts.md) | Explicit scope cuts, documented instead of hidden |
 | [007](docs/adr/007-eu-central-1-region.md) | eu-central-1 deployment region, kept in sync across config/template/ADR |
 | [008](docs/adr/008-bedrock-region-split.md) | Bedrock calls target a separate region (eu-west-1) from the Lambda/CockroachDB region — this account's eu-central-1 Bedrock quota is 0 and non-adjustable |
+| [009](docs/adr/009-step-execution-semantics.md) | Each step runs in two explicit `SERIALIZABLE` transactions with a forward-step claim (`ON CONFLICT DO NOTHING`) for exactly-once; correlation/Bedrock is best-effort, off the recovery critical path |
 
 ---
 
@@ -246,12 +247,12 @@ python scripts/generate_synthetic_incidents.py --out data/synthetic/incidents_se
 ## CI / CD
 
 ```text
-push → ruff lint → ephemeral single-node CockroachDB → schema apply → pytest (42 unit + integration) → coverage (≥90% gate) → Codecov
+push → ruff lint → ephemeral single-node CockroachDB → schema apply → pytest (46 unit + 2 integration) → coverage (≥90% gate, 100% measured) → Codecov
 push to main → auto-sync to Hugging Face Space (public demo)
 tag v*.*.* → GitHub Release, notes pulled from CHANGELOG.md
 ```
 
-See [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`.github/workflows/release.yml`](.github/workflows/release.yml), and [`docs/DEPLOY.md`](docs/DEPLOY.md). The unit suite (42 tests, one file per agent/module, 100% coverage) pins the properties the demo depends on: recovery read happens before any write, interrupted steps are re-executed (never skipped, never duplicated), and incidents resolve after the final step. `tests/integration/test_recovery_e2e.py` runs that same cycle against the real schema on a real CockroachDB instance CI spins up — not just against mocks.
+See [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`.github/workflows/release.yml`](.github/workflows/release.yml), and [`docs/DEPLOY.md`](docs/DEPLOY.md). The unit suite (46 tests, one file per agent/module, 100% measured coverage against a 90% CI gate) pins the properties the demo depends on: recovery read happens before any write, each step commits inside an explicit `SERIALIZABLE` transaction, interrupted steps are re-executed (never skipped, never duplicated), a forward step is claimed exactly once under concurrent invocations, and incidents resolve atomically with the final step. `tests/integration/test_recovery_e2e.py` drives that same resume-and-exactly-once contract against the real schema on a real CockroachDB instance CI spins up — not just against mocks; the literal process-kill beat is exercised by [`scripts/chaos_kill.py`](scripts/chaos_kill.py) in the demo.
 
 ---
 
