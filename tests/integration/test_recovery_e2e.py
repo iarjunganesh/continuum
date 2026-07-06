@@ -131,3 +131,32 @@ def test_full_recovery_cycle(correlation_id):
         "each step_index must appear exactly once as 'executed' — "
         "no duplicate execution, no skipped step"
     )
+
+
+def test_forward_step_claim_is_exactly_once(correlation_id):
+    """The concurrency guard proven against a real cluster: two invocations
+    racing to claim the SAME new step — only one may win. We invoke the claim
+    twice directly (deterministic, no thread-scheduling flakiness); the second
+    must return False so the orchestrator skips it, and the cluster must hold
+    exactly one row for that step_index — never a duplicate.
+    """
+    from agents.memory_agent import MemoryAgent
+
+    memory = MemoryAgent()
+    incident_id = memory.open_incident(
+        correlation_id=correlation_id, service="checkout-api",
+        region="eu-central-1", severity="high", summary="claim test",
+    )
+
+    first = memory.checkpoint_step_start(incident_id, 0, "restart_pool", resuming=False)
+    second = memory.checkpoint_step_start(incident_id, 0, "restart_pool", resuming=False)
+
+    assert first is True, "first invocation must claim the new step"
+    assert second is False, "second invocation must be refused — no duplicate claim"
+
+    with psycopg.connect(os.environ["COCKROACH_DATABASE_URL"]) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT count(*) FROM remediation_steps WHERE incident_id = %s AND step_index = 0",
+            (incident_id,),
+        )
+        assert cur.fetchone()[0] == 1, "the racing claim must not create a second row"

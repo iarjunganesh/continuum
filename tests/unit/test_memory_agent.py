@@ -2,7 +2,9 @@
 
 MemoryAgent is the single write path (CLAUDE.md, memory_agent.py module
 docstring) so these tests pin the exact SQL contract the recovery guarantee
-depends on: the recovery-read query shape, and that every write commits.
+depends on: the recovery-read query shape, that simple writes commit, and that
+the per-step checkpoints run in explicit transactions with the exactly-once
+forward-claim (ADR 009).
 """
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -106,36 +108,69 @@ class TestSetState:
         conn.commit.assert_called_once()
 
 
-class TestLogStep:
-    def test_upserts_step_with_detail(self, memory, conn_cur):
-        conn, cur = conn_cur
+class TestCheckpointStepStart:
+    def test_forward_step_claims_via_on_conflict_do_nothing(self, memory, conn_cur):
+        """A brand-new step is claimed with ON CONFLICT DO NOTHING; a single
+        affected row means this invocation owns it and the incident advances to
+        'remediating' in the same transaction."""
+        _, cur = conn_cur
+        cur.rowcount = 1
         incident_id = uuid4()
 
-        memory.log_step(incident_id, 0, "restart_pool", status="proposed",
-                        detail={"rationale": "closest precedent"})
+        claimed = memory.checkpoint_step_start(incident_id, 0, "restart_pool",
+                                               detail={"rationale": "r"}, resuming=False)
 
-        sql = cur.execute.call_args[0][0]
-        assert "ON CONFLICT (incident_id, step_index) DO UPDATE" in sql
-        conn.commit.assert_called_once()
+        assert claimed is True
+        first_sql = cur.execute.call_args_list[0][0][0]
+        assert "ON CONFLICT (incident_id, step_index) DO NOTHING" in first_sql
+        # second statement flips the incident to 'remediating'
+        second_sql = cur.execute.call_args_list[1][0][0]
+        assert "state = 'remediating'" in second_sql
 
-    def test_defaults_detail_to_empty_dict(self, memory, conn_cur):
-        conn, cur = conn_cur
+    def test_forward_step_not_claimed_when_row_already_exists(self, memory, conn_cur):
+        """If a racing invocation already claimed the step (0 rows affected),
+        this returns False and does NOT touch incident state."""
+        _, cur = conn_cur
+        cur.rowcount = 0
         incident_id = uuid4()
 
-        memory.log_step(incident_id, 0, "restart_pool")
+        claimed = memory.checkpoint_step_start(incident_id, 0, "restart_pool", resuming=False)
 
-        assert cur.execute.called
-        conn.commit.assert_called_once()
+        assert claimed is False
+        assert len(cur.execute.call_args_list) == 1  # only the claim attempt, no incident update
 
-
-class TestSetStepStatus:
-    def test_updates_status_and_commits(self, memory, conn_cur):
-        conn, cur = conn_cur
+    def test_resume_path_updates_existing_row_and_always_claims(self, memory, conn_cur):
+        """Resuming an interrupted step updates the existing row to 'executing'
+        (not an INSERT) and always returns True — the re-run is required."""
+        _, cur = conn_cur
         incident_id = uuid4()
 
-        memory.set_step_status(incident_id, 2, "executed")
+        claimed = memory.checkpoint_step_start(incident_id, 1, "restart_pool", resuming=True)
 
-        sql, params = cur.execute.call_args[0]
-        assert "UPDATE remediation_steps SET status" in sql
-        assert params == ("executed", incident_id, 2)
-        conn.commit.assert_called_once()
+        assert claimed is True
+        first_sql = cur.execute.call_args_list[0][0][0]
+        assert first_sql.strip().startswith("UPDATE remediation_steps SET status = 'executing'")
+
+
+class TestCheckpointStepDone:
+    def test_marks_executed_with_status_guard(self, memory, conn_cur):
+        _, cur = conn_cur
+        incident_id = uuid4()
+
+        memory.checkpoint_step_done(incident_id, 0, resolve=False)
+
+        sql = cur.execute.call_args_list[0][0][0]
+        assert "status = 'executed'" in sql
+        assert "AND status = 'executing'" in sql  # the guard against double/out-of-order
+        assert len(cur.execute.call_args_list) == 1  # no resolve, so incidents untouched
+
+    def test_resolve_marks_incident_resolved(self, memory, conn_cur):
+        _, cur = conn_cur
+        incident_id = uuid4()
+
+        memory.checkpoint_step_done(incident_id, 2, resolve=True)
+
+        assert len(cur.execute.call_args_list) == 2
+        resolve_sql = cur.execute.call_args_list[1][0][0]
+        assert "state = 'resolved'" in resolve_sql
+        assert "resolved_at = now()" in resolve_sql
