@@ -21,7 +21,7 @@ incidents            — one row per incident, current lifecycle state
 remediation_steps    — append-only log of proposed/executed actions per incident
 ```
 
-State transitions (`open → correlating → remediating → resolved | escalated`) are written with standard SQL transactions. CockroachDB's default `SERIALIZABLE` isolation means a recovering Lambda invocation can never read a half-written state transition — it either sees the last fully-committed step, or it doesn't see it yet. There is no "memory went stale mid-write" failure mode to design around.
+State transitions (`open → correlating → remediating → resolved | escalated`) are written with **explicit** CockroachDB transactions (psycopg `conn.transaction()`). Each remediation step is two such transactions — `checkpoint_step_start` (incident → `remediating` + the step claimed as `executing`) and `checkpoint_step_done` (the step → `executed`, plus `resolved` on the final step) — with the execution window between them. CockroachDB's default `SERIALIZABLE` isolation means a recovering Lambda invocation can never read a half-written state transition: it either sees the last fully-committed step, or it doesn't see it yet. There is no "memory went stale mid-write" failure mode to design around. See ADR 009 for the exactly-once claim guard.
 
 ### 2.2 Semantic memory — incident embeddings
 
@@ -41,17 +41,24 @@ This is the core resilience mechanic and the centerpiece of the demo video.
 
 ```
 1. Alert fires → Lambda invocation A starts
-2. Correlation Agent embeds alert, queries incident_embeddings → finds precedent
-3. Memory Agent writes incidents.state = 'remediating', logs remediation_steps[0]
-4. [chaos_kill.py terminates the Lambda process here]
-5. New alert-stream tick (or retry) → Lambda invocation B starts — cold, no shared memory with A
-6. Orchestrator's FIRST action is always: read incidents.state + remediation_steps
+2. A's FIRST action: recovery read — no open incident yet, so open one
+3. Correlation Agent embeds alert, queries incident_embeddings → finds precedent
+   (best-effort — a Bedrock outage degrades to "no precedent", it does not abort)
+4. Memory Agent checkpoint_step_start commits ONE SERIALIZABLE transaction:
+   incidents.state = 'remediating' + remediation_steps[0] claimed as 'executing'
+   (a forward step is claimed exactly once — INSERT ... ON CONFLICT DO NOTHING)
+5. [chaos_kill.py terminates the process here — inside the execution window]
+   → step[0] is durably 'executing', never advanced to 'executed'
+6. New alert-stream tick → Lambda invocation B starts — cold, no shared memory with A
+7. B's FIRST action is always: read incidents + the latest remediation_steps row
    for any open incident matching this alert's correlation_id
-7. B finds state = 'remediating', step[0] already logged
-8. B resumes at step[1] — does not re-run step[0], does not lose context
+8. B finds step[0] status = 'executing' (incomplete) → RE-RUNS step[0], does not
+   skip to step[1], does not open a second incident. checkpoint_step_done then
+   commits step[0] = 'executed'. (Had step[0] been fully 'executed', B would
+   instead advance to step[1] — never re-running a completed step.)
 ```
 
-Nothing about step 6 is optional or best-effort — it's the first branch in `orchestrator.py`, before any new reasoning happens. This is what separates Continuum from "an agent that also happens to log to a database."
+Nothing about step 7 is optional or best-effort — it's the first branch in `orchestrator.py`, before any new reasoning happens. This is what separates Continuum from "an agent that also happens to log to a database."
 
 ---
 

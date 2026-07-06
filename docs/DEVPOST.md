@@ -14,8 +14,8 @@ Submission Period: **June 30 – August 18, 2026 (5 PM ET)** · Judging: **Aug 1
 
 | Criterion | How Continuum Addresses It |
 | --- | --- |
-| **Agentic Memory Design** | Dual memory in **one** CockroachDB store — ACID incident/remediation state *and* vector embeddings — not a toy chat log. `SERIALIZABLE` isolation guarantees a resuming invocation never reads a half-written state transition. |
-| **Technical Implementation** | Distributed Vector Indexing doing real correlation work, MCP Server as a live read-only query surface the app itself calls (not only Claude Code), a single-write-path Memory Agent enforced by convention and tests, recovery semantics pinned by CI — 42 unit tests (100% coverage) plus an integration test that runs the real kill-and-recover cycle against a live CockroachDB instance, not just mocks. |
+| **Agentic Memory Design** | Dual memory in **one** CockroachDB store — ACID incident/remediation state *and* vector embeddings — not a toy chat log. Each step's checkpoint is one explicit `SERIALIZABLE` transaction, so a resuming invocation never reads a half-written state transition, and a forward step is claimed exactly once (`ON CONFLICT DO NOTHING`) even under concurrent invocations. |
+| **Technical Implementation** | Distributed Vector Indexing doing real correlation work, MCP Server as a live read-only query surface the app itself calls (not only Claude Code), a single-write-path Memory Agent enforced by convention and tests, recovery semantics pinned by CI — 46 unit tests (100% measured coverage, 90% gate) plus integration tests that drive the resume-and-exactly-once contract against a live CockroachDB instance, not just mocks; the literal process-kill beat is exercised by `scripts/chaos_kill.py` in the demo. |
 | **Real-World Impact** | Every engineering org runs production incidents; MTTR reduction from precedent-based remediation is directly measurable, not a hypothetical use case. |
 | **Product Readiness** | The kill-and-resume beat *is* the readiness proof, not a slide about it. structlog JSON logging throughout; secrets via environment only; explicit scope cuts documented in ADR 006 instead of hidden. |
 | **Creativity & Originality** | A literal, load-bearing answer to the hackathon's own brief — *"an agent whose memory goes offline doesn't degrade gracefully, it stops"* — built as the single demo beat rather than a footnote. |
@@ -36,7 +36,7 @@ Most agentic-memory demos store chat history and call it a day. But the conditio
 
 ### What it does
 
-A synthetic alert fires. The Orchestrator (designed for AWS Lambda, deliberately never kept warm) reads CockroachDB **first, before any new reasoning** — recovering any open incident matching this alert. The Correlation Agent embeds the alert via Amazon Bedrock (Titan v2) and searches CockroachDB's native vector index for similar past incidents. The Remediation Agent proposes the next action, reasoning over the matched precedent via Claude on Bedrock. Every transition — `proposed → executing → executed` — is committed before and after it happens. Kill the process mid-step (`chaos_kill.py`, no graceful shutdown), and the next cold invocation finds the step frozen in `executing` and **re-runs that exact step** — no restart from scratch, no duplicated work, no lost context.
+A synthetic alert fires. The Orchestrator (designed for AWS Lambda, deliberately never kept warm) reads CockroachDB **first, before any new reasoning** — recovering any open incident matching this alert. The Correlation Agent embeds the alert via Amazon Bedrock (Titan v2) and searches CockroachDB's native vector index for similar past incidents. The Remediation Agent proposes the next action, reasoning over the matched precedent via Claude on Bedrock (best-effort — a red Bedrock endpoint degrades correlation to "no precedent" rather than aborting the incident). Each step commits in two explicit `SERIALIZABLE` transactions — the proposed action and `executing` status together, then `executed` — with the `time.sleep` execution window between them. Kill the process mid-step (`chaos_kill.py`, no graceful shutdown), and the next cold invocation finds the step frozen in `executing` and **re-runs that exact step** — no restart from scratch, no duplicated work, no lost context.
 
 ### How we built it
 
@@ -52,7 +52,7 @@ Five agents, one write path: `orchestrator.py` (recovery-read-first control flow
 
 ### Accomplishments that we're proud of
 
-- A resilience guarantee that's actually exercised end-to-end by CI — 42 unit tests pin the exact recovery semantics (read-before-write, re-execute-if-interrupted, resolve-after-final-step), and an integration test runs that same cycle against a real CockroachDB instance CI provisions on every push — not just asserted in a README
+- A resilience guarantee that's actually exercised end-to-end by CI — 46 unit tests pin the exact recovery semantics (read-before-write, transactional step checkpoints, re-execute-if-interrupted, claim-exactly-once-under-concurrency, resolve-after-final-step), and integration tests run that same contract against a real CockroachDB instance CI provisions on every push — not just asserted in a README
 - One CockroachDB store doing double duty as both the transactional system of record and the vector index, with a single query joining structured filters and semantic ranking
 - A demo script honest enough to admit its own earlier bug and fix the root cause instead of hiding it
 
