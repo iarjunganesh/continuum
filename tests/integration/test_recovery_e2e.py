@@ -17,7 +17,6 @@ Run explicitly against a test cluster:
 from __future__ import annotations
 
 import os
-import uuid
 from unittest.mock import MagicMock, patch
 
 import psycopg
@@ -25,31 +24,11 @@ import pytest
 
 from config import settings
 
+# The `correlation_id` cleanup fixture lives in tests/integration/conftest.py.
 pytestmark = pytest.mark.skipif(
     "COCKROACH_DATABASE_URL" not in os.environ,
     reason="requires a live CockroachDB instance — set COCKROACH_DATABASE_URL to run",
 )
-
-
-@pytest.fixture
-def correlation_id():
-    """A correlation_id unique to this test run, cleaned up afterwards so
-    repeat CI runs against the same cluster don't accumulate rows."""
-    cid = f"itest-{uuid.uuid4()}"
-    yield cid
-    with psycopg.connect(os.environ["COCKROACH_DATABASE_URL"]) as conn, conn.cursor() as cur:
-        cur.execute(
-            "DELETE FROM remediation_steps WHERE incident_id IN "
-            "(SELECT incident_id FROM incidents WHERE correlation_id = %s)",
-            (cid,),
-        )
-        cur.execute(
-            "DELETE FROM incident_embeddings WHERE incident_id IN "
-            "(SELECT incident_id FROM incidents WHERE correlation_id = %s)",
-            (cid,),
-        )
-        cur.execute("DELETE FROM incidents WHERE correlation_id = %s", (cid,))
-        conn.commit()
 
 
 def _alert(correlation_id: str) -> dict:
