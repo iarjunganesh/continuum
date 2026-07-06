@@ -48,3 +48,41 @@ If this renders the incident table locally, the Space will render it too — the
 - AWS credentials of any kind — the Space is display-only
 
 This split is deliberate: the Space is the *window* into the memory, not the thing being tested for resilience. The resilience proof (kill-and-recover) happens in the orchestrator, which you run and record separately per `docs/DEMO_RUNBOOK.md`.
+
+---
+
+## Deploying the orchestrator to AWS Lambda
+
+The orchestrator (`agents/orchestrator.py`, handler `infra.lambda_handler.lambda_handler`) is the thing that recovers state, and it deploys as a Lambda function from `infra/template.yaml` (AWS SAM). `python3.14` is a **managed Lambda runtime** (added November 2025, based on `provided.al2023`), so the template's `Runtime: python3.14` deploys as-is — no container image needed.
+
+Prerequisites: AWS credentials with Lambda / IAM / CloudFormation access, the [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html), and a reachable `COCKROACH_DATABASE_URL`.
+
+```bash
+# First deploy — interactive; saves your choices to samconfig.toml
+sam build --template infra/template.yaml
+sam deploy --guided --template infra/template.yaml \
+  --stack-name continuum --region eu-central-1 \
+  --parameter-overrides CockroachDatabaseUrl="$COCKROACH_DATABASE_URL" BedrockRegion=eu-west-1
+
+# Subsequent deploys
+sam build --template infra/template.yaml && sam deploy
+```
+
+Region is **eu-central-1** (co-located with the CockroachDB cluster, ADR 007); Bedrock calls target **eu-west-1** (ADR 008) — both already defaulted in the template's parameters.
+
+**Packaging note.** The template's `CodeUri: ../` packages the repo root, so build from a checkout where the local `.venv/` is absent or moved aside — otherwise SAM bundles the virtualenv and blows past Lambda's unzipped-size limit. SAM installs the function's own dependencies from `requirements.txt`.
+
+### Smoke test
+
+```bash
+sam remote invoke ContinuumOrchestratorFunction --stack-name continuum --region eu-central-1 \
+  --event '{"correlation_id":"deploy-smoke-1","service":"checkout-api","region":"eu-central-1","severity":"high","text":"deploy smoke test"}'
+```
+
+Then confirm the write landed in CockroachDB:
+
+```sql
+SELECT state FROM incidents WHERE correlation_id = 'deploy-smoke-1';
+```
+
+Once that returns a row, check the **AWS Lambda** and **"Uses CockroachDB deployed on AWS"** items in `docs/SUBMISSION.md`.
