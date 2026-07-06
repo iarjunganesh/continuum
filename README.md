@@ -242,6 +242,14 @@ continuum/
 python scripts/generate_synthetic_incidents.py --out data/synthetic/incidents_seed.jsonl --count 40
 ```
 
+**Seeding without Bedrock.** `make seed-data` embeds each incident via Titan, but
+this account's Bedrock quota is throttled (ADR 008). To populate the console/Space
+with **no AWS dependency**, use deterministic vectors — `make seed-data-offline`
+(or `.\scripts\migrate_and_seed.ps1 -Offline`). For honest, semantically-ranked
+vectors without a per-run Bedrock call, capture them once where Bedrock is
+reachable (`python scripts/capture_seed_embeddings.py`) and seed with
+`python scripts/seed_memory.py --file … --from-fixture data/synthetic/seed_embeddings.json`.
+
 ---
 
 ## CI / CD
@@ -253,6 +261,16 @@ tag v*.*.* → GitHub Release, notes pulled from CHANGELOG.md
 ```
 
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`.github/workflows/release.yml`](.github/workflows/release.yml), and [`docs/DEPLOY.md`](docs/DEPLOY.md). The unit suite (46 tests, one file per agent/module, 100% measured coverage against a 90% CI gate) pins the properties the demo depends on: recovery read happens before any write, each step commits inside an explicit `SERIALIZABLE` transaction, interrupted steps are re-executed (never skipped, never duplicated), a forward step is claimed exactly once under concurrent invocations, and incidents resolve atomically with the final step. `tests/integration/test_recovery_e2e.py` drives that same resume-and-exactly-once contract against the real schema on a real CockroachDB instance CI spins up — not just against mocks; the literal process-kill beat is exercised by [`scripts/chaos_kill.py`](scripts/chaos_kill.py) in the demo.
+
+---
+
+## Benchmarks
+
+Latency of the CockroachDB memory operations the recovery guarantee depends on —
+recovery read, per-step transaction commits, vector search, and the full
+cold-resume path. Reproducible on any cluster with `make benchmark` (no Bedrock
+needed — it uses deterministic vectors). Full table + methodology:
+[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
 
 ---
 
