@@ -18,7 +18,7 @@ license: mit
 </p>
 
 <p align="center">
-  <strong>An incident-response agent whose memory survives the very outage it's diagnosing.</strong>
+  <strong>An autonomous incident-response agent that resumes the exact step it was killed on — because its memory lives in CockroachDB, not in the process.</strong>
 </p>
 
 > **CockroachDB × AWS Hackathon 2026 — Build with Agentic Memory**
@@ -211,9 +211,9 @@ continuum/
 │   └── integration/           # full kill-and-recover cycle vs a real cluster
 ├── observability/structured_logger.py
 ├── docs/
-│   ├── ARCHITECTURE.md · DEMO_RUNBOOK.md · SUBMISSION.md · DEVPOST.md · DEPLOY.md
+│   ├── ARCHITECTURE.md · DEMO_RUNBOOK.md · SUBMISSION.md · DEVPOST.md · DEPLOY.md · BENCHMARKS.md
 │   └── adr/                   # 9 Architecture Decision Records
-└── .github/workflows/         # ci.yml (lint → test → coverage → Codecov) · sync-to-hf-space.yml
+└── .github/workflows/         # ci.yml (lint → test → coverage → Codecov) · release.yml · sync-to-hf-space.yml
 ```
 
 ---
@@ -255,12 +255,12 @@ reachable (`python scripts/capture_seed_embeddings.py`) and seed with
 ## CI / CD
 
 ```text
-push → ruff lint → ephemeral single-node CockroachDB → schema apply → pytest (46 unit + 2 integration) → coverage (≥90% gate, 100% measured) → Codecov
+push → ruff lint → ephemeral single-node CockroachDB → schema apply → pytest (46 unit + 3 integration) → coverage (≥90% gate, 100% measured) → Codecov
 push to main → auto-sync to Hugging Face Space (public demo)
 tag v*.*.* → GitHub Release, notes pulled from CHANGELOG.md
 ```
 
-See [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`.github/workflows/release.yml`](.github/workflows/release.yml), and [`docs/DEPLOY.md`](docs/DEPLOY.md). The unit suite (46 tests, one file per agent/module, 100% measured coverage against a 90% CI gate) pins the properties the demo depends on: recovery read happens before any write, each step commits inside an explicit `SERIALIZABLE` transaction, interrupted steps are re-executed (never skipped, never duplicated), a forward step is claimed exactly once under concurrent invocations, and incidents resolve atomically with the final step. `tests/integration/test_recovery_e2e.py` drives that same resume-and-exactly-once contract against the real schema on a real CockroachDB instance CI spins up — not just against mocks; the literal process-kill beat is exercised by [`scripts/chaos_kill.py`](scripts/chaos_kill.py) in the demo.
+See [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`.github/workflows/release.yml`](.github/workflows/release.yml), and [`docs/DEPLOY.md`](docs/DEPLOY.md). The unit suite (46 tests, one file per agent/module, 100% measured coverage against a 90% CI gate) pins the properties the demo depends on: recovery read happens before any write, each step commits inside an explicit `SERIALIZABLE` transaction, interrupted steps are re-executed (never skipped, never duplicated), a forward step is claimed exactly once under concurrent invocations, and incidents resolve atomically with the final step. [`tests/integration/test_recovery_e2e.py`](tests/integration/test_recovery_e2e.py) drives that same resume-and-exactly-once contract against the real schema on a real CockroachDB instance CI spins up — not just against mocks — and [`tests/integration/test_chaos_kill_e2e.py`](tests/integration/test_chaos_kill_e2e.py) goes one step further: it spawns the orchestrator as a real subprocess and hard-kills it mid-step with [`scripts/chaos_kill.py`](scripts/chaos_kill.py) (a real `SIGKILL`/`TerminateProcess`, no graceful shutdown), then asserts a cold restart resumes the interrupted step exactly once from CockroachDB. The same script drives the literal process-kill beat live in the demo.
 
 ---
 

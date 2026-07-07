@@ -458,10 +458,11 @@ _HERO = """
       <div class="cx-title">Continuum</div>
       <span class="cx-pill"><span class="cx-live"></span>LIVE · CockroachDB · eu-central-1</span>
     </div>
-    <div class="cx-sub">Agentic incident-response memory that survives the outage it's diagnosing.
-      Every panel below reads live from CockroachDB. Kill the orchestrator mid-remediation and
-      the step it died on stays <code>executing</code> — the next cold invocation resumes exactly
-      there. <b>State persists; the process doesn't.</b></div>
+    <div class="cx-sub">An autonomous incident-response agent that resumes the exact step it was
+      killed on — because its memory lives in CockroachDB, not its own process. Every panel below
+      reads live from CockroachDB. Kill the orchestrator mid-remediation and the step it died on
+      stays <code>executing</code> — the next cold invocation resumes exactly there.
+      <b>State persists; the process doesn't.</b></div>
   </div>
 </div>
 """

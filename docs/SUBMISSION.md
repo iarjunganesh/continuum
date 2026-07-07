@@ -3,7 +3,7 @@
 Tracks directly against the [official rules](https://cockroachdb-ai.devpost.com/rules). Update as each item is completed.
 
 ## Eligibility / Build Constraints
-- [ ] All code newly written during Submission Period (June 30 – Aug 18, 2026) — no reused code from ARGUS, Banker's Wrapped, or any pre-existing repo
+- [ ] All code newly written during Submission Period (June 30 – Aug 18, 2026) — no reused code from any pre-existing repository
 - [ ] Any AI coding assistant / starter template usage disclosed in README
 - [ ] All third-party data/APIs authorized for use (synthetic data only — see ADR 005)
 
@@ -12,7 +12,7 @@ Tracks directly against the [official rules](https://cockroachdb-ai.devpost.com/
 - [x] ≥2 CockroachDB tools meaningfully integrated (not just initialized):
   - [x] Distributed Vector Indexing — `incident_embeddings` + correlation queries
   - [x] CockroachDB Cloud Managed MCP Server — `agents/query_agent.py` calls it at runtime (not just a Claude Code dev convenience); see ADR 003
-  - [x] ccloud CLI — evaluated and cut, not claimed as used (ADR 004 resolution)
+  - *ccloud CLI — evaluated and deliberately cut (ADR 004 resolution); not claimed as a third tool*
 - ≥1 AWS service:
   - [ ] AWS Lambda — SAM template (`infra/template.yaml`) ready; not yet deployed
   - [x] Amazon Bedrock — embeddings + reasoning, code complete and unit-tested
