@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     cockroach_database_url: str
     cockroach_mcp_endpoint: str = "https://cockroachlabs.cloud/mcp"
     cockroach_mcp_api_key: str = ""
+    # The Managed MCP Server scopes each session to a cluster via the
+    # mcp-cluster-id header and requires a database name per query.
+    cockroach_mcp_cluster_id: str = ""
+    cockroach_mcp_database: str = "defaultdb"
 
     # ccloud CLI (stretch — ADR 004)
     ccloud_api_key: str = ""
