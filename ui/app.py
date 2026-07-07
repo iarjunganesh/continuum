@@ -34,6 +34,16 @@ from config import settings  # noqa: E402
 
 query_agent = QueryAgent()
 
+# UI polling cadence for the incident feed.
+# Set CONTINUUM_UI_REFRESH_SECONDS=0 to disable auto-refresh entirely.
+REFRESH_SECONDS = max(0.0, float(os.getenv("CONTINUUM_UI_REFRESH_SECONDS", "0")))
+LOAD_ON_OPEN = os.getenv("CONTINUUM_UI_LOAD_ON_OPEN", "0") == "1"
+REFRESH_LABEL = (
+  "manual refresh only"
+  if REFRESH_SECONDS <= 0
+  else f"auto-refreshing every {REFRESH_SECONDS:g}s"
+)
+
 # ── Palette (dark ops surface; validated status colors from the dataviz skill).
 # Status color never carries meaning alone — every chip ships an icon + label.
 INK, INK2, MUTED = "#ffffff", "#c3c2b7", "#898781"
@@ -491,7 +501,7 @@ with gr.Blocks(title="Continuum — Live Incident Memory", analytics_enabled=Fal
     with gr.Row():
         refresh_btn = gr.Button("↻ Refresh now", variant="primary", scale=0)
         gr.HTML('<div class="cx" style="color:#898781;font-size:12px;align-self:center">'
-                'auto-refreshing every 5s</div>')
+          f'{_esc(REFRESH_LABEL)}</div>')
 
     gr.HTML('<div class="cx"><div class="cx-h">Incident memory · live from CockroachDB</div></div>')
     cards = gr.HTML()
@@ -508,11 +518,13 @@ with gr.Blocks(title="Continuum — Live Incident Memory", analytics_enabled=Fal
     gr.HTML('<div class="cx"><div class="cx-foot">Continuum · CockroachDB × AWS Hackathon 2026 · '
             'read-only view · memory lives in CockroachDB, not this process</div></div>')
 
-    # Wiring — the timer keeps the feed alive without touching the drill-down selection.
+    # Wiring — manual-first by default to minimize CockroachDB RU consumption.
     dash_outputs = [banner, kpis, cards, incident_dd]
-    demo.load(fn=load_dashboard, outputs=dash_outputs)
+    if LOAD_ON_OPEN:
+      demo.load(fn=load_dashboard, outputs=dash_outputs)
     refresh_btn.click(fn=load_dashboard, outputs=dash_outputs)
-    gr.Timer(5.0).tick(fn=load_dashboard, outputs=[banner, kpis, cards])  # not the dropdown
+    if REFRESH_SECONDS > 0:
+      gr.Timer(REFRESH_SECONDS).tick(fn=load_dashboard, outputs=[banner, kpis, cards])  # not the dropdown
     incident_dd.change(fn=load_timeline, inputs=incident_dd, outputs=timeline)
     mcp_btn.click(fn=ask_via_mcp, outputs=mcp_output)
 
