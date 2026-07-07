@@ -15,7 +15,7 @@ from observability.structured_logger import get_logger
 log = get_logger(__name__)
 app = FastAPI(
     title="Continuum",
-    version="0.4.0",
+    version="0.5.0",
     description="Agentic memory for incident response",
 )
 

@@ -3,10 +3,17 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.5.0] — 2026-07-07 — MCP query path restored; benchmarks, real-kill test, Bedrock-free seeding
+
+### Fixed
+
+- **QueryAgent now speaks the Managed MCP Server's current contract.** The server scopes each session to a cluster via an `mcp-cluster-id` header and requires a `database` argument per query; without them every call failed (`401 Unauthorized` unauthenticated, `cluster_id not provided` once a key was configured). New settings `COCKROACH_MCP_CLUSTER_ID` / `COCKROACH_MCP_DATABASE`; constructor args passed as explicit blanks stay blank so unit tests remain hermetic whatever the local `.env` holds. Verified end to end against the live server (auth, session negotiation, query dispatch)
+- **`.env.example` realigned with `.env`** after significant drift: adds the Managed MCP service-account block (endpoint, cluster id, database, API key — with the console steps for creating the key), replaces the now-false "eu-west-1 has full default quota" Bedrock claim with probe-first guidance (2026-07-07: eu-west-1, eu-central-1 and us-east-1 all throttle Titan on this account; eu-north-1 works at a low per-minute rate), and warns that Bedrock retires old model versions (`eu.anthropic.claude-3-5-sonnet-20241022-v2:0` — found pinned in a stale `.env` — now returns "invalid model identifier")
 
 ### Added
 
+- **`.mcp.json`** — project-scoped CockroachDB Cloud MCP server config for Claude Code (streamable HTTP, cluster-scoped via the `mcp-cluster-id` header, Bearer auth via `${COCKROACH_MCP_API_KEY}` environment expansion, so no secret lives in the committed file)
+- **Lambda deploy runbook** in `docs/DEPLOY.md`
 - **Bedrock-free seeding** so the demo Space can be populated without the throttled Bedrock account (ADR 008): `make seed-data-offline` / `.\scripts\migrate_and_seed.ps1 -Offline` seed deterministic synthetic vectors (`scripts/synthetic_vectors.py`) with no AWS call, and `scripts/capture_seed_embeddings.py` + `seed_memory.py --from-fixture` load real Titan vectors captured once where Bedrock is reachable
 - **Recovery sequence diagram** and a typical-vs-Continuum comparison table in `docs/ARCHITECTURE.md`, making the two-cold-invocation handoff through durable CockroachDB state visible at a glance
 
