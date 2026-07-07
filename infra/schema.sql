@@ -76,10 +76,17 @@ CREATE VECTOR INDEX IF NOT EXISTS idx_incident_embedding
 -- ORDER BY e.embedding <-> $1
 -- LIMIT 5;
 
--- Recovery query (used by orchestrator.py on every cold start — see ARCHITECTURE.md §3):
+-- Recovery query (used by orchestrator.py on every cold start — see ARCHITECTURE.md §3).
+-- Returns the open incident for a correlation_id plus its LATEST remediation step's
+-- index and status, so a resuming invocation knows whether the previous one died
+-- mid-step ('executing') or finished it ('executed'):
 --
--- SELECT i.incident_id, i.state, s.step_index, s.action, s.status
+-- SELECT i.incident_id, i.correlation_id, i.service, i.state,
+--        s.step_index AS last_step_index, s.status AS last_step_status
 -- FROM incidents i
 -- LEFT JOIN remediation_steps s ON s.incident_id = i.incident_id
+--     AND s.step_index = (SELECT max(step_index) FROM remediation_steps
+--                         WHERE incident_id = i.incident_id)
 -- WHERE i.correlation_id = $1 AND i.state NOT IN ('resolved','escalated')
--- ORDER BY s.step_index ASC;
+-- ORDER BY i.opened_at DESC
+-- LIMIT 1;

@@ -8,6 +8,14 @@ Continuum's design constraint: **the agent's own execution environment is allowe
 
 This is why CockroachDB is the memory layer rather than an implementation detail — it is the mechanism that makes the constraint achievable.
 
+|  | Typical "agent memory" demo | Continuum |
+| --- | --- | --- |
+| **What is stored** | Chat history / conversation buffer | Live remediation state — *which step is `executing` right now* |
+| **Where it lives** | Process memory, or a cache that assumes the process survives | CockroachDB, committed before *and* after every step |
+| **On process death mid-task** | State lost — restart from scratch or human re-input | Next cold invocation reads durable state and resumes the exact step |
+| **Consistency model** | Best-effort | `SERIALIZABLE`, with an exactly-once step claim |
+| **Failure the demo proves** | (usually untested) | Kill the agent mid-incident — recovery is the headline beat |
+
 ---
 
 ## 2. Memory Model
@@ -35,9 +43,34 @@ See [`infra/schema.sql`](../infra/schema.sql) for the exact DDL.
 
 ---
 
-## 3. The Recovery Guarantee (Product Readiness proof)
+## 3. The Recovery Guarantee (Production Readiness proof)
 
-This is the core resilience mechanic and the centerpiece of the demo video.
+This is the core resilience mechanic and the centerpiece of the demo video. Two cold Lambda invocations — the second with no shared memory with the first — hand off entirely through durable CockroachDB state:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Al as 🚨 Alert stream
+    participant A as ⚡ Lambda A (cold)
+    participant DB as 🪳 CockroachDB
+    participant K as 💀 chaos_kill.py
+    participant B as ⚡ Lambda B (cold)
+
+    Al->>A: alert (correlation_id)
+    A->>DB: recovery read FIRST — no open incident
+    A->>DB: open incident + checkpoint_step_start(step 0)
+    Note over DB: step 0 committed 'executing'<br/>(SERIALIZABLE, before execution)
+    A-->>A: execute step 0 (sleep window)
+    K-->>A: SIGKILL — no graceful shutdown
+    Note over A,DB: process gone — step 0 still durably 'executing'
+    Al->>B: next tick — same correlation_id
+    B->>DB: recovery read FIRST — finds step 0 'executing'
+    B-->>B: re-run step 0 (not skipped, not duplicated)
+    B->>DB: checkpoint_step_done(step 0) → 'executed'
+    Note over DB: exactly-once preserved; state outlived the process
+```
+
+The same flow, step by step:
 
 ```
 1. Alert fires → Lambda invocation A starts
@@ -65,9 +98,9 @@ Nothing about step 7 is optional or best-effort — it's the first branch in `or
 ## 4. CockroachDB Tool Usage — Detail
 
 ### 4.1 Distributed Vector Indexing
-- Table: `incident_embeddings(incident_id, service, region, embedding VECTOR(1024), created_at)` — 1024 matches Amazon Titan Text Embeddings V2's max output dimension
-- Index: `CREATE VECTOR INDEX ON incident_embeddings (embedding);` (optionally prefixed by `service` to partition the ANN search per-service, the same way CockroachDB partitions per-tenant in its own reference examples)
-- Query pattern: filter by `service`/`region`, order by `embedding <-> $query_vector`, `LIMIT k`
+- Table: `incident_embeddings(incident_id, service, region, embedding VECTOR(1024), embedding_model, created_at)` — 1024 matches Amazon Titan Text Embeddings V2's max output dimension
+- Index: `CREATE VECTOR INDEX ON incident_embeddings (service, embedding);` — prefixed by `service` so the ANN search is naturally partitioned per-service rather than scanning the full cross-service corpus (the same way CockroachDB partitions per-tenant in its own reference examples)
+- Query pattern: filter by `service`, order by `embedding <-> $query_vector`, `LIMIT k` — structured filter and semantic rank in one round trip (`agents/correlation_agent.py`)
 
 ### 4.2 CockroachDB Cloud Managed MCP Server
 - Used in **read-only mode** (the server's default safe mode)

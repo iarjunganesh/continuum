@@ -8,6 +8,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **Bedrock-free seeding** so the demo Space can be populated without the throttled Bedrock account (ADR 008): `make seed-data-offline` / `.\scripts\migrate_and_seed.ps1 -Offline` seed deterministic synthetic vectors (`scripts/synthetic_vectors.py`) with no AWS call, and `scripts/capture_seed_embeddings.py` + `seed_memory.py --from-fixture` load real Titan vectors captured once where Bedrock is reachable
+- **Recovery sequence diagram** and a typical-vs-Continuum comparison table in `docs/ARCHITECTURE.md`, making the two-cold-invocation handoff through durable CockroachDB state visible at a glance
+
+### Changed
+
+- **Sharpened the hero positioning** across the README, the Hugging Face Space (`ui/app.py`), and the DEVPOST elevator pitch to lead with the concrete payoff — *resumes the exact step it was killed on, because its memory lives in CockroachDB, not the process* — instead of the more abstract earlier tagline
+- **Repo-wide documentation alignment pass.** Synced stale version fields (`api/main.py`, `pyproject.toml` → `0.4.0`); corrected the integration-test count (2 → 3) and surfaced the real-`SIGKILL` `test_chaos_kill_e2e.py` in the README and DEVPOST test-integrity claims; fixed the `docs/ARCHITECTURE.md` §4.1 vector-index DDL to match `infra/schema.sql` (always `service`-prefixed, `embedding_model` column, `service`-only filter); standardized the judging criterion name to **Production Readiness**; aligned the `schema.sql` recovery-query comment with the actual latest-step query; and removed cross-project references from `docs/SUBMISSION.md`
 - **Latency benchmarks** (`scripts/benchmark.py`, `make benchmark`, `docs/BENCHMARKS.md`): p50/p95/p99 for recovery read, per-step transaction commits, C-SPANN vector search, and the full cold-resume path — against a live cluster, no Bedrock dependency
 - **Real-kill chaos integration test** (`tests/integration/test_chaos_kill_e2e.py`): spawns the orchestrator as a uvicorn subprocess, hard-kills it mid-step with `scripts/chaos_kill.py` (real SIGKILL/TerminateProcess), and asserts a cold restart resumes the interrupted step exactly-once from CockroachDB — the literal process-kill path that `test_recovery_e2e.py` only simulated with a SQL UPDATE. Shared integration fixtures moved to `tests/integration/conftest.py`
 

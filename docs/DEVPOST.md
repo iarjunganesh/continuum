@@ -15,16 +15,16 @@ Submission Period: **June 30 – August 18, 2026 (5 PM ET)** · Judging: **Aug 1
 | Criterion | How Continuum Addresses It |
 | --- | --- |
 | **Agentic Memory Design** | Dual memory in **one** CockroachDB store — ACID incident/remediation state *and* vector embeddings — not a toy chat log. Each step's checkpoint is one explicit `SERIALIZABLE` transaction, so a resuming invocation never reads a half-written state transition, and a forward step is claimed exactly once (`ON CONFLICT DO NOTHING`) even under concurrent invocations. |
-| **Technical Implementation** | Distributed Vector Indexing doing real correlation work, MCP Server as a live read-only query surface the app itself calls (not only Claude Code), a single-write-path Memory Agent enforced by convention and tests, recovery semantics pinned by CI — 46 unit tests (100% measured coverage, 90% gate) plus integration tests that drive the resume-and-exactly-once contract against a live CockroachDB instance, not just mocks; the literal process-kill beat is exercised by `scripts/chaos_kill.py` in the demo. |
+| **Technical Implementation** | Distributed Vector Indexing doing real correlation work, MCP Server as a live read-only query surface the app itself calls (not only Claude Code), a single-write-path Memory Agent enforced by convention and tests, recovery semantics pinned by CI — 46 unit tests (100% measured coverage, 90% gate) plus integration tests that drive the resume-and-exactly-once contract against a live CockroachDB instance, not just mocks; one of them (`test_chaos_kill_e2e.py`) hard-kills a real orchestrator subprocess mid-step with `scripts/chaos_kill.py` (a genuine `SIGKILL`) and asserts exactly-once cold recovery — the same script that drives the process-kill beat live in the demo. |
 | **Real-World Impact** | Every engineering org runs production incidents; MTTR reduction from precedent-based remediation is directly measurable, not a hypothetical use case. |
-| **Product Readiness** | The kill-and-resume beat *is* the readiness proof, not a slide about it. structlog JSON logging throughout; secrets via environment only; explicit scope cuts documented in ADR 006 instead of hidden. |
+| **Production Readiness** | The kill-and-resume beat *is* the readiness proof, not a slide about it. structlog JSON logging throughout; secrets via environment only; explicit scope cuts documented in ADR 006 instead of hidden. |
 | **Creativity & Originality** | A literal, load-bearing answer to the hackathon's own brief — *"an agent whose memory goes offline doesn't degrade gracefully, it stops"* — built as the single demo beat rather than a footnote. |
 
 ---
 
 ## Elevator Pitch
 
-> An incident-response agent whose memory survives the very outage it's diagnosing — kill the process mid-remediation, and the next cold invocation resumes the exact interrupted step from CockroachDB, not from scratch.
+> An autonomous incident-response agent that resumes the exact step it was killed on: kill the process mid-remediation, and the next cold invocation picks up the interrupted step from CockroachDB — not from scratch, and never a duplicate. Its memory lives in the database, not the process.
 
 ---
 
@@ -52,7 +52,7 @@ Five agents, one write path: `orchestrator.py` (recovery-read-first control flow
 
 ### Accomplishments that we're proud of
 
-- A resilience guarantee that's actually exercised end-to-end by CI — 46 unit tests pin the exact recovery semantics (read-before-write, transactional step checkpoints, re-execute-if-interrupted, claim-exactly-once-under-concurrency, resolve-after-final-step), and integration tests run that same contract against a real CockroachDB instance CI provisions on every push — not just asserted in a README
+- A resilience guarantee that's actually exercised end-to-end by CI — 46 unit tests pin the exact recovery semantics (read-before-write, transactional step checkpoints, re-execute-if-interrupted, claim-exactly-once-under-concurrency, resolve-after-final-step), and integration tests run that same contract against a real CockroachDB instance CI provisions on every push — one of them literally hard-killing a live orchestrator subprocess mid-step and asserting it resumes exactly once — not just asserted in a README
 - One CockroachDB store doing double duty as both the transactional system of record and the vector index, with a single query joining structured filters and semantic ranking
 - A demo script honest enough to admit its own earlier bug and fix the root cause instead of hiding it
 
