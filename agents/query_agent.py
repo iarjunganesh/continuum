@@ -45,12 +45,24 @@ class QueryAgent:
     """Read-only live query interface against CockroachDB via its Managed
     MCP Server, over streamable HTTP."""
 
-    def __init__(self, endpoint: str | None = None, api_key: str | None = None) -> None:
+    def __init__(self, endpoint: str | None = None, api_key: str | None = None,
+                 cluster_id: str | None = None, database: str | None = None) -> None:
         self._endpoint = endpoint or settings.cockroach_mcp_endpoint
-        self._api_key = api_key or settings.cockroach_mcp_api_key
+        # None = "use settings"; an explicit "" stays blank (tests rely on
+        # this to stay hermetic regardless of what the local .env sets).
+        self._api_key = settings.cockroach_mcp_api_key if api_key is None else api_key
+        self._cluster_id = settings.cockroach_mcp_cluster_id if cluster_id is None else cluster_id
+        self._database = database or settings.cockroach_mcp_database
 
     def _headers(self) -> dict[str, str]:
-        return {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
+        headers = {}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        # Scopes the MCP session to one cluster — the server rejects queries
+        # with "cluster_id not provided" without it.
+        if self._cluster_id:
+            headers["mcp-cluster-id"] = self._cluster_id
+        return headers
 
     async def run_readonly_query(self, sql: str) -> QueryResult:
         async with streamablehttp_client(self._endpoint, headers=self._headers()) as (
@@ -60,7 +72,9 @@ class QueryAgent:
         ):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                result = await session.call_tool(_SELECT_QUERY_TOOL, {"query": sql})
+                result = await session.call_tool(
+                    _SELECT_QUERY_TOOL, {"query": sql, "database": self._database}
+                )
                 rows = _extract_rows(result)
                 log.info("mcp_query_executed", tool=_SELECT_QUERY_TOOL, row_count=len(rows))
                 return QueryResult(rows=rows, row_count=len(rows))

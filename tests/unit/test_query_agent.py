@@ -64,39 +64,45 @@ class TestRunReadonlyQuery:
         assert result.rows == [{"incident_id": "abc"}]
         session.initialize.assert_awaited_once()
 
-    def test_sends_bearer_auth_header_when_api_key_set(self):
+    def test_sends_bearer_auth_and_cluster_headers_when_set(self):
         session = _mock_session(_tool_result(rows=[]))
         p1, p2 = _wire_mcp(session)
 
         with p1 as mock_stream, p2:
-            agent = QueryAgent(endpoint="https://example.test/mcp", api_key="secret-key")
+            agent = QueryAgent(endpoint="https://example.test/mcp", api_key="secret-key",
+                               cluster_id="cluster-uuid-1")
             asyncio.run(agent.run_readonly_query("SELECT 1"))
 
         _, kwargs = mock_stream.call_args
-        assert kwargs["headers"] == {"Authorization": "Bearer secret-key"}
+        assert kwargs["headers"] == {
+            "Authorization": "Bearer secret-key",
+            "mcp-cluster-id": "cluster-uuid-1",
+        }
 
-    def test_no_auth_header_when_api_key_blank(self):
+    def test_no_headers_when_api_key_and_cluster_blank(self):
         session = _mock_session(_tool_result(rows=[]))
         p1, p2 = _wire_mcp(session)
 
         with p1 as mock_stream, p2:
-            agent = QueryAgent(endpoint="https://example.test/mcp", api_key="")
+            agent = QueryAgent(endpoint="https://example.test/mcp", api_key="",
+                               cluster_id="")
             asyncio.run(agent.run_readonly_query("SELECT 1"))
 
         _, kwargs = mock_stream.call_args
         assert kwargs["headers"] == {}
 
-    def test_calls_select_query_tool_with_sql(self):
+    def test_calls_select_query_tool_with_sql_and_database(self):
         session = _mock_session(_tool_result(rows=[]))
         p1, p2 = _wire_mcp(session)
 
         with p1, p2:
-            agent = QueryAgent(endpoint="https://example.test/mcp", api_key="k")
+            agent = QueryAgent(endpoint="https://example.test/mcp", api_key="k",
+                               database="demo-db")
             asyncio.run(agent.run_readonly_query("SELECT 1 FROM incidents"))
 
         args, _ = session.call_tool.call_args
         assert args[0] == "select_query"
-        assert args[1] == {"query": "SELECT 1 FROM incidents"}
+        assert args[1] == {"query": "SELECT 1 FROM incidents", "database": "demo-db"}
 
 
 class TestListOpenIncidents:
