@@ -17,6 +17,45 @@ Add a `bedrock_region` setting (`BEDROCK_REGION`, default `eu-west-1`), used onl
 
 eu-west-1 was chosen over us-west-2 to stay within the EU, though this project's non-negotiable synthetic-data constraint (ADR 005) means no residency requirement actually forces that choice.
 
+## Addendum (2026-07-08): the quota is dynamic, account-level, and model-agnostic
+
+The Decision above chose eu-west-1 based on `aws service-quotas` listings. Live
+probes have since shown those listings don't predict behaviour — the effective
+quota is **dynamically adjusted** and can be 0 in a region whose paper quota is
+"full default":
+
+- **2026-07-07 probe**: eu-west-1, eu-central-1 and us-east-1 all throttle
+  Titan on the first call; eu-north-1 accepts calls at a low per-minute rate.
+- **2026-07-08 probe** (`scripts/probe_bedrock.py`): every probed region
+  (eu-north-1, eu-west-1, eu-central-1, eu-west-3, us-west-2) throttles every
+  probed model on the first call — Titan Embed V2 with "Too many requests",
+  and both Claude Sonnet 4.5 *and first-party Amazon Nova Lite* with "Too many
+  tokens per day". The clamp is account-level and model-agnostic; neither
+  model choice nor region choice routes around it, and promotional/free-tier
+  credits do not change Service Quotas (billing and quotas are separate
+  systems).
+
+Consequences of the addendum:
+
+- The default `BEDROCK_REGION` is now **eu-north-1** (the only region ever
+  observed accepting calls), aligned across `config.py`,
+  `infra/template.yaml`, `.env.example`, `docs/DEPLOY.md` and `CLAUDE.md`.
+- `scripts/probe_bedrock.py` (`make probe-bedrock`) is the pre-demo check:
+  one InvokeModel + one Converse per candidate region, retries disabled.
+- Both `bedrock-runtime` clients now set explicit botocore timeouts and
+  capped retries so a throttled/hung call fails fast inside the Lambda budget
+  instead of consuming it.
+- The demo must not *depend* on live Bedrock: seeding uses captured Titan
+  fixtures (`seed_memory.py --from-fixture`) or deterministic vectors
+  (`make seed-data-offline`), and the remediation agent's deterministic
+  precedent-replay fallback carries the reasoning step. Live Bedrock, when a
+  probe shows a region open, is upside — not a prerequisite.
+- Paths to actually lifting the clamp, in order of plausibility: an AWS
+  Support case requesting an on-demand quota increase (no guaranteed
+  turnaround before the deadline), sustained small successful usage to grow
+  the dynamic quota (chicken-and-egg while everything throttles), or running
+  the demo from an AWS account with real usage history.
+
 ## Consequences
 - `AWS_REGION` and `BEDROCK_REGION` now intentionally differ — this is not the "drift" ADR 007 warned about; ADR 007's config-sync concern was about the reasoning model ID matching the deployment region's available profiles, which still holds (`eu.` prefix profile, invoked from an EU region).
 - The Bedrock leg of a remediation step now carries a small cross-region hop (eu-central-1 Lambda → eu-west-1 Bedrock, ~10-20ms) that wasn't in ADR 007's original hot-path accounting. This doesn't affect the recovery-read race `chaos_kill.py` demonstrates, since that race is entirely between the orchestrator and CockroachDB.

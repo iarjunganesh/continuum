@@ -7,7 +7,12 @@ Description: >
 
 Globals:
   Function:
-    Timeout: 30
+    # One invocation = recovery read + Bedrock embed + converse + a 5s
+    # simulated execution window + two checkpoint transactions (~15s happy
+    # path). 60s leaves room for one throttled-Bedrock retry cycle (the
+    # clients cap their own timeouts — see agents/*_agent.py) without the
+    # runtime killing the function mid-step organically.
+    Timeout: 60
     MemorySize: 512
     Runtime: python3.14
 
@@ -43,13 +48,14 @@ Parameters:
   CockroachDatabaseUrl:
     Type: String
     NoEcho: true
-  # eu-central-1 (this function's own region) has a 0, non-adjustable
-  # on-demand/cross-region Bedrock quota on this account for every model —
-  # see ADR 008. eu-west-1 has full default quota, so Bedrock calls target
-  # it directly while the function itself stays in eu-central-1 (ADR 007).
+  # Bedrock quotas on this account are dynamically adjusted and probe as
+  # effectively 0 in most regions on most days (ADR 008 + addendum).
+  # eu-north-1 is the only region that has ever accepted calls; probe with
+  # `make probe-bedrock` before the demo and override here if it moved.
+  # The function itself stays in eu-central-1 (ADR 007).
   BedrockRegion:
     Type: String
-    Default: eu-west-1
+    Default: eu-north-1
   BedrockEmbeddingModelId:
     Type: String
     Default: amazon.titan-embed-text-v2:0

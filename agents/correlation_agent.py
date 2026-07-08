@@ -11,12 +11,24 @@ from typing import List
 
 import boto3
 import psycopg
+from botocore.config import Config
 from psycopg.rows import dict_row
 
 from config import settings
 from observability.structured_logger import get_logger
 
 log = get_logger(__name__)
+
+# Tight timeouts + capped retries: this client runs inside a Lambda with a
+# finite invocation budget, and the botocore defaults (60s read timeout,
+# backoff retries) can consume all of it when Bedrock throttles — which this
+# account's dynamic quotas make routine (ADR 008 addendum). Fail fast and let
+# the orchestrator's best-effort handling degrade to "no precedent".
+_BEDROCK_CLIENT_CONFIG = Config(
+    connect_timeout=5,
+    read_timeout=15,
+    retries={"max_attempts": 2, "mode": "standard"},
+)
 
 
 @dataclass
@@ -34,7 +46,11 @@ class CorrelationAgent:
 
     def _client(self):
         if self._bedrock is None:
-            self._bedrock = boto3.client("bedrock-runtime", region_name=settings.bedrock_region)
+            self._bedrock = boto3.client(
+                "bedrock-runtime",
+                region_name=settings.bedrock_region,
+                config=_BEDROCK_CLIENT_CONFIG,
+            )
         return self._bedrock
 
     def embed(self, alert_text: str) -> List[float]:

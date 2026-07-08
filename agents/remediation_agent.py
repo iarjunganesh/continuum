@@ -11,12 +11,21 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 import boto3
+from botocore.config import Config
 
 from agents.correlation_agent import CorrelationMatch
 from config import settings
 from observability.structured_logger import get_logger
 
 log = get_logger(__name__)
+
+# Same rationale as agents/correlation_agent.py: botocore defaults (60s read
+# timeout, backoff retries) can eat the whole Lambda budget under throttling.
+_BEDROCK_CLIENT_CONFIG = Config(
+    connect_timeout=5,
+    read_timeout=15,
+    retries={"max_attempts": 2, "mode": "standard"},
+)
 
 PROMPT_TEMPLATE = """You are an incident-remediation planner. All data is synthetic (hackathon demo).
 
@@ -43,7 +52,11 @@ class RemediationAgent:
 
     def _client(self):
         if self._bedrock is None:
-            self._bedrock = boto3.client("bedrock-runtime", region_name=settings.bedrock_region)
+            self._bedrock = boto3.client(
+                "bedrock-runtime",
+                region_name=settings.bedrock_region,
+                config=_BEDROCK_CLIENT_CONFIG,
+            )
         return self._bedrock
 
     def propose_next_step(self, matches: List[CorrelationMatch], step_index: int,
