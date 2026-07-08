@@ -1,4 +1,4 @@
-.PHONY: install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark test lint coverage
+.PHONY: install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark probe-bedrock deploy test lint coverage
 
 install:
 	pip install -r requirements.txt
@@ -51,6 +51,19 @@ chaos-demo:
 # Latency benchmarks against $COCKROACH_DATABASE_URL — writes docs/BENCHMARKS.md.
 benchmark:
 	python scripts/benchmark.py --out docs/BENCHMARKS.md
+
+# One InvokeModel + one Converse per candidate region, retries disabled — run
+# before the demo; quotas are dynamic and usually closed (ADR 008 addendum).
+probe-bedrock:
+	python scripts/probe_bedrock.py
+
+# Orchestrator -> Lambda (docs/DEPLOY.md). --use-container is required on
+# Windows/macOS hosts: psycopg[binary]/pydantic-core need Linux wheels.
+# First deploy is interactive: run the `sam deploy --guided` line from
+# docs/DEPLOY.md once to create samconfig.toml, then use this target.
+deploy:
+	sam build --use-container --template infra/template.yaml
+	sam deploy
 
 test:
 	pytest tests/unit tests/integration -v

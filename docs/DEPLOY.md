@@ -59,16 +59,18 @@ Prerequisites: AWS credentials with Lambda / IAM / CloudFormation access, the [A
 
 ```bash
 # First deploy — interactive; saves your choices to samconfig.toml
-sam build --template infra/template.yaml
+sam build --use-container --template infra/template.yaml
 sam deploy --guided --template infra/template.yaml \
   --stack-name continuum --region eu-central-1 \
-  --parameter-overrides CockroachDatabaseUrl="$COCKROACH_DATABASE_URL" BedrockRegion=eu-west-1
+  --parameter-overrides CockroachDatabaseUrl="$COCKROACH_DATABASE_URL" BedrockRegion=eu-north-1
 
 # Subsequent deploys
-sam build --template infra/template.yaml && sam deploy
+make deploy   # = sam build --use-container + sam deploy (reuses samconfig.toml)
 ```
 
-Region is **eu-central-1** (co-located with the CockroachDB cluster, ADR 007); Bedrock calls target **eu-west-1** (ADR 008) — both already defaulted in the template's parameters.
+`--use-container` is **required when building on Windows or macOS**: without it, `sam build` bundles host-platform wheels for the compiled dependencies (`psycopg[binary]`, `pydantic-core`), and the resulting package crashes on Lambda's Linux runtime with import errors. The container build resolves Linux wheels regardless of host OS.
+
+Region is **eu-central-1** (co-located with the CockroachDB cluster, ADR 007); Bedrock calls target **eu-north-1** by default (ADR 008 + addendum) — both already defaulted in the template's parameters. Bedrock quotas on this account are dynamic and usually closed; run `make probe-bedrock` first and override `BedrockRegion` if the probe shows a different region open. A throttled region does **not** break the deploy or the demo — correlation and reasoning degrade to their deterministic fallbacks by design.
 
 **Packaging note.** The template's `CodeUri: ../` packages the repo root, so build from a checkout where the local `.venv/` is absent or moved aside — otherwise SAM bundles the virtualenv and blows past Lambda's unzipped-size limit. SAM installs the function's own dependencies from `requirements.txt`.
 
@@ -86,3 +88,13 @@ SELECT state FROM incidents WHERE correlation_id = 'deploy-smoke-1';
 ```
 
 Once that returns a row, check the **AWS Lambda** and **"Uses CockroachDB deployed on AWS"** items in `docs/SUBMISSION.md`.
+
+### Driving the demo through the deployed Lambda
+
+After the smoke test passes, the alert-stream driver can target the deployed function instead of running the orchestrator in-process — this is what makes "a fresh Lambda invocation starts cold" in `docs/DEMO_RUNBOOK.md` literally true:
+
+```bash
+python scripts/demo_run.py --tick --via-lambda   # invokes continuum-orchestrator in eu-central-1
+```
+
+It uses `LAMBDA_FUNCTION_NAME` / `AWS_REGION` from the environment (`config.Settings`), so no extra setup beyond the deploy itself.

@@ -10,6 +10,7 @@ Usage:
     python scripts/demo_run.py --tick                  # drive one step
     python scripts/demo_run.py --tick --resume-check   # ...and log whether it resumed
     python scripts/demo_run.py --tick --via-api        # POST to the running API instead
+    python scripts/demo_run.py --tick --via-lambda     # invoke the deployed Lambda instead
     python scripts/demo_run.py --tick --new            # start a fresh incident
 """
 import argparse
@@ -37,7 +38,8 @@ DEMO_ALERT = {
 }
 
 
-def tick(resume_check: bool = False, via_api: bool = False, new: bool = False):
+def tick(resume_check: bool = False, via_api: bool = False, via_lambda: bool = False,
+         new: bool = False):
     alert = dict(DEMO_ALERT)
     if new:
         alert["correlation_id"] = f"demo-incident-{uuid.uuid4().hex[:8]}"
@@ -45,6 +47,20 @@ def tick(resume_check: bool = False, via_api: bool = False, new: bool = False):
     if via_api:
         # Runs inside the API process — kill THAT process mid-step to demo recovery.
         result = httpx.post("http://localhost:8000/api/v1/alert", json=alert, timeout=60).json()
+    elif via_lambda:
+        # Invokes the deployed function (docs/DEPLOY.md) — every tick is a real
+        # cold-capable Lambda invocation, so the runbook's "a fresh Lambda
+        # invocation starts cold" is literal, not simulated.
+        import boto3
+
+        from config import settings
+        response = boto3.client("lambda", region_name=settings.aws_region).invoke(
+            FunctionName=settings.lambda_function_name,
+            Payload=json.dumps(alert).encode(),
+        )
+        result = json.loads(response["Payload"].read())
+        if response.get("FunctionError"):
+            raise RuntimeError(f"Lambda invocation failed: {result}")
     else:
         from agents.orchestrator import handle_alert
         result = handle_alert(alert)
@@ -61,10 +77,12 @@ if __name__ == "__main__":
     parser.add_argument("--tick", action="store_true")
     parser.add_argument("--resume-check", action="store_true")
     parser.add_argument("--via-api", action="store_true")
+    parser.add_argument("--via-lambda", action="store_true")
     parser.add_argument("--new", action="store_true")
     args = parser.parse_args()
 
     if args.tick:
-        tick(resume_check=args.resume_check, via_api=args.via_api, new=args.new)
+        tick(resume_check=args.resume_check, via_api=args.via_api,
+             via_lambda=args.via_lambda, new=args.new)
     else:
         print("Use --tick to fire a synthetic alert against the orchestrator.")
