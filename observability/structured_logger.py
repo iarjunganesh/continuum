@@ -1,6 +1,6 @@
 """
-Structured JSON logging — matches convention used in sibling repos
-(argus/utils/structured_logger.py, bankers-wrapped structlog setup).
+Structured JSON logging for Continuum — structlog configured for JSON
+output so every agent/API log line is machine-parseable.
 """
 import logging
 import sys
