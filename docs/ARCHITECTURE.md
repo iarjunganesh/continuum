@@ -67,7 +67,7 @@ sequenceDiagram
     B->>DB: recovery read FIRST — finds step 0 'executing'
     B-->>B: re-run step 0 (not skipped, not duplicated)
     B->>DB: checkpoint_step_done(step 0) → 'executed'
-    Note over DB: exactly-once preserved; state outlived the process
+    Note over DB: exactly-once preserved, state outlived the process
 ```
 
 The same flow, step by step:
