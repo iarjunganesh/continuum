@@ -57,7 +57,7 @@ def _bench(fn, n: int) -> list[float]:
     return samples
 
 
-def run(n: int, out_path: str) -> None:
+def run(n: int, out_path: str, context: str) -> None:
     memory = MemoryAgent()
     correlation = CorrelationAgent()
     dsn = settings.cockroach_database_url
@@ -114,11 +114,11 @@ def run(n: int, out_path: str) -> None:
             cur.execute("DELETE FROM incidents WHERE incident_id = %s", (iid,))
         conn.commit()
 
-    _write(results, n, out_path)
+    _write(results, n, out_path, context)
     log.info("benchmark_complete", iterations=n, out=out_path)
 
 
-def _write(results: dict[str, list[float]], n: int, out_path: str) -> None:
+def _write(results: dict[str, list[float]], n: int, out_path: str, context: str) -> None:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     rows = ["| Operation | p50 (ms) | p95 (ms) | p99 (ms) | mean (ms) |",
             "| --- | --- | --- | --- | --- |"]
@@ -133,7 +133,7 @@ Reproduce with `make benchmark` (or `python scripts/benchmark.py --n {n}`) again
 your own cluster — numbers vary with cluster tier, region, and client distance.
 
 **Run:** {now} · **Iterations:** {n} · **Vector search:** deterministic synthetic
-vectors (no Bedrock) · **Cluster/region/client:** _fill in for your run_
+vectors (no Bedrock) · **Measured from:** {context}
 
 {table}
 
@@ -143,6 +143,13 @@ Notes:
 - `find_similar` is CockroachDB's C-SPANN ANN search (`service` filter + `<->` rank).
 - Measured client-side (`time.perf_counter`) around each call, so it includes the
   round trip and commit, not just server execution.
+- **These are measured from a developer machine, not the deployed Lambda.** Absolute
+  latency is dominated by per-call connection setup (TLS + Serverless routing) over the
+  public internet — each call opens a fresh connection, matching the Lambda's cold
+  per-invocation pattern. The orchestrator Lambda is co-located with the cluster in
+  eu-central-1 (ADR 007), so production per-call latency is expected to be substantially
+  lower. Read the *relative* cost between operations (end-to-end resume ≈ 3× a single
+  commit) as the durable signal, not the absolute milliseconds.
 """
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(doc)
@@ -153,5 +160,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=50, help="iterations per operation")
     parser.add_argument("--out", default="docs/BENCHMARKS.md")
+    parser.add_argument(
+        "--context",
+        default="developer workstation over the public internet -> CockroachDB Cloud "
+                "free-tier (Serverless), eu-central-1; fresh connection per call",
+        help="describe where the benchmark ran (client location, cluster tier/region)",
+    )
     args = parser.parse_args()
-    run(args.n, args.out)
+    run(args.n, args.out, args.context)
