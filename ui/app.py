@@ -438,14 +438,30 @@ def load_timeline(incident_id: str | None):
     </div>"""
 
 
+def _leaf_errors(exc: BaseException) -> str:
+    """The MCP client raises from inside an anyio TaskGroup, so str(exc) is
+    the useless 'unhandled errors in a TaskGroup (1 sub-exception)' — unwrap
+    ExceptionGroups recursively and report the actual leaf errors instead."""
+    if isinstance(exc, BaseExceptionGroup):
+        return "; ".join(_leaf_errors(e) for e in exc.exceptions)
+    return f"{type(exc).__name__}: {exc}"
+
+
 def ask_via_mcp():
     """Same durable state, driven through the CockroachDB Cloud Managed MCP
     Server (read-only) rather than a direct connection — demonstrates the app
     itself calling MCP at runtime (ADR 003), not just Claude Code in dev."""
+    if not settings.cockroach_mcp_api_key or not settings.cockroach_mcp_cluster_id:
+        return (
+            "MCP not configured: set COCKROACH_MCP_API_KEY and COCKROACH_MCP_CLUSTER_ID "
+            "as Space secrets. Key: CockroachDB Cloud console → Access Management → "
+            "Service Accounts (Cluster Operator role on this cluster); cluster id: the "
+            "UUID in the console URL. See .env.example."
+        )
     try:
         result = asyncio.run(query_agent.list_open_incidents())
     except Exception as exc:
-        return f"MCP query failed (endpoint/key not configured?): {exc}"
+        return f"MCP query failed: {_leaf_errors(exc)}"
     return json.dumps(result.rows, indent=2, default=str)
 
 

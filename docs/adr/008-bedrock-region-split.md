@@ -58,6 +58,6 @@ Consequences of the addendum:
 
 ## Consequences
 - `AWS_REGION` and `BEDROCK_REGION` now intentionally differ — this is not the "drift" ADR 007 warned about; ADR 007's config-sync concern was about the reasoning model ID matching the deployment region's available profiles, which still holds (`eu.` prefix profile, invoked from an EU region).
-- The Bedrock leg of a remediation step now carries a small cross-region hop (eu-central-1 Lambda → eu-west-1 Bedrock, ~10-20ms) that wasn't in ADR 007's original hot-path accounting. This doesn't affect the recovery-read race `chaos_kill.py` demonstrates, since that race is entirely between the orchestrator and CockroachDB.
+- The Bedrock leg of a remediation step now carries a small cross-region hop (eu-central-1 Lambda → the `BEDROCK_REGION` endpoint, eu-north-1 per the addendum) that wasn't in ADR 007's original hot-path accounting. This doesn't affect the recovery-read race `chaos_kill.py` demonstrates, since that race is entirely between the orchestrator and CockroachDB — and correlation/reasoning are best-effort off that critical path (ADR 009) anyway.
 - Before relying on any other AWS account for this project (e.g. a judge re-running it, or a fresh account for the recorded demo), re-run the quota check above — `0`-quota regions are an account-level default, not something specific to this build's original account.
 - `infra/template.yaml`'s Lambda IAM policy already grants `bedrock:InvokeModel` on `Resource: '*'`, so no IAM change was needed to call a different region.

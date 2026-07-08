@@ -3,6 +3,27 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0] — 2026-07-08 — Bedrock/Lambda deep audit: fail-fast clients, probed region default, Lambda-driven demo
+
+### Fixed
+
+- **The default Bedrock region pointed at an endpoint known to throttle.** `config.py`, `infra/template.yaml` and the `docs/DEPLOY.md` deploy command all still defaulted to eu-west-1 — contradicted by the 2026-07-07 probe recorded in `.env.example`. All defaults now align on eu-north-1, and an ADR 008 addendum records the 2026-07-08 probe result (`scripts/probe_bedrock.py`): **every** region throttles **every** model on the first call — Titan "Too many requests", Claude *and first-party Nova* "Too many tokens per day" — i.e. an account-level dynamic quota clamp that neither model choice, region choice, nor promotional credits routes around; only an AWS Support escalation or account usage history lifts it
+- **Bedrock clients ran on botocore defaults** (60s read timeout, backoff retries) — one throttled/hung call could consume the entire Lambda invocation budget and kill the function mid-step *organically*, making the recorded demo nondeterministic. Both `bedrock-runtime` clients now set `connect_timeout=5`, `read_timeout=15`, standard-mode retries capped at 2 attempts, and the Lambda `Timeout` went 30s → 60s with the per-step budget math documented in the template
+- **The Gradio "Ask via MCP" panel swallowed the real MCP error.** The MCP client raises from inside an anyio `TaskGroup`, so a failure surfaced on the Space as the useless `unhandled errors in a TaskGroup (1 sub-exception)`. The handler now unwraps `ExceptionGroup`s recursively to their leaf errors (e.g. `McpError: executing select query: unauthorized`) and short-circuits with an actionable setup message when the key/cluster id aren't configured. Exercising the fixed path against the live server also pinned the real failure mode — a service-account key *authenticates* but every query returns `unauthorized` until the account holds the **Cluster Operator** role on the cluster — now documented in `docs/DEPLOY.md` alongside the previously-undocumented `COCKROACH_MCP_CLUSTER_ID` Space secret
+- **Sharpened the TLS guidance across `.env.example`, `docs/DEPLOY.md` and `infra/template.yaml`.** `sslmode=require` stays the documented choice (encrypts, no CA file, works in every fresh container — acceptable for synthetic data, ADR 005), but the *why* is now empirically grounded: this cluster's cert is actually publicly-trusted (Let's Encrypt, verified 2026-07-08), yet `sslmode=verify-full&sslrootcert=system` still fails through psycopg/libpq (`certificate verify failed`, tested on libpq 18) because libpq's `system` CA store is empty/unresolved on many platforms. The docs now explicitly warn against `verify-full&sslrootcert=system` and note it's the cause of that exact error, so the guidance doesn't get "corrected" back to a string that doesn't work
+
+### Added
+
+- **`scripts/probe_bedrock.py` / `make probe-bedrock`** — one InvokeModel + one Converse per candidate region, retries disabled. Run before recording: both Bedrock paths degrade silently by design (no precedent / precedent-replay), so a fully throttled account *looks* healthy while never touching Bedrock — the probe tells you which mode you're demoing in
+- **`scripts/demo_run.py --tick --via-lambda`** — drives an alert tick through the deployed `continuum-orchestrator` function, making the runbook's "a fresh Lambda invocation starts cold" literal instead of simulated; first real consumer of `LAMBDA_FUNCTION_NAME` (previously dead config)
+- **`make deploy`** — `sam build --use-container` + `sam deploy`; the container build is required when building on Windows/macOS because `psycopg[binary]`/`pydantic-core` ship compiled wheels and a host-platform build crashes on Lambda's Linux runtime with import errors (now documented in `docs/DEPLOY.md`)
+- **`docs/DEMO_READINESS_CHECKLIST.md`** — P0/P1 winner-level demo checklist, audited against actual repo state; biggest open blockers called out (no recorded video, Space can't self-trigger an incident, `docs/BENCHMARKS.md` never populated)
+- `infra/__init__.py` so `infra.lambda_handler` imports as a regular package rather than relying on namespace-package resolution
+
+### Changed
+
+- `docs/DEMO_RUNBOOK.md` pre-flight now starts with `make probe-bedrock`, and the recovery beat documents both drivers: restart-and-retick `--via-api` (what `chaos_demo.ps1` does) or `--via-lambda` for a real cold Lambda invocation
+
 ## [0.5.0] — 2026-07-07 — MCP query path restored; benchmarks, real-kill test, Bedrock-free seeding
 
 ### Fixed

@@ -229,7 +229,7 @@ continuum/
 | [005](docs/adr/005-synthetic-incident-data.md) | Synthetic incident corpus only — no real infra, ever |
 | [006](docs/adr/006-scope-cuts.md) | Explicit scope cuts, documented instead of hidden |
 | [007](docs/adr/007-eu-central-1-region.md) | eu-central-1 deployment region, kept in sync across config/template/ADR |
-| [008](docs/adr/008-bedrock-region-split.md) | Bedrock calls target a separate region (eu-west-1) from the Lambda/CockroachDB region — this account's eu-central-1 Bedrock quota is 0 and non-adjustable |
+| [008](docs/adr/008-bedrock-region-split.md) | Bedrock calls target a separate region (`BEDROCK_REGION`, default eu-north-1) from the Lambda/CockroachDB region — this account's Bedrock quota is a dynamic account-level clamp that probes as ~0 across all regions and models (addendum); the app degrades to deterministic fallbacks |
 | [009](docs/adr/009-step-execution-semantics.md) | Each step runs in two explicit `SERIALIZABLE` transactions with a forward-step claim (`ON CONFLICT DO NOTHING`) for exactly-once; correlation/Bedrock is best-effort, off the recovery critical path |
 
 ---
