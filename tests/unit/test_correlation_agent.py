@@ -44,7 +44,14 @@ class TestEmbed:
             agent.embed("alert one")
             agent.embed("alert two")
 
-        mock_boto3.client.assert_called_once_with("bedrock-runtime", region_name=settings.bedrock_region)
+        mock_boto3.client.assert_called_once()
+        args, kwargs = mock_boto3.client.call_args
+        assert args == ("bedrock-runtime",)
+        assert kwargs["region_name"] == settings.bedrock_region
+        # Explicit timeouts/capped retries so a throttled call can't eat the
+        # Lambda invocation budget (ADR 008 addendum).
+        assert kwargs["config"].read_timeout == 15
+        assert kwargs["config"].retries == {"max_attempts": 2, "mode": "standard"}
 
 
 class TestFindSimilar:
