@@ -39,12 +39,13 @@ Resources:
       # No ProvisionedConcurrencyConfig — cold starts are intentional (ADR 002)
 
 Parameters:
-  # CockroachDB Cloud's cert is signed by a cluster-specific CA, not a public
-  # one — sslmode=verify-full needs that exact CA file on disk, which Lambda's
-  # execution environment won't have unless you fetch and ship it yourself
-  # (hit, and documented, on the HF Space for the same reason; see
-  # .env.example). sslmode=require encrypts without that dependency; decide
-  # per the same synthetic-data trade-off noted there.
+  # Use sslmode=require in the connection string: it encrypts without needing a
+  # CA file, works in Lambda's execution environment unconditionally, and is
+  # acceptable for synthetic data (ADR 005). sslmode=verify-full&sslrootcert=system
+  # is NOT a reliable substitute here — libpq's `system` store is empty/unresolved
+  # on many platforms and fails with `certificate verify failed` (see .env.example
+  # for the 2026-07-08 test). For real verification, ship the cluster CA file and
+  # point &sslrootcert=<path> at it.
   CockroachDatabaseUrl:
     Type: String
     NoEcho: true
