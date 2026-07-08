@@ -4,10 +4,13 @@ Target runtime: **under 3 minutes**. Every second should show either CockroachDB
 
 ## Pre-flight (not recorded, or recorded as a fast cut)
 ```bash
+make probe-bedrock  # is live Bedrock open today? (quotas are dynamic — ADR 008 addendum)
 make migrate        # apply schema.sql   (Windows: .\scripts\migrate_and_seed.ps1)
-make seed-data       # load incidents_seed.jsonl + embeddings
+make seed-data       # load incidents_seed.jsonl + embeddings (throttled Bedrock: seed-data-offline / --from-fixture)
 make run-api        # the orchestrator must run as a killable process on :8000
 ```
+
+If the probe shows every region throttled, the demo still runs end to end — correlation degrades to "no precedent" and remediation to deterministic replay/paging, by design. Know which mode you're recording in before you start.
 
 `make chaos-demo` is POSIX-only; on Windows drive the whole sequence with
 `.\scripts\chaos_demo.ps1`, which starts the API, ticks via it, kills it, and
@@ -32,8 +35,8 @@ Voiceover: the process is dead. No graceful shutdown, no checkpoint call — jus
 On screen: refresh the console — the resilience banner flips to "1 step in-flight" and the recovery-timeline drill-down shows that step frozen in `executing`, flagged *"the process died here."* The state outlived the process.
 
 **1:30–2:10 — The recovery**
-Trigger the next alert-stream tick. A fresh Lambda invocation starts cold.
-Show, live, in the logs or UI: the orchestrator's first action is a CockroachDB read of `incidents` + `remediation_steps` for the open correlation_id — it finds step 0 already logged, resumes at step 1, does not restart from scratch. In the console's recovery timeline, the frozen step advances to `executed` and the next step begins — the same log a cold invocation replays, shown on screen.
+Trigger the next alert-stream tick — either restart the API and re-tick `--via-api` (what `chaos_demo.ps1` does), or, with the orchestrator deployed (`docs/DEPLOY.md`), `python scripts/demo_run.py --tick --via-lambda` so the recovery literally runs as a fresh cold Lambda invocation.
+Show, live, in the logs or UI: the orchestrator's first action is a CockroachDB read of `incidents` + `remediation_steps` for the open correlation_id — it finds step 0 durably stuck in `executing`, re-runs step 0 (not skipped, not duplicated), then commits it `executed` before advancing to step 1. In the console's recovery timeline, the frozen step advances to `executed` and the next step begins — the same log a cold invocation replays, shown on screen.
 This is the single most important shot in the video. Do not rush it.
 
 **2:10–2:40 — The query interface**
