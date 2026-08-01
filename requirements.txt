@@ -1,34 +1,48 @@
-# Floors only — pip resolves the latest compatible releases at install time.
+# Floors are the versions this project is actually tested against; caps stop a
+# major release from landing in CI unannounced. CI installs from this file on a
+# clean runner (.github/workflows/ci.yml), so an unbounded floor means the next
+# upstream major becomes a surprise CI failure — or worse, a surprise *pass*
+# against changed semantics. Bump deliberately, run `make test`, then commit.
+#
 # Requires Python 3.14 (see pyproject.toml).
 
 # Core
-fastapi>=0.115
-uvicorn[standard]>=0.32
-pydantic>=2.9
-pydantic-settings>=2.6
+fastapi>=0.141,<1
+uvicorn[standard]>=0.52,<1
+pydantic>=2.13,<3
+pydantic-settings>=2.14,<3
 
 # Database — psycopg 3 (psycopg2 has no Python 3.14 wheels)
-psycopg[binary]>=3.2
+psycopg[binary]>=3.3,<4
 
 # AWS
-boto3>=1.35
+boto3>=1.43,<2
 
-# CockroachDB Cloud Managed MCP Server client (agents/query_agent.py)
-mcp>=1.2
+# CockroachDB Cloud Managed MCP Server client (agents/query_agent.py).
+# PINNED BELOW 2.0 DELIBERATELY. mcp 2.0.0 is a major release and query_agent
+# talks to a *managed* server whose contract we don't control; the unit tests
+# mock the SDK at the import boundary (tests/unit/test_query_agent.py), so they
+# would pass against a 2.x client that fails against the real server. Lifting
+# this cap requires a live round trip against the Managed MCP Server, not a
+# green unit suite. See ADR 003.
+mcp>=1.28,<2
 
 # HTTP / demo driver
-httpx>=0.27
+httpx>=0.28,<1
 
 # Cross-platform process control (chaos_kill.py)
-psutil>=6.1
+psutil>=7.2,<8
 
 # Observability
-structlog>=24.4
+structlog>=26.1,<27
 
-# Demo UI (Space pins sdk_version in README frontmatter; keep the two in sync)
-gradio>=6.0
+# Demo UI. MUST match `sdk_version` in the README frontmatter — that's what the
+# Hugging Face Space builds against, and a mismatch fails at Space build time,
+# not here.
+gradio>=6.22,<7
 
 # Dev / test
-pytest>=8.3
-pytest-cov>=6.0
-ruff>=0.8
+pytest>=9.1,<10
+pytest-cov>=7.1,<8
+ruff>=0.16,<0.17
+mypy>=2.3,<3

@@ -5,6 +5,7 @@ tests assert *ordering and resume semantics* (recovery read before any new
 write, interrupted steps re-executed, no duplicate execution) without a live
 CockroachDB connection or AWS credentials.
 """
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -34,8 +35,7 @@ def _proposed(action="do_thing"):
 @patch("agents.orchestrator.correlation")
 @patch("agents.orchestrator.memory")
 def test_resumes_at_next_step_after_completed_step(mock_memory, mock_correlation, mock_remediation):
-    existing = MagicMock(incident_id="existing-id", state="remediating",
-                         last_step_index=1, last_step_status="executed")
+    existing = MagicMock(incident_id="existing-id", state="remediating", last_step_index=1, last_step_status="executed")
     mock_memory.get_open_incident.return_value = existing
     mock_correlation.embed.return_value = [0.0] * 8
     mock_correlation.find_similar.return_value = []
@@ -55,8 +55,9 @@ def test_reexecutes_step_interrupted_mid_execution(mock_memory, mock_correlation
     """The chaos-kill scenario: previous invocation died with step 1 stuck in
     'executing'. The fresh invocation must re-run step 1, not skip to 2 and
     not restart at 0."""
-    existing = MagicMock(incident_id="existing-id", state="remediating",
-                         last_step_index=1, last_step_status="executing")
+    existing = MagicMock(
+        incident_id="existing-id", state="remediating", last_step_index=1, last_step_status="executing"
+    )
     mock_memory.get_open_incident.return_value = existing
     mock_correlation.embed.return_value = [0.0] * 8
     mock_correlation.find_similar.return_value = []
@@ -115,8 +116,7 @@ def test_resuming_past_max_steps_closes_loop_without_new_reasoning(mock_memory, 
     """If every planned step already executed (last_step_index at the max),
     the orchestrator resolves immediately without correlating/proposing
     a step that was never going to run."""
-    existing = MagicMock(incident_id="existing-id", state="remediating",
-                         last_step_index=2, last_step_status="executed")
+    existing = MagicMock(incident_id="existing-id", state="remediating", last_step_index=2, last_step_status="executed")
     mock_memory.get_open_incident.return_value = existing
 
     result = handle_alert(ALERT)
@@ -133,8 +133,7 @@ def test_resuming_past_max_steps_closes_loop_without_new_reasoning(mock_memory, 
 @patch("agents.orchestrator.memory")
 def test_resolves_after_final_step(mock_memory, mock_correlation, mock_remediation):
     """With max_remediation_steps=3, executing step index 2 resolves the incident."""
-    existing = MagicMock(incident_id="existing-id", state="remediating",
-                         last_step_index=1, last_step_status="executed")
+    existing = MagicMock(incident_id="existing-id", state="remediating", last_step_index=1, last_step_status="executed")
     mock_memory.get_open_incident.return_value = existing
     mock_correlation.embed.return_value = [0.0] * 8
     mock_correlation.find_similar.return_value = []
@@ -155,8 +154,7 @@ def test_skips_execution_when_step_already_claimed(mock_memory, mock_correlation
     """Concurrency guard: if checkpoint_step_start reports the step was already
     claimed by a racing invocation, this invocation must NOT execute it or
     advance it to 'executed'."""
-    existing = MagicMock(incident_id="existing-id", state="remediating",
-                         last_step_index=0, last_step_status="executed")
+    existing = MagicMock(incident_id="existing-id", state="remediating", last_step_index=0, last_step_status="executed")
     mock_memory.get_open_incident.return_value = existing
     mock_correlation.embed.return_value = [0.0] * 8
     mock_correlation.find_similar.return_value = []

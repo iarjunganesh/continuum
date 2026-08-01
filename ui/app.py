@@ -2,7 +2,7 @@
 Continuum demo UI — live incident-memory console.
 
 A read-only NOC-style view straight into CockroachDB, built for the recorded
-demo (docs/DEMO_RUNBOOK.md) and the public Hugging Face Space. The centrepiece
+demo (submission/DEMO_SCRIPT.md) and the public Hugging Face Space. The centrepiece
 is the **recovery timeline**: it makes the differentiating beat visible on
 screen — a remediation step frozen in `executing` is exactly where the process
 died, and the next cold invocation resumes there. State lives in CockroachDB,
@@ -13,6 +13,7 @@ Read-only by construction: the main feed uses a direct psycopg connection, the
 Managed MCP Server (read-only). Neither path ever writes — memory_agent.py
 remains the only write path (CLAUDE.md, ADR 003).
 """
+
 import asyncio
 import html
 import json
@@ -38,11 +39,7 @@ query_agent = QueryAgent()
 # Set CONTINUUM_UI_REFRESH_SECONDS=0 to disable auto-refresh entirely.
 REFRESH_SECONDS = max(0.0, float(os.getenv("CONTINUUM_UI_REFRESH_SECONDS", "0")))
 LOAD_ON_OPEN = os.getenv("CONTINUUM_UI_LOAD_ON_OPEN", "0") == "1"
-REFRESH_LABEL = (
-  "manual refresh only"
-  if REFRESH_SECONDS <= 0
-  else f"auto-refreshing every {REFRESH_SECONDS:g}s"
-)
+REFRESH_LABEL = "manual refresh only" if REFRESH_SECONDS <= 0 else f"auto-refreshing every {REFRESH_SECONDS:g}s"
 
 # ── Palette (dark ops surface; validated status colors from the dataviz skill).
 # Status color never carries meaning alone — every chip ships an icon + label.
@@ -54,25 +51,25 @@ NEUTRAL, PURPLE = "#3987e5", "#8b6dff"  # NEUTRAL = processing phase; PURPLE = b
 
 # Incident lifecycle → (color, glyph, label)
 STATE_META = {
-    "open":        (WARNING,  "◐", "Open"),
-    "correlating": (NEUTRAL,  "◍", "Correlating"),
-    "remediating": (SERIOUS,  "◉", "Remediating"),
-    "resolved":    (GOOD,     "✓", "Resolved"),
-    "escalated":   (CRITICAL, "▲", "Escalated"),
+    "open": (WARNING, "◐", "Open"),
+    "correlating": (NEUTRAL, "◍", "Correlating"),
+    "remediating": (SERIOUS, "◉", "Remediating"),
+    "resolved": (GOOD, "✓", "Resolved"),
+    "escalated": (CRITICAL, "▲", "Escalated"),
 }
 SEVERITY_META = {
-    "low":      (NEUTRAL,  "Low"),
-    "medium":   (WARNING,  "Medium"),
-    "high":     (SERIOUS,  "High"),
+    "low": (NEUTRAL, "Low"),
+    "medium": (WARNING, "Medium"),
+    "high": (SERIOUS, "High"),
     "critical": (CRITICAL, "Critical"),
 }
 # Remediation step status → (color, glyph, label, pulse?)
 STEP_META = {
-    "proposed":  (MUTED,    "○", "proposed",  False),
-    "executing": (SERIOUS,  "◐", "executing", True),   # the interruptible window
-    "executed":  (GOOD,     "●", "executed",  False),
-    "failed":    (CRITICAL, "✕", "failed",    False),
-    "skipped":   (MUTED,    "–", "skipped",   False),
+    "proposed": (MUTED, "○", "proposed", False),
+    "executing": (SERIOUS, "◐", "executing", True),  # the interruptible window
+    "executed": (GOOD, "●", "executed", False),
+    "failed": (CRITICAL, "✕", "failed", False),
+    "skipped": (MUTED, "–", "skipped", False),
 }
 
 CSS = f"""
@@ -227,8 +224,7 @@ def _ago(dt) -> str:
 
 
 def _chip(color: str, glyph: str, label: str) -> str:
-    return (f'<span class="cx-chip" style="--c:{color}">'
-            f'<span class="g">{glyph}</span>{_esc(label)}</span>')
+    return f'<span class="cx-chip" style="--c:{color}"><span class="g">{glyph}</span>{_esc(label)}</span>'
 
 
 def _mini_stepper(steps: list[dict]) -> str:
@@ -244,7 +240,7 @@ def _mini_stepper(steps: list[dict]) -> str:
             done = "done" if s["status"] == "executed" else ""
             parts.append(f'<span class="cx-seg {done}"></span>')
     done_n = sum(1 for s in steps if s["status"] == "executed")
-    parts.append('</div>')
+    parts.append("</div>")
     parts.append(f'<span class="cx-mini-lbl">{done_n}/{len(steps)} steps executed</span>')
     return "".join(parts)
 
@@ -256,11 +252,11 @@ def _incident_card(row: dict, steps: list[dict]) -> str:
     return f"""
     <div class="cx-card">
       <div class="cx-card-top">
-        <span class="cx-svc">{_esc(row['service'])}</span>
-        <span style="margin-left:auto">{_chip(v_color, '●', v_label)}</span>
+        <span class="cx-svc">{_esc(row["service"])}</span>
+        <span style="margin-left:auto">{_chip(v_color, "●", v_label)}</span>
       </div>
-      <div class="cx-meta">{_esc(row['region'])} · opened {_ago(row.get('opened_at'))}
-        · <span style="font-family:monospace">{_esc(str(row['incident_id'])[:8])}</span></div>
+      <div class="cx-meta">{_esc(row["region"])} · opened {_ago(row.get("opened_at"))}
+        · <span style="font-family:monospace">{_esc(str(row["incident_id"])[:8])}</span></div>
       <div>{_chip(s_color, s_glyph, s_label)}</div>
       <div class="cx-summary">{summary}</div>
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">{_mini_stepper(steps)}</div>
@@ -268,10 +264,12 @@ def _incident_card(row: dict, steps: list[dict]) -> str:
 
 
 def _stat_tile(label: str, value, accent: str, sub: str) -> str:
-    return (f'<div class="cx-tile" style="--accent:{accent}">'
-            f'<div class="cx-tile-l">{label}</div>'
-            f'<div class="cx-tile-v">{value}</div>'
-            f'<div class="cx-tile-s">{sub}</div></div>')
+    return (
+        f'<div class="cx-tile" style="--accent:{accent}">'
+        f'<div class="cx-tile-l">{label}</div>'
+        f'<div class="cx-tile-v">{value}</div>'
+        f'<div class="cx-tile-s">{sub}</div></div>'
+    )
 
 
 def _banner(executing: int, open_n: int) -> str:
@@ -335,9 +333,11 @@ def load_dashboard():
             for s in cur.fetchall():
                 steps_by_incident.setdefault(str(s["incident_id"]), []).append(s)
     except Exception as exc:  # no DB / bad URL — keep the Space alive with a clear message
-        empty = (f'<div class="cx-empty"><b>Waiting on CockroachDB.</b><br>'
-                 f'Set <code>COCKROACH_DATABASE_URL</code> as a Space secret to bring the feed live.<br>'
-                 f'<span style="color:{MUTED};font-size:12px">{_esc(exc)}</span></div>')
+        empty = (
+            f'<div class="cx-empty"><b>Waiting on CockroachDB.</b><br>'
+            f"Set <code>COCKROACH_DATABASE_URL</code> as a Space secret to bring the feed live.<br>"
+            f'<span style="color:{MUTED};font-size:12px">{_esc(exc)}</span></div>'
+        )
         return empty, "", empty, gr.update(choices=[], value=None)
 
     open_states = {"open", "correlating", "remediating"}
@@ -346,27 +346,30 @@ def load_dashboard():
     executing_n = sum(int(r["steps_executing"]) for r in incidents)
     executed_n = sum(int(r["steps_executed"]) for r in incidents)
 
-    kpis = "".join([
-        _stat_tile("Open incidents", open_n, WARNING, "correlating · remediating"),
-        _stat_tile("In-flight now", executing_n, SERIOUS, "steps mid-execution"),
-        _stat_tile("Resolved", resolved_n, GOOD, "closed by the agent"),
-        _stat_tile("Steps committed", executed_n, NEUTRAL, "durable in CockroachDB"),
-    ])
+    kpis = "".join(
+        [
+            _stat_tile("Open incidents", open_n, WARNING, "correlating · remediating"),
+            _stat_tile("In-flight now", executing_n, SERIOUS, "steps mid-execution"),
+            _stat_tile("Resolved", resolved_n, GOOD, "closed by the agent"),
+            _stat_tile("Steps committed", executed_n, NEUTRAL, "durable in CockroachDB"),
+        ]
+    )
     kpis = f'<div class="cx-kpis">{kpis}</div>'
 
     if incidents:
-        cards = "".join(
-            _incident_card(r, steps_by_incident.get(str(r["incident_id"]), []))
-            for r in incidents
-        )
+        cards = "".join(_incident_card(r, steps_by_incident.get(str(r["incident_id"]), [])) for r in incidents)
         cards = f'<div class="cx-grid">{cards}</div>'
     else:
-        cards = ('<div class="cx-empty"><b>No incidents yet.</b><br>'
-                 'Run <code>make seed-data</code> or fire the synthetic alert stream to populate memory.</div>')
+        cards = (
+            '<div class="cx-empty"><b>No incidents yet.</b><br>'
+            "Run <code>make seed-data</code> or fire the synthetic alert stream to populate memory.</div>"
+        )
 
     choices = [
-        (f"{r['service']} · {STATE_META.get(r['state'], ('', '', r['state']))[2]} · "
-         f"{str(r['incident_id'])[:8]}", str(r["incident_id"]))
+        (
+            f"{r['service']} · {STATE_META.get(r['state'], ('', '', r['state']))[2]} · {str(r['incident_id'])[:8]}",
+            str(r["incident_id"]),
+        )
         for r in incidents
     ]
     return _banner(executing_n, open_n), kpis, cards, gr.update(choices=choices)
@@ -374,19 +377,27 @@ def load_dashboard():
 
 def load_timeline(incident_id: str | None):
     if not incident_id:
-        return ('<div class="cx-empty">Pick an incident above to replay its remediation log — '
-                'the same append-only history a recovering invocation reads back on a cold start.</div>')
+        return (
+            '<div class="cx-empty">Pick an incident above to replay its remediation log — '
+            "the same append-only history a recovering invocation reads back on a cold start.</div>"
+        )
     try:
         with _connect() as conn, conn.cursor(row_factory=dict_row) as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT service, region, severity, state, summary, opened_at
                 FROM incidents WHERE incident_id = %s
-            """, (incident_id,))
+            """,
+                (incident_id,),
+            )
             head = cur.fetchone()
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT step_index, action, status, proposed_by, created_at
                 FROM remediation_steps WHERE incident_id = %s ORDER BY step_index
-            """, (incident_id,))
+            """,
+                (incident_id,),
+            )
             steps = cur.fetchall()
     except Exception as exc:
         return f'<div class="cx-empty">Timeline query failed: {_esc(exc)}</div>'
@@ -401,11 +412,21 @@ def load_timeline(incident_id: str | None):
         color, glyph, label, pulse = STEP_META.get(s["status"], (MUTED, "○", s["status"], False))
         hollow = " hollow" if s["status"] in ("proposed", "skipped") else ""
         pcls = " cx-pulse" if pulse else ""
-        line = "" if i == len(steps) - 1 else (
-            '<span class="cx-line done"></span>' if s["status"] == "executed"
-            else '<span class="cx-line"></span>')
-        flag = ('<div class="cx-flag">◀ the process died here — the next cold invocation '
-                'resumes at exactly this step</div>') if pulse else ""
+        line = (
+            ""
+            if i == len(steps) - 1
+            else (
+                '<span class="cx-line done"></span>' if s["status"] == "executed" else '<span class="cx-line"></span>'
+            )
+        )
+        flag = (
+            (
+                '<div class="cx-flag">◀ the process died here — the next cold invocation '
+                "resumes at exactly this step</div>"
+            )
+            if pulse
+            else ""
+        )
         rows.append(f"""
         <div class="cx-row">
           <div class="cx-rail">
@@ -413,12 +434,12 @@ def load_timeline(incident_id: str | None):
           </div>
           <div class="cx-body">
             <div class="cx-body-t">
-              <span class="cx-idx">step {s['step_index']}</span>
-              <span class="cx-action">{_esc(s['action'])}</span>
+              <span class="cx-idx">step {s["step_index"]}</span>
+              <span class="cx-action">{_esc(s["action"])}</span>
               {_chip(color, glyph, label)}
             </div>
             {flag}
-            <div class="cx-when">{_ago(s.get('created_at'))} · {_esc(s.get('proposed_by'))}</div>
+            <div class="cx-when">{_ago(s.get("created_at"))} · {_esc(s.get("proposed_by"))}</div>
           </div>
         </div>""")
     if not rows:
@@ -427,14 +448,14 @@ def load_timeline(incident_id: str | None):
     return f"""
     <div class="cx-tl">
       <div class="cx-tl-head">
-        <span class="cx-tl-svc">{_esc(head['service'])}</span>
-        {_chip(v_color, '●', v_label)}
+        <span class="cx-tl-svc">{_esc(head["service"])}</span>
+        {_chip(v_color, "●", v_label)}
         {_chip(s_color, s_glyph, s_label)}
-        <span style="color:{MUTED};font-size:12px;margin-left:auto">{_esc(head['region'])}
-          · opened {_ago(head.get('opened_at'))}</span>
+        <span style="color:{MUTED};font-size:12px;margin-left:auto">{_esc(head["region"])}
+          · opened {_ago(head.get("opened_at"))}</span>
       </div>
-      <div style="color:{INK2};font-size:13px;margin:2px 0 16px">{_esc(head.get('summary') or '')}</div>
-      {''.join(rows)}
+      <div style="color:{INK2};font-size:13px;margin:2px 0 16px">{_esc(head.get("summary") or "")}</div>
+      {"".join(rows)}
     </div>"""
 
 
@@ -516,8 +537,7 @@ with gr.Blocks(title="Continuum — Live Incident Memory", analytics_enabled=Fal
 
     with gr.Row():
         refresh_btn = gr.Button("↻ Refresh now", variant="primary", scale=0)
-        gr.HTML('<div class="cx" style="color:#898781;font-size:12px;align-self:center">'
-          f'{_esc(REFRESH_LABEL)}</div>')
+        gr.HTML(f'<div class="cx" style="color:#898781;font-size:12px;align-self:center">{_esc(REFRESH_LABEL)}</div>')
 
     gr.HTML('<div class="cx"><div class="cx-h">Incident memory · live from CockroachDB</div></div>')
     cards = gr.HTML()
@@ -531,16 +551,18 @@ with gr.Blocks(title="Continuum — Live Incident Memory", analytics_enabled=Fal
         mcp_btn = gr.Button("Ask via MCP: what's open right now?", scale=0)
     mcp_output = gr.Code(label="Open incidents — answered over the MCP protocol", language="json")
 
-    gr.HTML('<div class="cx"><div class="cx-foot">Continuum · CockroachDB × AWS Hackathon 2026 · '
-            'read-only view · memory lives in CockroachDB, not this process</div></div>')
+    gr.HTML(
+        '<div class="cx"><div class="cx-foot">Continuum · CockroachDB × AWS Hackathon 2026 · '
+        "read-only view · memory lives in CockroachDB, not this process</div></div>"
+    )
 
     # Wiring — manual-first by default to minimize CockroachDB RU consumption.
     dash_outputs = [banner, kpis, cards, incident_dd]
     if LOAD_ON_OPEN:
-      demo.load(fn=load_dashboard, outputs=dash_outputs)
+        demo.load(fn=load_dashboard, outputs=dash_outputs)
     refresh_btn.click(fn=load_dashboard, outputs=dash_outputs)
     if REFRESH_SECONDS > 0:
-      gr.Timer(REFRESH_SECONDS).tick(fn=load_dashboard, outputs=[banner, kpis, cards])  # not the dropdown
+        gr.Timer(REFRESH_SECONDS).tick(fn=load_dashboard, outputs=[banner, kpis, cards])  # not the dropdown
     incident_dd.change(fn=load_timeline, inputs=incident_dd, outputs=timeline)
     mcp_btn.click(fn=ask_via_mcp, outputs=mcp_output)
 
@@ -550,6 +572,7 @@ if __name__ == "__main__":
     # version mismatch. The <style> block + token overrides above already carry
     # the dark look; theme/js are enhancements (accent hue + force-dark).
     import inspect
+
     _accepted = inspect.signature(demo.launch).parameters
     _kwargs = {}
     if "theme" in _accepted:

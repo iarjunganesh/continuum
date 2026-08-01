@@ -2,7 +2,7 @@
 
 Continuum's public demo (`ui/app.py`) needs almost nothing running behind it — it's a read-only Gradio console straight into CockroachDB: a live incident feed with KPI tiles, a per-incident **recovery-timeline replay** (the step frozen in `executing` is where the process died), and an "Ask via MCP" panel that queries the same state through the CockroachDB Cloud Managed MCP Server. No AWS credentials are needed on the Space itself; only the orchestrator (running separately, via `make run-api` locally or on Lambda) needs AWS access.
 
-The Space runs **Gradio 6** (pinned via `sdk_version: 6.19.0` in the README frontmatter). Because `app_file` is `ui/app.py` — a subdirectory — the app bootstraps the repo root onto `sys.path` before importing `agents`/`config`, so it builds whether the host runs it as a script or launches `demo` directly.
+The Space runs **Gradio 6** (pinned via `sdk_version` in the README frontmatter — currently `6.22.0`, and it must equal the `gradio` floor in `requirements.txt` or the Space build fails). Because `app_file` is `ui/app.py` — a subdirectory — the app bootstraps the repo root onto `sys.path` before importing `agents`/`config`, so it builds whether the host runs it as a script or launches `demo` directly.
 
 ## One-time setup
 
@@ -20,6 +20,14 @@ The Space runs **Gradio 6** (pinned via `sdk_version: 6.19.0` in the README fron
    - GitHub repo → Settings → Secrets and variables → Actions → New repository secret
    - Name: `HF_TOKEN` · Value: the token from step 2
    - This lets `.github/workflows/sync-to-hf-space.yml` push to your Space on every merge to `main`
+
+   > **The Hub rejects binary files pushed over plain git** — PNG, MP4, MP3 and friends must go
+   > through [Xet/LFS](https://huggingface.co/docs/hub/xet), and a plain push fails with
+   > *"Your push was rejected because it contains binary files"* (`pre-receive hook declined`).
+   > The sync workflow therefore strips binaries onto a throwaway commit before pushing. Nothing
+   > the Space renders is binary — `README.md` embeds only SVGs — so the Space is unaffected, and
+   > the binaries stay on GitHub where the judge-facing evidence lives. This will matter more once
+   > `assets/demo-video/continuum.mp4` exists.
 
 4. **Add secrets on the Space itself** (not GitHub — this is separate)
    - Space page → Settings → Repository secrets → New secret
@@ -47,7 +55,7 @@ If this renders the incident table locally, the Space will render it too — the
 - `scripts/chaos_kill.py` — run locally/from your machine during the demo recording, not from the Space
 - AWS credentials of any kind — the Space is display-only
 
-This split is deliberate: the Space is the *window* into the memory, not the thing being tested for resilience. The resilience proof (kill-and-recover) happens in the orchestrator, which you run and record separately per `docs/DEMO_RUNBOOK.md`.
+This split is deliberate: the Space is the *window* into the memory, not the thing being tested for resilience. The resilience proof (kill-and-recover) happens in the orchestrator, which you run and record separately per `submission/DEMO_SCRIPT.md`.
 
 ---
 
@@ -87,11 +95,11 @@ Then confirm the write landed in CockroachDB:
 SELECT state FROM incidents WHERE correlation_id = 'deploy-smoke-1';
 ```
 
-Once that returns a row, check the **AWS Lambda** and **"Uses CockroachDB deployed on AWS"** items in `docs/SUBMISSION.md`.
+Once that returns a row, check the **AWS Lambda** and **"Uses CockroachDB deployed on AWS"** items in `submission/SUBMISSION.md`.
 
 ### Driving the demo through the deployed Lambda
 
-After the smoke test passes, the alert-stream driver can target the deployed function instead of running the orchestrator in-process — this is what makes "a fresh Lambda invocation starts cold" in `docs/DEMO_RUNBOOK.md` literally true:
+After the smoke test passes, the alert-stream driver can target the deployed function instead of running the orchestrator in-process — this is what makes "a fresh Lambda invocation starts cold" in `submission/DEMO_SCRIPT.md` literally true:
 
 ```bash
 python scripts/demo_run.py --tick --via-lambda   # invokes continuum-orchestrator in eu-central-1

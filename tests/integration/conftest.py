@@ -3,6 +3,7 @@ Shared fixtures for the integration suite (requires a live CockroachDB at
 COCKROACH_DATABASE_URL). Both test modules use the `correlation_id` cleanup
 fixture; the chaos test additionally spawns real uvicorn subprocesses to kill.
 """
+
 from __future__ import annotations
 
 import os
@@ -66,9 +67,20 @@ class ApiProcess:
         env = dict(os.environ)
         env["STEP_EXECUTION_SECONDS"] = str(self._step)  # override CI's global 0
         self.proc = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "api.main:app",
-             "--host", "127.0.0.1", "--port", str(self.port), "--log-level", "warning"],
-            cwd=REPO_ROOT, env=env,
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "api.main:app",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(self.port),
+                "--log-level",
+                "warning",
+            ],
+            cwd=REPO_ROOT,
+            env=env,
         )
         deadline = time.time() + timeout
         while time.time() < deadline:

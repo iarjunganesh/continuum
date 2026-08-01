@@ -1,5 +1,6 @@
 """Unit tests for the FastAPI gateway — mocks handle_alert and QueryAgent so
 no real CockroachDB/Bedrock/MCP calls happen."""
+
 from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient

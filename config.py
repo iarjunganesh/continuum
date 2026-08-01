@@ -2,6 +2,7 @@
 Central configuration for Continuum. All secrets/config loaded from environment
 variables only — never hardcode credentials here. See .env.example.
 """
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,13 +31,14 @@ class Settings(BaseSettings):
     # cluster used for this build (see docs/adr/007-eu-central-1-region.md).
     aws_region: str = "eu-central-1"
     # bedrock-runtime clients call THIS region, not aws_region. Bedrock
-    # on-demand quotas on this account are dynamically adjusted and have been
-    # observed at effectively 0 in EVERY probed region (ThrottlingException on
-    # the first call — Titan, Claude, and first-party Nova alike; see ADR 008
-    # addendum). eu-north-1 is the only region that has ever accepted calls,
-    # so it is the default — but run `make probe-bedrock` before relying on
-    # any region. Lambda + CockroachDB stay in eu-central-1 (ADR 007) — only
-    # the Bedrock calls cross regions.
+    # on-demand quotas are per-account and dynamically adjusted: an
+    # account-level clamp held every probed region at effectively 0 through
+    # July 2026 (ThrottlingException on the first call — Titan, Claude, and
+    # first-party Nova alike) until an AWS Support eligibility review lifted it
+    # on 2026-08-06. eu-north-1 stays the default, but quotas remain dynamic —
+    # run `make probe-bedrock` before relying on any region (ADR 008 + addenda).
+    # Lambda + CockroachDB stay in eu-central-1 (ADR 007); only Bedrock calls
+    # cross regions.
     bedrock_region: str = "eu-north-1"
     # Titan Text Embeddings V2 — outputs 256/512/1024 dims; must match
     # infra/schema.sql VECTOR(1024) and embedding_dimensions below.
@@ -58,4 +60,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
 
-settings = Settings()
+# `cockroach_database_url` has no default because it is required and must come
+# from the environment (.env / Lambda env vars / HF Space secret).
+# pydantic-settings populates it at construction time; mypy only sees a required
+# __init__ argument that isn't being passed, hence the narrow ignore below.
+# Do NOT "fix" it by giving the field a default — that would let the app start
+# pointed at nothing.
+settings = Settings()  # type: ignore[call-arg]

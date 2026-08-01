@@ -3,6 +3,56 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+Nothing merged yet since `v0.7.0`.
+
+**Remaining before submission** (tracked in `submission/SUBMISSION.md`):
+
+- **Verify the live Bedrock paths end to end.** The ADR 008 quota clamp lifted 2026-08-06, but every correlation and remediation call in this project's history fell back silently — the real Titan and Claude response-handling code has never executed and is unproven rather than proven-good
+- **Deploy the orchestrator to Lambda** (`make deploy`, `docs/DEPLOY.md`). Never done; no `samconfig.toml` yet, and it needs an admin AWS profile since the app credentials are Bedrock-invoke only
+- **Capture the judge-facing evidence runs** into `assets/chaos-run/` — local kill and cold-Lambda, per the plan and numbered shot list in `assets/README.md`. Gated on the deploy above so the evidence shows the deployed system
+- **Record the demo video** per `submission/DEMO_SCRIPT.md`, then replace the "Not yet recorded" row in the README's Live Demo table and re-link the YouTube badge
+- **Complete the `submission/SUBMISSION.md` checklist** end to end
+- **Decide on `mcp` 2.0.0.** Pinned `<2` deliberately — the unit suite mocks the SDK at the import boundary, so it would pass green against a client that fails against the real Managed MCP Server. Lifting the cap needs a live round trip
+
+## [0.7.0] — 2026-08-06 — judge-facing restructure, dependency hardening, tag history repaired
+
+### Fixed
+
+- **All seven release tags pointed at commits that no longer existed in `main`'s history.** A rebase/amend rewrote the commits underneath them, leaving every tag orphaned: `git describe --tags` failed outright with *"No tags can describe HEAD"*, `git log --decorate` showed no tags at all, and the GitHub Releases pages referenced unreachable objects. Each tag was re-pointed onto its identical-subject commit on `main` (mapping was 1:1 and unambiguous) preserving the original annotation messages and author dates, then force-pushed. `git describe` now resolves. A pre-tag checklist in `CLAUDE.md` encodes the verification so it can't silently recur
+- **`mcp` was floor-pinned unbounded (`>=1.2`) while mcp 2.0.0 has shipped.** CI installs from `requirements.txt` on a clean runner, so the next run would have pulled a major-version bump into `agents/query_agent.py` — and because the unit suite mocks the SDK at the import boundary, it would have gone *green* against a client that fails against the real Managed MCP Server. Now capped `<2`; lifting it requires a live round trip, not a passing unit suite
+- **Every dependency floor was stale by several major/minor releases** relative to what the project actually runs on (e.g. `fastapi>=0.115` against 0.139 installed). All floors raised to tested versions with major-version caps, so a clean CI install can no longer drift from the development environment
+- **`README.md` advertised artifacts that did not exist** — a Screenshots table describing five screenshots with none in the repo, and a `youtu.be/TBD` demo-video link. Both replaced with explicit, honest pending-state notes
+- **The Hugging Face Space sync would have broken on the binaries this release adds.** The Hub rejects binary files pushed over plain git — they must go through [Xet/LFS](https://huggingface.co/docs/hub/xet) — so the new diagram and brand-card PNGs failed the pre-receive hook (`Your push was rejected because it contains binary files`) and the Space stopped updating. The Hub's pre-receive hook scans **every commit in the push**, not just the tip, so stripping binaries in a new commit doesn't help — the blobs still exist in the parents. The sync workflow now publishes a single **orphan** commit containing the current tree minus binaries (PNG/JPG/GIF/WEBP/MP4/MOV/MP3/WAV/PDF/ZIP). The Space is a deployment target, not a mirror of history — it needs the files, not the commits — and this is immune to any binary that has ever existed anywhere in the repo's past. Nothing the Space renders is binary — `README.md` embeds only SVGs, which are text and push fine — so the Space is unaffected and the binaries stay on GitHub where the judge-facing evidence belongs. This would otherwise have become a hard blocker once `assets/demo-video/continuum.mp4` lands
+- **`docs/DEPLOY.md` still documented `sdk_version: 6.19.0`** against the actual `6.22.0`; corrected, and reworded to state the invariant (it must equal the `gradio` floor in `requirements.txt`, or the Space build fails) rather than restate a number that goes stale
+
+### Added
+
+- **Brand cards** (`assets/demo-cards/`) — hero banner and closing sign-off, dark and light, authored as SVG (the single source of truth) with eight rendered PNGs: native size (1000×410 banner, 1000×450 sign-off) plus letterboxed 16:9 (1920×1080) video cards. The design carries the argument: the banner's infinity loop is **severed** by an orange kill stroke, the sign-off's loop is **whole** with only the terminal dot left — problem and payoff. `banner.html` / `signoff.html` are thin theme-aware export wrappers (`?theme=`, `?native=`), not a second implementation. Both cards are now embedded in `README.md` via theme-matched `<picture>` elements
+- **Two rendered diagrams** (`assets/architecture/`), deliberately separate because they answer different questions: `architecture-diagram` (components — *what talks to what*) and `recovery-sequence` (the two-cold-invocation handoff over time — *what survives*). Each ships dark/light SVG for embedding, a PNG at natural aspect, and a 1920×1080 letterboxed 16:9 PNG as a pre-built demo-video flash-cut asset, generated from `.mmd` source via `mermaid-cli` with shared per-theme config files
+- **Neither diagram is duplicated as an inline ```mermaid``` fence any more.** `README.md` and `docs/ARCHITECTURE.md` now embed the rendered SVGs through theme-matched `<picture>` elements wrapped in click-to-enlarge links, so the `.mmd` files are the only definitions. The brand theming (CockroachDB purple, AWS orange, dashed subgraph borders) only exists in the `mermaid-cli` render — GitHub's built-in renderer applies its own theme and ignores the config file, so a fence could never have looked right
+- **`submission/DEVPOST_README.md`** — a paste-safe mirror of `README.md` with every relative link and image rewritten to absolute `github.com` / `raw.githubusercontent.com` URLs, so pasting it into Devpost's description field leaves every link and image resolving. **Generated, never hand-edited**: `scripts/build_devpost_readme.py` (`make devpost-readme`) builds it and `--check` verifies it, which CI runs — editing the README without regenerating now fails the build instead of silently shipping a stale submission doc
+- **`ruff format` is now a gate**, not just a convention: `ruff format --check` runs in CI and in `make lint`, with `make format` to rewrite. The codebase was reformatted once (28 files) so the claim is true rather than aspirational
+- **`submission/` — the judge-facing packet.** `SUBMISSION.md` and `DEVPOST.md` moved out of `docs/` (history preserved), joined by `DEMO_SCRIPT.md` (the full recording script and production guide, absorbing the former `docs/DEMO_RUNBOOK.md`) and `COSTS.md` (per-incident cost model, actual spend to date, guardrails, scaling estimate)
+- **`assets/` — the judge-facing evidence tree.** `assets/README.md` is a curated index carrying the capture plan for two chaos runs (local kill and cold Lambda), the numbered screenshot list, and an explicit note on how Bedrock's silent degradation will be disclosed rather than hidden. Subtrees for `architecture/`, `chaos-run/`, `demo-cards/`, `demo-video/`, each with its own README
+- **`assets/architecture/architecture-diagram.mmd`** — the README's mermaid diagram extracted to a source-of-truth file, with brand-themed render instructions for `mermaid-cli`
+- **Mypy type gate** in CI and as `make typecheck`, matching the existing Ruff gate. One genuine finding: `Settings()` reads its required `cockroach_database_url` from the environment, which mypy can't model — narrowed to a documented `type: ignore[call-arg]` rather than given a default that would let the app start pointed at nothing
+- **`prompts/`** — the remediation reasoning prompt externalised from `agents/remediation_agent.py` as data. Loaded at *import* time deliberately: `propose_next_step` wraps its Bedrock call in a broad `except Exception` that falls back to precedent-replay, so a missing prompt file caught there would be indistinguishable from a Bedrock outage and would degrade silently
+- **`tests/load/k6_smoke.js`** — read-path smoke load against `/health` and the MCP-backed `/incidents/open`. Deliberately does not exercise `POST /alert`: that drives real state through the single write path, and hammering it would fabricate incidents and race the forward-step claim outside the controlled conditions the integration suite asserts it under
+- **`notebooks/DEMO_RUNBOOK.ipynb` + `notebooks/README.md`** — an interactive walkthrough of the kill-and-recover sequence runnable against any reachable deployment, so the recovery guarantee can be verified without cloning
+- **Release & repo-sync discipline** in `CLAUDE.md`: a per-commit drift sweep (version fields, badge/frontmatter agreement, stated counts, path references, a ban on placeholders shipping as finished) and a pre-tag checklist
+
+### Changed
+
+- **`docs/DEMO_RUNBOOK.md` removed**, its content folded into `submission/DEMO_SCRIPT.md` so the graded kill-and-recover flow has exactly one source of truth instead of a runbook and a production script that could drift apart. All live references repointed
+- **`SECURITY.md` substantially expanded** — supported-version policy, deployment-secret locations, least-privilege posture (read-only MCP, single write path, Bedrock-only IAM scope), the empirically-grounded TLS rationale, private-advisory reporting link, and four newly documented known limitations including that prompt injection via alert text is out of scope while alerts are operator-authored
+- **`CONTRIBUTING.md` substantially expanded** — quality-gate commands, testing conventions, an explicit "things that will get a change rejected" list covering every load-bearing invariant with its ADR, and a warning that a green unit suite is not sufficient for MCP or Bedrock changes since both are mocked at the boundary
+- **README badges regrouped into six labelled rows** (status · CockroachDB core · AWS · agent runtime · quality gates · hosting) with explicit version numbers throughout, and the project-structure tree updated for the new layout
+- **Dependencies upgraded**: FastAPI 0.141.1, uvicorn 0.52.0, boto3 1.43.61, Gradio 6.22.0, Ruff 0.16.1, plus mypy 2.3.0 added. The Gradio bump is mirrored in the README frontmatter `sdk_version`, which is what the Hugging Face Space actually builds against
+- **ADR 008 outcome:** the account-level Bedrock quota clamp was **lifted on 2026-08-06** following an AWS Support eligibility review. `make probe-bedrock` now returns OK for every candidate region and both models, with no config change needed. Two caveats recorded in `CLAUDE.md`: quotas remain dynamic, so re-probe before recording; and the live Bedrock path has never actually executed in this project's history, so that code is unproven rather than proven-good
+- Cross-repo references to unrelated sibling projects removed from `CLAUDE.md`
+
 ## [0.6.0] — 2026-07-08 — Bedrock/Lambda deep audit: fail-fast clients, probed region default, Lambda-driven demo
 
 ### Fixed
@@ -144,11 +194,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Synthetic data generation scripts (stubs)
 - Chaos-kill script for resilience demo (stub)
 - Hugging Face Spaces deployment: README frontmatter, `.github/workflows/sync-to-hf-space.yml`, `docs/DEPLOY.md` — free, cardless public hosting for the Gradio demo UI, replacing the Railway/Vercel/Next.js stack considered and rejected for this project (no frontend framework needed, judged surface is the CockroachDB memory layer)
-
-### Planned (before submission)
-- Demo video recording per `docs/DEMO_RUNBOOK.md`
-- Deploy orchestrator to AWS Lambda (SAM) and confirm the Hugging Face Space is live
-- Complete the `docs/SUBMISSION.md` checklist end to end
 
 ## [0.1.0] — scaffold
 - Repository initialized for CockroachDB × AWS Hackathon 2026 submission

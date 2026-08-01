@@ -6,6 +6,7 @@ through here. This single-write-path property is what keeps the recovery
 guarantee in ARCHITECTURE.md §3 honest — there's exactly one place state
 changes happen, so a resuming Lambda invocation can trust what it reads.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -67,13 +68,17 @@ class MemoryAgent:
             row = cur.fetchone()
             if not row:
                 return None
-            log.info("recovered_incident_state", correlation_id=correlation_id, state=row["state"],
-                      last_step_index=row["last_step_index"], last_step_status=row["last_step_status"])
+            log.info(
+                "recovered_incident_state",
+                correlation_id=correlation_id,
+                state=row["state"],
+                last_step_index=row["last_step_index"],
+                last_step_status=row["last_step_status"],
+            )
             return IncidentState(**row)
 
     # --- Writes ---
-    def open_incident(self, correlation_id: str, service: str, region: str,
-                       severity: str, summary: str) -> UUID:
+    def open_incident(self, correlation_id: str, service: str, region: str, severity: str, summary: str) -> UUID:
         with self._conn() as conn, conn.cursor() as cur:
             cur.execute(
                 """
@@ -110,8 +115,9 @@ class MemoryAgent:
     # which run at SERIALIZABLE by default. The `time.sleep` execution window
     # lives BETWEEN the two, so a kill mid-step still commits status='executing'
     # and nothing else — the fingerprint the next invocation resumes from.
-    def checkpoint_step_start(self, incident_id: UUID, step_index: int, action: str,
-                              detail: dict | None = None, resuming: bool = False) -> bool:
+    def checkpoint_step_start(
+        self, incident_id: UUID, step_index: int, action: str, detail: dict | None = None, resuming: bool = False
+    ) -> bool:
         """Atomically begin one remediation step: record the proposed action,
         move the step to 'executing', and mark the incident 'remediating' — all
         in a single transaction, so the durable checkpoint a resuming invocation
@@ -130,8 +136,7 @@ class MemoryAgent:
         with self._conn() as conn, conn.transaction(), conn.cursor() as cur:
             if resuming:
                 cur.execute(
-                    "UPDATE remediation_steps SET status = 'executing' "
-                    "WHERE incident_id = %s AND step_index = %s",
+                    "UPDATE remediation_steps SET status = 'executing' WHERE incident_id = %s AND step_index = %s",
                     (incident_id, step_index),
                 )
                 claimed = True
@@ -147,16 +152,19 @@ class MemoryAgent:
                 claimed = cur.rowcount == 1
             if claimed:
                 cur.execute(
-                    "UPDATE incidents SET state = 'remediating', updated_at = now() "
-                    "WHERE incident_id = %s",
+                    "UPDATE incidents SET state = 'remediating', updated_at = now() WHERE incident_id = %s",
                     (incident_id,),
                 )
-        log.info("step_checkpoint_start", incident_id=str(incident_id),
-                 step_index=step_index, resuming=resuming, claimed=claimed)
+        log.info(
+            "step_checkpoint_start",
+            incident_id=str(incident_id),
+            step_index=step_index,
+            resuming=resuming,
+            claimed=claimed,
+        )
         return claimed
 
-    def checkpoint_step_done(self, incident_id: UUID, step_index: int,
-                             resolve: bool = False) -> None:
+    def checkpoint_step_done(self, incident_id: UUID, step_index: int, resolve: bool = False) -> None:
         """Second transaction of the step: mark it 'executed', and resolve the
         incident when this was the final step. The `status = 'executing'` guard
         makes the transition idempotent and refuses to mark a step executed
@@ -173,5 +181,4 @@ class MemoryAgent:
                     "resolved_at = now() WHERE incident_id = %s",
                     (incident_id,),
                 )
-        log.info("step_checkpoint_done", incident_id=str(incident_id),
-                 step_index=step_index, resolved=resolve)
+        log.info("step_checkpoint_done", incident_id=str(incident_id), step_index=step_index, resolved=resolve)

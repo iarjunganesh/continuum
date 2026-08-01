@@ -1,5 +1,6 @@
 """Unit tests for QueryAgent — mocks the mcp SDK's transport/session so no
 real network call reaches the CockroachDB Cloud Managed MCP Server."""
+
 import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -69,8 +70,7 @@ class TestRunReadonlyQuery:
         p1, p2 = _wire_mcp(session)
 
         with p1 as mock_stream, p2:
-            agent = QueryAgent(endpoint="https://example.test/mcp", api_key="secret-key",
-                               cluster_id="cluster-uuid-1")
+            agent = QueryAgent(endpoint="https://example.test/mcp", api_key="secret-key", cluster_id="cluster-uuid-1")
             asyncio.run(agent.run_readonly_query("SELECT 1"))
 
         _, kwargs = mock_stream.call_args
@@ -84,8 +84,7 @@ class TestRunReadonlyQuery:
         p1, p2 = _wire_mcp(session)
 
         with p1 as mock_stream, p2:
-            agent = QueryAgent(endpoint="https://example.test/mcp", api_key="",
-                               cluster_id="")
+            agent = QueryAgent(endpoint="https://example.test/mcp", api_key="", cluster_id="")
             asyncio.run(agent.run_readonly_query("SELECT 1"))
 
         _, kwargs = mock_stream.call_args
@@ -96,8 +95,7 @@ class TestRunReadonlyQuery:
         p1, p2 = _wire_mcp(session)
 
         with p1, p2:
-            agent = QueryAgent(endpoint="https://example.test/mcp", api_key="k",
-                               database="demo-db")
+            agent = QueryAgent(endpoint="https://example.test/mcp", api_key="k", database="demo-db")
             asyncio.run(agent.run_readonly_query("SELECT 1 FROM incidents"))
 
         args, _ = session.call_tool.call_args

@@ -1,6 +1,6 @@
 [project]
 name = "continuum"
-version = "0.6.0"
+version = "0.7.0"
 description = "Agentic incident-response memory that survives the agent being killed — CockroachDB × AWS Hackathon 2026"
 requires-python = ">=3.14"
 license = { file = "LICENSE" }
@@ -12,6 +12,13 @@ target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "B"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = false
+# boto3, psycopg, mcp, gradio ship partial or no stubs; typing our own code is
+# the goal here, not litigating third-party stub coverage.
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

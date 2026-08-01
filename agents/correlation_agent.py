@@ -3,6 +3,7 @@ Correlation Agent — embeds an incoming alert via Amazon Bedrock (Titan Text
 Embeddings V2) and finds semantically similar past incidents via CockroachDB's
 native vector search (C-SPANN index).
 """
+
 from __future__ import annotations
 
 import json
@@ -21,8 +22,9 @@ log = get_logger(__name__)
 
 # Tight timeouts + capped retries: this client runs inside a Lambda with a
 # finite invocation budget, and the botocore defaults (60s read timeout,
-# backoff retries) can consume all of it when Bedrock throttles — which this
-# account's dynamic quotas make routine (ADR 008 addendum). Fail fast and let
+# backoff retries) can consume all of it when Bedrock throttles — and Bedrock
+# quotas are dynamic, so throttling is always a live possibility regardless of
+# what the last probe showed (ADR 008 + addenda). Fail fast and let
 # the orchestrator's best-effort handling degrade to "no precedent".
 _BEDROCK_CLIENT_CONFIG = Config(
     connect_timeout=5,
@@ -56,23 +58,21 @@ class CorrelationAgent:
     def embed(self, alert_text: str) -> List[float]:
         """Amazon Bedrock — Titan Text Embeddings V2. Dimensions must match
         infra/schema.sql VECTOR(1024)."""
-        body = json.dumps({
-            "inputText": alert_text,
-            "dimensions": settings.embedding_dimensions,
-            "normalize": True,
-        })
-        response = self._client().invoke_model(
-            modelId=settings.bedrock_embedding_model_id, body=body
+        body = json.dumps(
+            {
+                "inputText": alert_text,
+                "dimensions": settings.embedding_dimensions,
+                "normalize": True,
+            }
         )
+        response = self._client().invoke_model(modelId=settings.bedrock_embedding_model_id, body=body)
         embedding = json.loads(response["body"].read())["embedding"]
-        log.info("alert_embedded", model=settings.bedrock_embedding_model_id,
-                 dimensions=len(embedding))
+        log.info("alert_embedded", model=settings.bedrock_embedding_model_id, dimensions=len(embedding))
         return embedding
 
     def find_similar(self, service: str, embedding: List[float], k: int = 5) -> List[CorrelationMatch]:
         vector_literal = "[" + ",".join(str(v) for v in embedding) + "]"
-        with psycopg.connect(self._dsn) as conn, \
-             conn.cursor(row_factory=dict_row) as cur:
+        with psycopg.connect(self._dsn) as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
                 SELECT e.incident_id, i.summary, i.state,

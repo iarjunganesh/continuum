@@ -7,6 +7,7 @@ than it only being a convenience for Claude Code / Cursor during development.
 Never a write path — memory_agent.py remains the only module permitted to
 write incident/remediation state (CLAUDE.md, ADR 003).
 """
+
 from __future__ import annotations
 
 import json
@@ -45,8 +46,13 @@ class QueryAgent:
     """Read-only live query interface against CockroachDB via its Managed
     MCP Server, over streamable HTTP."""
 
-    def __init__(self, endpoint: str | None = None, api_key: str | None = None,
-                 cluster_id: str | None = None, database: str | None = None) -> None:
+    def __init__(
+        self,
+        endpoint: str | None = None,
+        api_key: str | None = None,
+        cluster_id: str | None = None,
+        database: str | None = None,
+    ) -> None:
         self._endpoint = endpoint or settings.cockroach_mcp_endpoint
         # None = "use settings"; an explicit "" stays blank (tests rely on
         # this to stay hermetic regardless of what the local .env sets).
@@ -72,9 +78,7 @@ class QueryAgent:
         ):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                result = await session.call_tool(
-                    _SELECT_QUERY_TOOL, {"query": sql, "database": self._database}
-                )
+                result = await session.call_tool(_SELECT_QUERY_TOOL, {"query": sql, "database": self._database})
                 rows = _extract_rows(result)
                 log.info("mcp_query_executed", tool=_SELECT_QUERY_TOOL, row_count=len(rows))
                 return QueryResult(rows=rows, row_count=len(rows))

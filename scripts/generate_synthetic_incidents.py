@@ -5,6 +5,7 @@ and incidents. No real service names, no real infra — see ADR 005.
 Usage:
     python scripts/generate_synthetic_incidents.py --out data/synthetic/incidents_seed.jsonl --count 40
 """
+
 import argparse
 import json
 import random
@@ -41,18 +42,20 @@ def generate(count: int):
         template = random.choice(INCIDENT_TEMPLATES)
         summary = template.format(service=service, region=region)
         opened_at = datetime.utcnow() - timedelta(days=random.randint(1, 180))
-        records.append({
-            "incident_id": str(uuid.uuid4()),
-            "correlation_id": f"synthetic-{uuid.uuid4().hex[:8]}",
-            "service": service,
-            "region": region,
-            "severity": random.choice(SEVERITIES),
-            "summary": summary,
-            "remediation_steps": random.choice(REMEDIATION_PATHS),
-            "state": "resolved",
-            "opened_at": opened_at.isoformat(),
-            "synthetic": True,
-        })
+        records.append(
+            {
+                "incident_id": str(uuid.uuid4()),
+                "correlation_id": f"synthetic-{uuid.uuid4().hex[:8]}",
+                "service": service,
+                "region": region,
+                "severity": random.choice(SEVERITIES),
+                "summary": summary,
+                "remediation_steps": random.choice(REMEDIATION_PATHS),
+                "state": "resolved",
+                "opened_at": opened_at.isoformat(),
+                "synthetic": True,
+            }
+        )
     return records
 
 

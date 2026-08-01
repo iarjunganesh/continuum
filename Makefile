@@ -1,4 +1,4 @@
-.PHONY: install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark probe-bedrock deploy test lint coverage
+.PHONY: install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark probe-bedrock deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -71,5 +71,26 @@ test:
 coverage:
 	pytest tests/unit tests/integration --cov=agents --cov=api --cov=observability --cov-report=term-missing
 
+# Both halves are CI-gated (.github/workflows/ci.yml). `make format` rewrites;
+# this only checks, so it fails the same way CI does.
 lint:
 	ruff check .
+	ruff format --check .
+
+format:
+	ruff format .
+
+# Regenerate the Devpost paste mirror from README.md. CI runs the --check form,
+# so a README edit without regenerating this fails the build rather than
+# silently shipping a stale submission doc.
+devpost-readme:
+	python scripts/build_devpost_readme.py
+
+# Same invocation CI gates on (.github/workflows/ci.yml).
+typecheck:
+	mypy agents/ api/ observability/ config.py
+
+# Read-path smoke load. Requires k6 (https://k6.io) and a running API.
+# Deliberately does NOT exercise POST /alert — see the note in the script.
+load-test:
+	k6 run tests/load/k6_smoke.js

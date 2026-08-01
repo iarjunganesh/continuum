@@ -11,6 +11,7 @@ Usage:
     python scripts/benchmark.py                 # 50 iterations -> docs/BENCHMARKS.md
     python scripts/benchmark.py --n 200 --out docs/BENCHMARKS.md
 """
+
 import argparse
 import datetime as dt
 import os
@@ -82,10 +83,8 @@ def run(n: int, out_path: str, context: str) -> None:
     results: dict[str, list[float]] = {}
     query_vec = deterministic_embedding("benchmark query vector")
 
-    results["recovery read (get_open_incident)"] = _bench(
-        lambda: memory.get_open_incident(created[0][1]), n)
-    results["vector search (find_similar, k=5)"] = _bench(
-        lambda: correlation.find_similar(SERVICE, query_vec), n)
+    results["recovery read (get_open_incident)"] = _bench(lambda: memory.get_open_incident(created[0][1]), n)
+    results["vector search (find_similar, k=5)"] = _bench(lambda: correlation.find_similar(SERVICE, query_vec), n)
 
     start_ms, done_ms, resume_ms = [], [], []
     for iid, cid in created:
@@ -120,11 +119,11 @@ def run(n: int, out_path: str, context: str) -> None:
 
 def _write(results: dict[str, list[float]], n: int, out_path: str, context: str) -> None:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    rows = ["| Operation | p50 (ms) | p95 (ms) | p99 (ms) | mean (ms) |",
-            "| --- | --- | --- | --- | --- |"]
+    rows = ["| Operation | p50 (ms) | p95 (ms) | p99 (ms) | mean (ms) |", "| --- | --- | --- | --- | --- |"]
     for op, s in results.items():
-        rows.append(f"| {op} | {_pctl(s,50):.2f} | {_pctl(s,95):.2f} | "
-                    f"{_pctl(s,99):.2f} | {statistics.mean(s):.2f} |")
+        rows.append(
+            f"| {op} | {_pctl(s, 50):.2f} | {_pctl(s, 95):.2f} | {_pctl(s, 99):.2f} | {statistics.mean(s):.2f} |"
+        )
     table = "\n".join(rows)
     doc = f"""# Benchmarks
 
@@ -163,7 +162,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--context",
         default="developer workstation over the public internet -> CockroachDB Cloud "
-                "free-tier (Serverless), eu-central-1; fresh connection per call",
+        "free-tier (Serverless), eu-central-1; fresh connection per call",
         help="describe where the benchmark ran (client location, cluster tier/region)",
     )
     args = parser.parse_args()

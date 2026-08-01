@@ -2,6 +2,7 @@
 Structured JSON logging for Continuum — structlog configured for JSON
 output so every agent/API log line is machine-parseable.
 """
+
 import logging
 import sys
 

@@ -1,6 +1,6 @@
 """
 Drives the synthetic alert stream against the orchestrator — used both for
-local development and for driving the recorded demo (docs/DEMO_RUNBOOK.md).
+local development and for driving the recorded demo (submission/DEMO_SCRIPT.md).
 
 Each --tick drives ONE remediation step (propose -> executing -> executed).
 Re-running with the same correlation_id resumes the same incident from
@@ -13,6 +13,7 @@ Usage:
     python scripts/demo_run.py --tick --via-lambda     # invoke the deployed Lambda instead
     python scripts/demo_run.py --tick --new            # start a fresh incident
 """
+
 import argparse
 import json
 import os
@@ -38,8 +39,7 @@ DEMO_ALERT = {
 }
 
 
-def tick(resume_check: bool = False, via_api: bool = False, via_lambda: bool = False,
-         new: bool = False):
+def tick(resume_check: bool = False, via_api: bool = False, via_lambda: bool = False, new: bool = False):
     alert = dict(DEMO_ALERT)
     if new:
         alert["correlation_id"] = f"demo-incident-{uuid.uuid4().hex[:8]}"
@@ -54,6 +54,7 @@ def tick(resume_check: bool = False, via_api: bool = False, via_lambda: bool = F
         import boto3
 
         from config import settings
+
         response = boto3.client("lambda", region_name=settings.aws_region).invoke(
             FunctionName=settings.lambda_function_name,
             Payload=json.dumps(alert).encode(),
@@ -63,6 +64,7 @@ def tick(resume_check: bool = False, via_api: bool = False, via_lambda: bool = F
             raise RuntimeError(f"Lambda invocation failed: {result}")
     else:
         from agents.orchestrator import handle_alert
+
         result = handle_alert(alert)
 
     print(json.dumps(result, indent=2))
@@ -82,7 +84,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.tick:
-        tick(resume_check=args.resume_check, via_api=args.via_api,
-             via_lambda=args.via_lambda, new=args.new)
+        tick(resume_check=args.resume_check, via_api=args.via_api, via_lambda=args.via_lambda, new=args.new)
     else:
         print("Use --tick to fire a synthetic alert against the orchestrator.")

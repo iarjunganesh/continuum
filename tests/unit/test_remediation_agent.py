@@ -1,6 +1,7 @@
 """Unit tests for RemediationAgent — mocks boto3 (Bedrock Converse API).
 Covers the three propose_next_step paths: no precedent, successful Bedrock
 reasoning, and the deterministic fallback when Bedrock is unreachable."""
+
 import json
 from unittest.mock import MagicMock, patch
 
@@ -30,12 +31,9 @@ class TestProposeNextStep:
         assert proposed.based_on_incident_id is None
 
     def test_bedrock_reasoning_used_when_available(self, agent):
-        matches = [CorrelationMatch(incident_id="id-1", summary="past incident",
-                                     state="resolved", distance=0.1)]
+        matches = [CorrelationMatch(incident_id="id-1", summary="past incident", state="resolved", distance=0.1)]
         mock_client = MagicMock()
-        mock_client.converse.return_value = _bedrock_response(
-            "restart_connection_pool", "Matches closest precedent."
-        )
+        mock_client.converse.return_value = _bedrock_response("restart_connection_pool", "Matches closest precedent.")
 
         with patch("agents.remediation_agent.boto3") as mock_boto3:
             mock_boto3.client.return_value = mock_client
@@ -46,12 +44,9 @@ class TestProposeNextStep:
         mock_client.converse.assert_called_once()
 
     def test_bedrock_response_wrapped_in_code_fence_is_parsed(self, agent):
-        matches = [CorrelationMatch(incident_id="id-1", summary="past incident",
-                                     state="resolved", distance=0.1)]
+        matches = [CorrelationMatch(incident_id="id-1", summary="past incident", state="resolved", distance=0.1)]
         mock_client = MagicMock()
-        mock_client.converse.return_value = _bedrock_response(
-            "drain_connection_pool", "Fenced response.", fenced=True
-        )
+        mock_client.converse.return_value = _bedrock_response("drain_connection_pool", "Fenced response.", fenced=True)
 
         with patch("agents.remediation_agent.boto3") as mock_boto3:
             mock_boto3.client.return_value = mock_client
@@ -60,8 +55,7 @@ class TestProposeNextStep:
         assert proposed.action == "drain_connection_pool"
 
     def test_falls_back_to_precedent_replay_when_bedrock_unreachable(self, agent):
-        matches = [CorrelationMatch(incident_id="id-1", summary="past incident",
-                                     state="resolved", distance=0.2345)]
+        matches = [CorrelationMatch(incident_id="id-1", summary="past incident", state="resolved", distance=0.2345)]
         mock_client = MagicMock()
         mock_client.converse.side_effect = RuntimeError("throttled")
 

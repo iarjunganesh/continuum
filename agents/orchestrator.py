@@ -17,6 +17,7 @@ and re-runs the interrupted step instead of starting over or double-running
 completed steps. Concurrent invocations racing on the same step are made
 exactly-once by the claim in checkpoint_step_start (ON CONFLICT DO NOTHING).
 """
+
 from __future__ import annotations
 
 import time
@@ -61,8 +62,13 @@ def handle_alert(alert: Dict[str, Any]) -> Dict[str, Any]:
             interrupted = True
         else:
             step_index = (existing.last_step_index if existing.last_step_index is not None else -1) + 1
-        log.info("resuming_incident", correlation_id=correlation_id, state=existing.state,
-                  step_index=step_index, interrupted=interrupted)
+        log.info(
+            "resuming_incident",
+            correlation_id=correlation_id,
+            state=existing.state,
+            step_index=step_index,
+            interrupted=interrupted,
+        )
     else:
         log.info("new_incident", correlation_id=correlation_id)
         incident_id = memory.open_incident(
@@ -101,10 +107,14 @@ def handle_alert(alert: Dict[str, Any]) -> Dict[str, Any]:
     # --- STEP 3: propose + execute this step across two explicit transactions ---
     proposed = remediation.propose_next_step(matches, step_index, alert_text=alert["text"])
     claimed = memory.checkpoint_step_start(
-        incident_id, step_index, proposed.action,
-        detail={"rationale": proposed.rationale,
-                "based_on": proposed.based_on_incident_id,
-                "reexecuted_after_interrupt": interrupted},
+        incident_id,
+        step_index,
+        proposed.action,
+        detail={
+            "rationale": proposed.rationale,
+            "based_on": proposed.based_on_incident_id,
+            "reexecuted_after_interrupt": interrupted,
+        },
         resuming=interrupted,
     )
     if not claimed:

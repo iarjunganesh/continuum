@@ -1,8 +1,12 @@
 name: Sync to Hugging Face Space
 
-# Pushes the full repo to the HF Space on every push to main, so the Space
+# Pushes the repo to the HF Space on every push to main, so the Space
 # (README frontmatter + ui/app.py) always matches what's on GitHub — one
 # source of truth, per CLAUDE.md conventions.
+#
+# Binaries are stripped before pushing (see the step below): the Hub rejects
+# them over plain git and requires Xet/LFS. Nothing the Space renders is
+# binary, so this costs nothing.
 #
 # Setup (one-time, see docs/DEPLOY.md):
 #   1. Create the Space manually at huggingface.co/new-space
@@ -28,9 +32,46 @@ jobs:
           fetch-depth: 0
           lfs: true
 
+      # The Hub rejects binary files pushed over plain git — they must go
+      # through Xet/LFS (https://huggingface.co/docs/hub/xet) — and its
+      # pre-receive hook scans EVERY commit in the push, not just the tip.
+      # Stripping binaries in a new commit therefore does not help: the blobs
+      # still exist in the parent commits being pushed.
+      #
+      # So publish a single ORPHAN commit containing the current tree minus
+      # binaries. The Space is a deployment target, not a mirror of history —
+      # it needs the files, not the commits — and this is immune to any binary
+      # that has ever existed anywhere in the repo's past.
+      #
+      # Nothing the Space renders is binary: README.md (its landing page)
+      # embeds only SVGs, which are text and push fine. Every PNG/MP4/MP3 under
+      # assets/ is judge-facing evidence that lives on GitHub — the demo video
+      # especially, which would be far over any limit.
+      #
+      # Verify after changing this: the Space landing page still renders the
+      # banner, both architecture diagrams, and the sign-off card.
+      - name: Build binary-free deploy commit
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          SRC=$(git rev-parse --short HEAD)
+
+          git checkout -q --orphan space-deploy
+          find . -path ./.git -prune -o -type f \( \
+              -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.gif' \
+              -o -name '*.webp' -o -name '*.ico' \
+              -o -name '*.mp4' -o -name '*.mov' -o -name '*.webm' \
+              -o -name '*.mp3' -o -name '*.wav' -o -name '*.m4a' \
+              -o -name '*.pdf' -o -name '*.zip' \
+            \) -print0 | xargs -0 --no-run-if-empty git rm -q --cached
+          git commit -q -m "Deploy from github.com/iarjunganesh/continuum@${SRC}"
+
+          echo "Deploy commit: $(git rev-parse --short HEAD) ($(git ls-files | wc -l) files)"
+          echo "Binaries remaining: $(git ls-files | grep -cE '\.(png|jpe?g|gif|webp|ico|mp4|mov|webm|mp3|wav|m4a|pdf|zip)$' || true)"
+
       - name: Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           git remote add space https://iarjunganesh:$HF_TOKEN@huggingface.co/spaces/iarjunganesh/continuum
-          git push --force space main
+          git push --force space HEAD:main

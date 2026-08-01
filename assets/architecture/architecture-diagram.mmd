@@ -1,0 +1,40 @@
+graph LR
+    classDef aws  fill:#FF9900,stroke:#B36B00,color:#fff
+    classDef crdb fill:#6933FF,stroke:#4B21C2,color:#fff
+    classDef agent fill:#2563EB,stroke:#1D4ED8,color:#fff
+    classDef chaos fill:#DC2626,stroke:#991B1B,color:#fff
+    classDef tool fill:#8B5CF6,stroke:#6D28D9,color:#fff
+
+    A(["🚨 Synthetic Alert"]) --> L
+    K["💀 chaos_kill.py<br/>hard-kill, no shutdown"]:::chaos -.->|kills mid-step| L
+
+    subgraph lambda["⚡ AWS Lambda — stateless, cold by design"]
+        direction TB
+        L["🧭 Orchestrator<br/>recovery read FIRST"]:::aws
+        C["🔗 Correlation Agent"]:::agent
+        R["🛠️ Remediation Agent"]:::agent
+        M["🧠 Memory Agent<br/>single write path"]:::agent
+        Q["🔍 Query Agent<br/>MCP client"]:::agent
+        L --> C --> R --> M
+    end
+
+    B["🤖 Amazon Bedrock<br/>Titan embeddings · Claude reasoning"]:::aws
+    C -.-> B
+    R -.-> B
+
+    subgraph crdb["🪳 CockroachDB Cloud — the memory that survives"]
+        direction TB
+        T[("incidents<br/>remediation_steps<br/>SERIALIZABLE txns")]:::crdb
+        V[("incident_embeddings<br/>VECTOR(1024) · C-SPANN index")]:::crdb
+    end
+    M ==>|every step committed · SERIALIZABLE| T
+    C ==>|ANN search| V
+
+    MCP["🔍 Managed MCP Server<br/>read-only live queries"]:::tool
+    Q ==>|select_query tool call| MCP
+    MCP --- T
+
+    lambda --> crdb
+
+    style lambda fill:transparent,stroke:#FF9900,stroke-width:2px,stroke-dasharray:6 3
+    style crdb fill:transparent,stroke:#6933FF,stroke-width:2px,stroke-dasharray:6 3

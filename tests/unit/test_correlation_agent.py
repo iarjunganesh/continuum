@@ -1,5 +1,6 @@
 """Unit tests for CorrelationAgent — mocks boto3 (Bedrock) and psycopg
 (CockroachDB vector search). No real AWS or DB calls."""
+
 import json
 from unittest.mock import MagicMock, patch
 

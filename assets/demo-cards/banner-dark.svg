@@ -1,0 +1,34 @@
+<svg width="1000" height="410" viewBox="0 0 1000 410" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Continuum — memory that outlives the failure. CockroachDB × AWS Hackathon 2026">
+  <defs>
+    <linearGradient id="loopD" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6933FF"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="wordD" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="55%" stop-color="#6933FF"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1000" height="410" fill="#0d1117"/>
+
+  <!-- severed infinity loop: the memory survives the break -->
+  <g transform="translate(377.6,26.2) scale(2.4)">
+    <path d="M37 37 C37 17 9 17 9 37 C9 57 37 57 51 37 C65 17 93 17 93 37 C93 57 65 57 51 37"
+          stroke="url(#loopD)" stroke-width="11" stroke-linecap="round" fill="none"/>
+    <line x1="44" y1="24" x2="58" y2="50" stroke="#FF9900" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="93" cy="37" r="7" fill="#FF9900"/>
+  </g>
+
+  <text x="500" y="268" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
+        font-size="72" font-weight="700" letter-spacing="6" fill="url(#wordD)">CONTINUUM</text>
+
+  <text x="500" y="312" text-anchor="middle" font-family="'Segoe UI', Inter, system-ui, sans-serif"
+        font-size="21" letter-spacing="2" fill="#8b949e">memory that outlives the failure</text>
+
+  <line x1="380" y1="342" x2="620" y2="342" stroke="#21262d" stroke-width="1"/>
+
+  <text x="500" y="373" text-anchor="middle" font-family="'Segoe UI', Inter, system-ui, sans-serif"
+        font-size="16" letter-spacing="1.5" fill="#6e7781">CockroachDB × AWS Hackathon 2026</text>
+</svg>

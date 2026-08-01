@@ -6,6 +6,7 @@ depends on: the recovery-read query shape, that simple writes commit, and that
 the per-step checkpoints run in explicit transactions with the exactly-once
 forward-claim (ADR 009).
 """
+
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -75,8 +76,11 @@ class TestOpenIncident:
         cur.fetchone.return_value = (new_id,)
 
         result = memory.open_incident(
-            correlation_id="corr-1", service="checkout-api", region="eu-central-1",
-            severity="high", summary="p99 latency spike",
+            correlation_id="corr-1",
+            service="checkout-api",
+            region="eu-central-1",
+            severity="high",
+            summary="p99 latency spike",
         )
 
         assert result == new_id
@@ -117,8 +121,9 @@ class TestCheckpointStepStart:
         cur.rowcount = 1
         incident_id = uuid4()
 
-        claimed = memory.checkpoint_step_start(incident_id, 0, "restart_pool",
-                                               detail={"rationale": "r"}, resuming=False)
+        claimed = memory.checkpoint_step_start(
+            incident_id, 0, "restart_pool", detail={"rationale": "r"}, resuming=False
+        )
 
         assert claimed is True
         first_sql = cur.execute.call_args_list[0][0][0]

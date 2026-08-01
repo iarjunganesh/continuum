@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Continuum — banner card</title>
+<style>
+  :root { --bg-dark:#0d1117; --bg-light:#ffffff; }
+  html,body { margin:0; padding:0; overflow:hidden; }
+  body { width:1920px; height:1080px; display:flex; align-items:center; justify-content:center;
+         background:var(--bg-dark); }
+  body.light { background:var(--bg-light); }
+  /* native mode: crop the canvas to the SVG's own size, no letterbox */
+  body.native { width:1000px; height:410px; }
+  img { display:block; width:1000px; height:410px; }
+  #toggle { position:fixed; top:16px; right:16px; z-index:9; font:14px/1 system-ui,sans-serif;
+            padding:8px 14px; border-radius:6px; border:1px solid #30363d; background:#161b22;
+            color:#e6edf3; cursor:pointer; }
+  body.light #toggle { background:#f6f8fa; color:#1f2328; border-color:#d0d7de; }
+  body.export #toggle { display:none; }
+</style>
+</head>
+<body>
+<button id="toggle">◐ Toggle theme</button>
+<img id="card" src="banner-dark.svg" alt="Continuum banner">
+<script>
+  // Thin export/preview wrapper around the SVGs — the SVGs are the source of
+  // truth, this file never re-implements the design.
+  //   ?theme=dark|light  force a theme and hide the toggle (clean export)
+  //   ?native=1          1:1 canvas at the SVG's own size instead of 1920x1080
+  const q = new URLSearchParams(location.search);
+  const card = document.getElementById('card');
+  function apply(theme) {
+    document.body.classList.toggle('light', theme === 'light');
+    card.src = `banner-${theme}.svg`;
+  }
+  const forced = q.get('theme');
+  apply(forced || 'dark');
+  if (forced) document.body.classList.add('export');
+  if (q.get('native')) document.body.classList.add('native');
+  document.getElementById('toggle').onclick = () =>
+    apply(document.body.classList.contains('light') ? 'dark' : 'light');
+</script>
+</body>
+</html>

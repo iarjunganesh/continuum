@@ -47,28 +47,18 @@ See [`infra/schema.sql`](../infra/schema.sql) for the exact DDL.
 
 This is the core resilience mechanic and the centerpiece of the demo video. Two cold Lambda invocations — the second with no shared memory with the first — hand off entirely through durable CockroachDB state:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Al as 🚨 Alert stream
-    participant A as ⚡ Lambda A (cold)
-    participant DB as 🪳 CockroachDB
-    participant K as 💀 chaos_kill.py
-    participant B as ⚡ Lambda B (cold)
+<p align="center">
+  <a href="../assets/architecture/recovery-sequence-light.svg" target="_blank" rel="noopener noreferrer">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="../assets/architecture/recovery-sequence-dark.svg">
+      <source media="(prefers-color-scheme: light)" srcset="../assets/architecture/recovery-sequence-light.svg">
+      <img width="820" src="../assets/architecture/recovery-sequence-light.svg"
+           alt="Recovery sequence — Lambda A opens an incident and commits step 0 as 'executing' before executing it; chaos_kill.py sends SIGKILL mid-execution; a cold Lambda B performs its own recovery read first, finds step 0 still 'executing', re-runs that exact step and commits it 'executed'."/>
+    </picture>
+  </a>
+</p>
 
-    Al->>A: alert (correlation_id)
-    A->>DB: recovery read FIRST — no open incident
-    A->>DB: open incident + checkpoint_step_start(step 0)
-    Note over DB: step 0 committed 'executing'<br/>(SERIALIZABLE, before execution)
-    A-->>A: execute step 0 (sleep window)
-    K-->>A: SIGKILL — no graceful shutdown
-    Note over A,DB: process gone — step 0 still durably 'executing'
-    Al->>B: next tick — same correlation_id
-    B->>DB: recovery read FIRST — finds step 0 'executing'
-    B-->>B: re-run step 0 (not skipped, not duplicated)
-    B->>DB: checkpoint_step_done(step 0) → 'executed'
-    Note over DB: exactly-once preserved, state outlived the process
-```
+<sub>Source: <a href="../assets/architecture/recovery-sequence.mmd">recovery-sequence.mmd</a> — edit that, then re-render per <a href="../assets/architecture/README.md">assets/architecture/README.md</a>. Click the diagram to open the full-resolution SVG.</sub>
 
 The same flow, step by step:
 

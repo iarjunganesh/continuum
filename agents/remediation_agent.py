@@ -4,10 +4,12 @@ remediation action. Reasoning goes through Claude on Amazon Bedrock; if
 Bedrock is unreachable (no credentials, throttling), a deterministic
 precedent-replay fallback keeps the control flow demonstrable.
 """
+
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Optional
 
 import boto3
@@ -27,16 +29,13 @@ _BEDROCK_CLIENT_CONFIG = Config(
     retries={"max_attempts": 2, "mode": "standard"},
 )
 
-PROMPT_TEMPLATE = """You are an incident-remediation planner. All data is synthetic (hackathon demo).
-
-Alert: {alert_text}
-Current remediation step index: {step_index} (of {max_steps} total steps).
-Closest correlated past incidents (nearest first):
-{precedents}
-
-Propose exactly ONE next remediation action for this step, as strict JSON:
-{{"action": "<snake_case_action>", "rationale": "<one sentence>"}}
-Base it on the closest precedent when one exists. Output only the JSON."""
+# Loaded at import time, deliberately. propose_next_step() wraps its Bedrock
+# call in a broad `except Exception` that falls back to deterministic
+# precedent-replay — a missing prompt file caught there would be
+# indistinguishable from a Bedrock outage and would degrade silently. Failing
+# at import makes it loud. See prompts/README.md.
+_PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "remediation_agent.txt"
+PROMPT_TEMPLATE = _PROMPT_PATH.read_text(encoding="utf-8").strip()
 
 
 @dataclass
@@ -59,8 +58,9 @@ class RemediationAgent:
             )
         return self._bedrock
 
-    def propose_next_step(self, matches: List[CorrelationMatch], step_index: int,
-                          alert_text: str = "") -> ProposedAction:
+    def propose_next_step(
+        self, matches: List[CorrelationMatch], step_index: int, alert_text: str = ""
+    ) -> ProposedAction:
         if not matches:
             return ProposedAction(
                 action="page_on_call_engineer",
@@ -78,15 +78,17 @@ class RemediationAgent:
                 rationale=f"Closest precedent (distance={best.distance:.4f}) previously resolved via this path.",
                 based_on_incident_id=best.incident_id,
             )
-        log.info("remediation_proposed", based_on=proposed.based_on_incident_id,
-                 step_index=step_index, action=proposed.action)
+        log.info(
+            "remediation_proposed",
+            based_on=proposed.based_on_incident_id,
+            step_index=step_index,
+            action=proposed.action,
+        )
         return proposed
 
-    def _propose_via_bedrock(self, matches: List[CorrelationMatch], step_index: int,
-                             alert_text: str) -> ProposedAction:
+    def _propose_via_bedrock(self, matches: List[CorrelationMatch], step_index: int, alert_text: str) -> ProposedAction:
         precedents = "\n".join(
-            f"- incident {m.incident_id} (distance {m.distance:.4f}): {m.summary}"
-            for m in matches[:3]
+            f"- incident {m.incident_id} (distance {m.distance:.4f}): {m.summary}" for m in matches[:3]
         )
         prompt = PROMPT_TEMPLATE.format(
             alert_text=alert_text or "(not provided)",

@@ -1,24 +1,84 @@
 # Devpost Submission — Continuum
 
-Hackathon: [CockroachDB × AWS Hackathon 2026](https://cockroachdb-ai.devpost.com/)
-Submission Period: **June 30 – August 18, 2026 (5 PM ET)** · Judging: **Aug 19 – Sep 15** · Winners: ~Sep 21
+## The Hackathon
 
-> Per the [official rules](https://cockroachdb-ai.devpost.com/rules): public open-source repo with an
-> OSS license visible in the About section; functional demo URL free to test through the Judging
-> Period; demo video **< 3 minutes**, public on YouTube/Vimeo, showing the CockroachDB memory layer
-> at work; explicit list of which CockroachDB tools and AWS services were used and how.
+**[CockroachDB × AWS Hackathon — Build with Agentic Memory](https://cockroachdb-ai.devpost.com/)**
+
+> *Agents that think. Agents that act. Agents that remember; reliably, globally, at any scale.*
+
+Hosted by **Cockroach Labs**, organized by Devpost.
+
+Build agentic applications that leverage CockroachDB's distributed AI capabilities on AWS. AI agents
+require persistent memory that never fails; CockroachDB serves as the globally distributed,
+always-on system for agentic memory — handling conversation history, embeddings, and transactional
+data at scale.
+
+### Timeline (all times Eastern)
+
+| Phase | Window |
+| --- | --- |
+| **Submission Period** | June 30, 2026 (10:00 am) – **August 18, 2026 (5:00 pm)** |
+| **Judging Period** | August 19, 2026 (10:00 am) – September 15, 2026 (5:00 pm) |
+| **Winners Announced** | On or around September 21, 2026 (3:00 pm) |
+
+### Prizes — $8,750 total
+
+| Place | Award |
+| --- | --- |
+| **1st** | $5,000 USD · blog feature · swag |
+| **2nd** | $2,500 USD · swag |
+| **3rd** | $1,250 USD · swag |
+
+### Required project requirements
+
+Build an agentic application using CockroachDB as persistent memory on AWS, using **at least two**
+CockroachDB tools and **at least one** AWS service.
+
+| CockroachDB tools (≥ 2 required) | Continuum |
+| --- | --- |
+| Cloud Managed MCP Server | ✅ `agents/query_agent.py` — read-only, called by the app at runtime |
+| Distributed Vector Indexing | ✅ `incident_embeddings` C-SPANN index, live correlation queries |
+| ccloud CLI (Agent-Ready) | ❌ evaluated and deliberately cut — see ADR 004 |
+| Agent Skills Repo (Open Source) | ❌ not used |
+
+| AWS services (≥ 1 required) | Continuum |
+| --- | --- |
+| Bedrock | ✅ Titan Text Embeddings V2 + Claude Sonnet 4.5 |
+| Lambda | ✅ orchestrator execution, no provisioned concurrency |
+| ECS/EKS · S3 · SageMaker · others | ❌ not used |
+
+### Required submission materials
+
+- Public open-source repository with README, dependencies, configurations, and setup instructions,
+  with a **detectable open-source license**
+- Functional demo app URL
+- Video demonstrating the submission **and the memory layer** — under 3 minutes, YouTube/Vimeo
+- Documentation identifying which CockroachDB and AWS tools were used
+- *Optional:* architecture diagram, and feedback on CockroachDB AI tools
+
+### Eligibility rules that shaped this build
+
+- **"Projects must be newly created by the Entrant during the Submission Period."** No pre-existing
+  code was incorporated into Continuum.
+- AI coding assistants are explicitly permitted; any pre-existing code must be disclosed. Continuum
+  was built with **Claude Code** — disclosed in the README.
+
+Tracking checklist: [`SUBMISSION.md`](SUBMISSION.md)
 
 ---
 
 ## Judging Alignment
 
-| Criterion | How Continuum Addresses It |
-| --- | --- |
-| **Agentic Memory Design** | Dual memory in **one** CockroachDB store — ACID incident/remediation state *and* vector embeddings — not a toy chat log. Each step's checkpoint is one explicit `SERIALIZABLE` transaction, so a resuming invocation never reads a half-written state transition, and a forward step is claimed exactly once (`ON CONFLICT DO NOTHING`) even under concurrent invocations. |
-| **Technical Implementation** | Distributed Vector Indexing doing real correlation work, MCP Server as a live read-only query surface the app itself calls (not only Claude Code), a single-write-path Memory Agent enforced by convention and tests, recovery semantics pinned by CI — 46 unit tests (100% measured coverage, 90% gate) plus integration tests that drive the resume-and-exactly-once contract against a live CockroachDB instance, not just mocks; one of them (`test_chaos_kill_e2e.py`) hard-kills a real orchestrator subprocess mid-step with `scripts/chaos_kill.py` (a genuine `SIGKILL`) and asserts exactly-once cold recovery — the same script that drives the process-kill beat live in the demo. |
-| **Real-World Impact** | Every engineering org runs production incidents; MTTR reduction from precedent-based remediation is directly measurable, not a hypothetical use case. |
-| **Production Readiness** | The kill-and-resume beat *is* the readiness proof, not a slide about it. structlog JSON logging throughout; secrets via environment only; explicit scope cuts documented in ADR 006 instead of hidden. |
-| **Creativity & Originality** | A literal, load-bearing answer to the hackathon's own brief — *"an agent whose memory goes offline doesn't degrade gracefully, it stops"* — built as the single demo beat rather than a footnote. |
+The five criteria are **equally weighted**. Official descriptions quoted, followed by how Continuum
+answers each.
+
+| Criterion | Official description | How Continuum addresses it |
+| --- | --- | --- |
+| **Agentic Memory Design** | *"Whether CockroachDB meaningfully functions as production-grade memory layer"* | Dual memory in **one** CockroachDB store — ACID incident/remediation state *and* vector embeddings — not a toy chat log. Each step's checkpoint is an explicit `SERIALIZABLE` transaction, so a resuming invocation never reads a half-written state transition, and a forward step is claimed exactly once (`ON CONFLICT DO NOTHING`) even under concurrent invocations. |
+| **Technical Implementation** | *"Quality software engineering and correct tool usage"* | Distributed Vector Indexing doing real correlation work; MCP Server as a live read-only query surface the app itself calls; a single-write-path Memory Agent enforced by convention and tests; recovery semantics pinned by CI — 46 unit tests (100% measured coverage against a 90% gate), plus integration tests driving the resume-and-exactly-once contract against a live CockroachDB instance rather than mocks. One (`test_chaos_kill_e2e.py`) hard-kills a real orchestrator subprocess mid-step with a genuine `SIGKILL` and asserts exactly-once cold recovery — the same script that drives the kill beat in the demo. |
+| **Real-World Impact** | *"Meaningful use case and potential user value"* | Every engineering org runs production incidents. MTTR reduction from precedent-based remediation is directly measurable, not hypothetical — and the failure mode Continuum solves (the agent dying mid-incident) is one on-call engineers actually hit. |
+| **Production Readiness** | *"Security, observability, scalability, and resilience"* | The kill-and-resume beat *is* the resilience proof, not a slide about it. structlog JSON logging throughout; secrets via environment only; least-privilege IAM; lint, format, type, and coverage gates in CI; explicit scope cuts documented in ADR 006 rather than hidden. |
+| **Creativity & Originality** | *"Novel ideas or applications demonstrating agentic system insights"* | A literal, load-bearing answer to the hackathon's own framing — an agent whose memory goes offline doesn't degrade gracefully, it stops — built as the single demo beat rather than a footnote. |
 
 ---
 
@@ -88,5 +148,7 @@ ccloud CLI was evaluated and intentionally not included — see ADR 004's resolu
 
 | Service | What the agent actually does with it |
 | --- | --- |
-| **AWS Lambda** | Orchestrator execution; deliberately no provisioned concurrency, so every invocation proves state comes from CockroachDB, not warm process memory (ADR 002) |
-| **Amazon Bedrock** | Titan Text Embeddings V2 for alert→vector; Claude for remediation reasoning over matched precedent, with a deterministic precedent-replay fallback so the control flow demos even when throttled |
+| **AWS Lambda** | Orchestrator execution on the `python3.14` runtime; deliberately no provisioned concurrency, so every invocation proves state comes from CockroachDB, not warm process memory (ADR 002) |
+| **Amazon Bedrock** | Titan Text Embeddings V2 for alert→vector (1024-dim, matching the `VECTOR(1024)` schema); Claude Sonnet 4.5 for remediation reasoning over matched precedent, with a deterministic precedent-replay fallback so the control flow demos even when throttled |
+| **AWS SAM** | Infrastructure as code for the orchestrator function ([`infra/template.yaml`](../infra/template.yaml)) — the absence of `ProvisionedConcurrencyConfig` is a deliberate, reviewable artifact rather than a console setting |
+| **AWS IAM** | Least privilege: the application's credentials are scoped to Bedrock model invocation only and cannot list, create, or delete AWS resources. Budget guardrails attach a deny-all policy at the spend ceiling — see [`COSTS.md`](COSTS.md) |

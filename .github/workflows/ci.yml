@@ -34,6 +34,18 @@ jobs:
       - name: Lint (Ruff)
         run: ruff check .
 
+      - name: Format check (Ruff)
+        run: ruff format --check .
+
+      - name: Type check (Mypy)
+        run: mypy agents/ api/ observability/ config.py
+
+      # The Devpost paste mirror is generated from README.md. If someone edits
+      # the README without regenerating, fail here rather than ship a stale
+      # submission doc.
+      - name: Devpost mirror is current
+        run: python scripts/build_devpost_readme.py --check
+
       # Ephemeral, insecure, single-node — CI-only, never how a real cluster
       # is run. This is what lets tests/integration exercise the recovery
       # guarantee (ARCHITECTURE.md §3) against a real CockroachDB instance

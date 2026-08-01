@@ -14,9 +14,10 @@ reinforces one message:
 ### Demo Story
 
 -   [ ] First 30--60 seconds grab attention. *(no demo video recorded
-    yet --- README links `youtu.be/TBD`)*
+    yet; README states this plainly and the YouTube badge is unlinked --- no
+    placeholder URL ships)*
 -   [ ] One clear narrative from start to finish. *(scripted in
-    `docs/DEMO_RUNBOOK.md`, not yet recorded/proven end to end)*
+    `submission/DEMO_SCRIPT.md`, not yet recorded/proven end to end)*
 -   [x] No distracting features.
 
 ### Happy Path
@@ -62,11 +63,11 @@ reinforces one message:
 -   [ ] Vector retrieval visible (if used). *(match count is logged;
     the matched precedent/vector result isn't shown in the console)*
 -   [x] MCP interactions visible (if used).
--   [ ] Benchmark numbers captured and presented (`docs/BENCHMARKS.md`).
-    *(still a full placeholder --- every metric cell is `—` and the
-    file says "not yet captured"; `make benchmark` has not been run
-    against the live cluster, per CLAUDE.md's own outstanding-work
-    note)*
+-   [x] Benchmark numbers captured and presented (`docs/BENCHMARKS.md`).
+    *(populated 2026-07-08 from a real `make benchmark` run against the
+    live cluster: p50/p95/p99/mean for recovery read, vector search, both
+    step commits, and the end-to-end resume path, with the
+    measured-from-workstation caveat stated)*
 
 ## P1 --- Visual Clarity
 
@@ -80,16 +81,19 @@ reinforces one message:
 ## P1 --- Consistency
 
 -   [x] README matches implementation.
--   [ ] Demo runbook matches implementation. *(step-resume wording bug
-    fixed this pass; still doesn't mention the manual-refresh-by-
-    default dashboard behavior introduced in f338e79)*
--   [x] DEVPOST.md updated.
--   [ ] Screenshots and diagrams current. *(`assets/` contains only
-    `logo.svg` --- no screenshots exist despite README referencing
-    them)*
--   [ ] No documentation drift. *(two concrete drift items found this
-    pass: the DEMO_RUNBOOK.md step-resume wording, now fixed, and the
-    undocumented manual-refresh default)*
+-   [ ] Demo runbook matches implementation. *(now `submission/DEMO_SCRIPT.md`,
+    which absorbed the former `docs/DEMO_RUNBOOK.md` so the graded flow has
+    one source of truth; it documents the manual-refresh default in its
+    "if a take goes wrong" table)*
+-   [x] DEVPOST.md updated. *(now at `submission/DEVPOST.md`)*
+-   [ ] Screenshots and diagrams current. *(`assets/` now carries the
+    full capture plan and folder structure — `assets/README.md`,
+    `assets/chaos-run/`, numbered shot list — but no captured runs yet.
+    The README no longer claims screenshots that don't exist. Capture
+    after the Lambda deploy so the evidence shows the deployed system.)*
+-   [x] No documentation drift. *(full sweep at v0.7.0: Bedrock-clamp language
+    updated everywhere after the 2026-08-06 lift, all moved-doc paths
+    repointed, generated files gated in CI, 0 broken links repo-wide)*
 
 ## P1 --- Scenario Validation
 
@@ -129,9 +133,10 @@ Documentation updates. - UX polish. - Demo rehearsal.
 
 ---
 
-*Last audited 2026-07-08 against actual repo state (code, tests, docs,
-Makefile) --- see conversation history for the full evidence trail
-behind each checkbox. Biggest open blockers: no recorded demo video,
-the HF Space can't self-trigger a sample incident for a first-time
-visitor, and `docs/BENCHMARKS.md` has never been populated with a real
-`make benchmark` run.*
+*Last audited **2026-08-06** against actual repo state (code, tests, docs,
+Makefile). Biggest open blockers, in order: **no recorded demo video**; the
+**orchestrator has never been deployed to Lambda**, which gates the judge-facing
+evidence capture in `assets/chaos-run/`; **the live Bedrock path has never
+executed** (the ADR 008 clamp lifted 2026-08-06, but every run to date used
+silent fallbacks, so that code is unproven); and the HF Space still can't
+self-trigger a sample incident for a first-time visitor.*

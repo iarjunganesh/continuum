@@ -1,4 +1,5 @@
 """Unit test for the structlog JSON setup shared by every agent."""
+
 from observability.structured_logger import configure_logging, get_logger
 
 

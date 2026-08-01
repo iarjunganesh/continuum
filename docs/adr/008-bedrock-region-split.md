@@ -61,3 +61,39 @@ Consequences of the addendum:
 - The Bedrock leg of a remediation step now carries a small cross-region hop (eu-central-1 Lambda → the `BEDROCK_REGION` endpoint, eu-north-1 per the addendum) that wasn't in ADR 007's original hot-path accounting. This doesn't affect the recovery-read race `chaos_kill.py` demonstrates, since that race is entirely between the orchestrator and CockroachDB — and correlation/reasoning are best-effort off that critical path (ADR 009) anyway.
 - Before relying on any other AWS account for this project (e.g. a judge re-running it, or a fresh account for the recorded demo), re-run the quota check above — `0`-quota regions are an account-level default, not something specific to this build's original account.
 - `infra/template.yaml`'s Lambda IAM policy already grants `bedrock:InvokeModel` on `Resource: '*'`, so no IAM change was needed to call a different region.
+
+---
+
+## Addendum 2 — 2026-08-06: the clamp was LIFTED
+
+An AWS Support case opened 2026-07-08 was escalated to an internal eligibility
+review on 2026-07-30 and completed within its stated 3–5 business day window.
+`make probe-bedrock` on 2026-08-06 returned **OK for every candidate region ×
+both models**:
+
+| Region | Titan Embed V2 | Claude Sonnet 4.5 |
+| --- | --- | --- |
+| eu-north-1 (configured `BEDROCK_REGION`) | OK (0.2s) | OK (1.8s) |
+| eu-west-1 | OK (0.3s) | OK (2.0s) |
+| eu-central-1 | OK (0.2s) | OK (1.9s) |
+| eu-west-3 | OK (0.3s) | OK (1.3s) |
+| us-west-2 | OK (0.7s) | OK (1.7s) |
+
+**No config change was needed, and the decision in this ADR still stands.** The
+`AWS_REGION` / `BEDROCK_REGION` split remains as documented — it is now a
+deliberate seam rather than a workaround, and re-collapsing it buys nothing while
+removing the ability to move Bedrock independently of the Lambda.
+
+Three consequences that outlive the clamp:
+
+1. **Quotas remain dynamic.** A region that probes open today can close tomorrow —
+   eu-north-1 did exactly that between 2026-07-07 and 2026-07-08. `make probe-bedrock`
+   stays a pre-recording step; a days-old green run proves nothing.
+2. **The live Bedrock path had never executed at the time the clamp lifted.**
+   Every correlation and remediation call in this project's history fell back
+   silently. The real Titan and Claude response-handling code is therefore
+   *unproven*, not proven-good — verify both paths end to end before treating
+   them as reliable.
+3. **The fallbacks stay.** They are not scaffolding to be removed now that Bedrock
+   works; they are what makes the recovery guarantee independent of a third-party
+   API, and ADR 009 keeps correlation off the critical path for the same reason.

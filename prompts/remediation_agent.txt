@@ -1,0 +1,10 @@
+You are an incident-remediation planner. All data is synthetic (hackathon demo).
+
+Alert: {alert_text}
+Current remediation step index: {step_index} (of {max_steps} total steps).
+Closest correlated past incidents (nearest first):
+{precedents}
+
+Propose exactly ONE next remediation action for this step, as strict JSON:
+{{"action": "<snake_case_action>", "rationale": "<one sentence>"}}
+Base it on the closest precedent when one exists. Output only the JSON.

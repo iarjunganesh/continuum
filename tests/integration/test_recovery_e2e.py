@@ -14,6 +14,7 @@ concurrent-invocation semantics, not a MagicMock standing in for one.
 Run explicitly against a test cluster:
     COCKROACH_DATABASE_URL=... STEP_EXECUTION_SECONDS=0 pytest tests/integration -v
 """
+
 from __future__ import annotations
 
 import os
@@ -49,8 +50,10 @@ def _proposed(action="do_thing"):
 def no_external_calls():
     """Correlation/Remediation stay mocked — this test isolates the
     CockroachDB recovery contract, not Bedrock reachability."""
-    with patch("agents.orchestrator.correlation") as mock_correlation, \
-         patch("agents.orchestrator.remediation") as mock_remediation:
+    with (
+        patch("agents.orchestrator.correlation") as mock_correlation,
+        patch("agents.orchestrator.remediation") as mock_remediation,
+    ):
         mock_correlation.embed.return_value = [0.0] * 8
         mock_correlation.find_similar.return_value = []
         mock_remediation.propose_next_step.return_value = _proposed()
@@ -78,8 +81,7 @@ def test_full_recovery_cycle(correlation_id):
     #    real cluster, not whether OS process termination works.
     with psycopg.connect(os.environ["COCKROACH_DATABASE_URL"]) as conn, conn.cursor() as cur:
         cur.execute(
-            "UPDATE remediation_steps SET status = 'executing' "
-            "WHERE incident_id = %s AND step_index = 0",
+            "UPDATE remediation_steps SET status = 'executing' WHERE incident_id = %s AND step_index = 0",
             (incident_id,),
         )
         conn.commit()
@@ -99,16 +101,14 @@ def test_full_recovery_cycle(correlation_id):
         result = handle_alert(alert)
     assert result["state"] == "resolved"
 
-    with psycopg.connect(os.environ["COCKROACH_DATABASE_URL"]) as conn, \
-         conn.cursor() as cur:
+    with psycopg.connect(os.environ["COCKROACH_DATABASE_URL"]) as conn, conn.cursor() as cur:
         cur.execute(
             "SELECT count(*) FROM remediation_steps WHERE incident_id = %s AND status = 'executed'",
             (incident_id,),
         )
         executed_count = cur.fetchone()[0]
     assert executed_count == settings.max_remediation_steps, (
-        "each step_index must appear exactly once as 'executed' — "
-        "no duplicate execution, no skipped step"
+        "each step_index must appear exactly once as 'executed' — no duplicate execution, no skipped step"
     )
 
 
@@ -123,8 +123,11 @@ def test_forward_step_claim_is_exactly_once(correlation_id):
 
     memory = MemoryAgent()
     incident_id = memory.open_incident(
-        correlation_id=correlation_id, service="checkout-api",
-        region="eu-central-1", severity="high", summary="claim test",
+        correlation_id=correlation_id,
+        service="checkout-api",
+        region="eu-central-1",
+        severity="high",
+        summary="claim test",
     )
 
     first = memory.checkpoint_step_start(incident_id, 0, "restart_pool", resuming=False)

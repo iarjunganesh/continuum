@@ -13,6 +13,7 @@ call fails, is caught, and the step still reaches `executing`.
 
     COCKROACH_DATABASE_URL=... pytest tests/integration/test_chaos_kill_e2e.py -v
 """
+
 from __future__ import annotations
 
 import os

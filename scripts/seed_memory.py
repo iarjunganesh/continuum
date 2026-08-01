@@ -10,13 +10,14 @@ The embedding for each incident comes from one of three sources:
     --no-embeddings  deterministic Bedrock-free vectors (synthetic_vectors.py)
 
 The last two need no AWS credentials and let the demo Space render populated
-even while this account's Bedrock quota is throttled (ADR 008).
+even when Bedrock is throttled or unreachable (ADR 008).
 
 Usage:
     python scripts/seed_memory.py --file data/synthetic/incidents_seed.jsonl
     python scripts/seed_memory.py --file ... --from-fixture data/synthetic/seed_embeddings.json
     python scripts/seed_memory.py --file ... --no-embeddings
 """
+
 import argparse
 import json
 import os
@@ -39,7 +40,7 @@ from observability.structured_logger import get_logger  # noqa: E402
 
 log = get_logger(__name__)
 
-# New/low-volume Bedrock accounts throttle on-demand embedding calls well
+# New/low-volume Bedrock accounts can throttle on-demand embedding calls well
 # below the account's published per-minute quota (ADR 008) — a flat 1s sleep
 # isn't enough headroom, so back off exponentially on ThrottlingException
 # instead of failing the whole run on the first busy moment.
@@ -54,7 +55,7 @@ def _embed_with_retry(correlation: CorrelationAgent, text: str) -> list[float]:
         except ClientError as exc:
             if exc.response.get("Error", {}).get("Code") != "ThrottlingException":
                 raise
-            wait = EMBED_BACKOFF_BASE_SECONDS * (2 ** attempt)
+            wait = EMBED_BACKOFF_BASE_SECONDS * (2**attempt)
             log.warning("embed_throttled_retrying", attempt=attempt + 1, wait_seconds=wait)
             time.sleep(wait)
     raise RuntimeError(f"Bedrock embedding still throttled after {EMBED_MAX_RETRIES} retries")
@@ -80,8 +81,7 @@ def seed(file_path: str, mode: str = "live", fixture_path: str | None = None):
         with open(fixture_path, encoding="utf-8") as ff:
             fixture = json.load(ff)
     model_label = settings.bedrock_embedding_model_id if mode != "no-embeddings" else "synthetic-deterministic"
-    with open(file_path, encoding="utf-8") as f, \
-         psycopg.connect(settings.cockroach_database_url) as conn:
+    with open(file_path, encoding="utf-8") as f, psycopg.connect(settings.cockroach_database_url) as conn:
         cur = conn.cursor()
         count = 0
         for line in f:
@@ -93,8 +93,16 @@ def seed(file_path: str, mode: str = "live", fixture_path: str | None = None):
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, true)
                 ON CONFLICT (incident_id) DO NOTHING
                 """,
-                (rec["incident_id"], rec["correlation_id"], rec["service"], rec["region"],
-                 rec["severity"], rec["state"], rec["summary"], rec["opened_at"]),
+                (
+                    rec["incident_id"],
+                    rec["correlation_id"],
+                    rec["service"],
+                    rec["region"],
+                    rec["severity"],
+                    rec["state"],
+                    rec["summary"],
+                    rec["opened_at"],
+                ),
             )
             # Historical remediation path — the precedent a live incident replays.
             for idx, action in enumerate(rec.get("remediation_steps", [])):
@@ -127,10 +135,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", required=True)
     source = parser.add_mutually_exclusive_group()
-    source.add_argument("--from-fixture", metavar="PATH",
-                        help="load precomputed real Titan vectors (capture_seed_embeddings.py)")
-    source.add_argument("--no-embeddings", action="store_true",
-                        help="deterministic Bedrock-free vectors — no AWS credentials needed")
+    source.add_argument(
+        "--from-fixture", metavar="PATH", help="load precomputed real Titan vectors (capture_seed_embeddings.py)"
+    )
+    source.add_argument(
+        "--no-embeddings", action="store_true", help="deterministic Bedrock-free vectors — no AWS credentials needed"
+    )
     args = parser.parse_args()
     if args.no_embeddings:
         seed(args.file, mode="no-embeddings")

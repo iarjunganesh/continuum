@@ -15,6 +15,7 @@ Usage:
     python scripts/probe_bedrock.py                    # probe candidate regions
     python scripts/probe_bedrock.py --region eu-north-1  # probe one region
 """
+
 import argparse
 import json
 import os
@@ -33,9 +34,7 @@ from config import settings  # noqa: E402
 # as the out-of-geo fallback candidate (us.* profile).
 CANDIDATE_REGIONS = ["eu-north-1", "eu-west-1", "eu-central-1", "eu-west-3", "us-west-2"]
 
-_PROBE_CONFIG = Config(
-    connect_timeout=5, read_timeout=25, retries={"max_attempts": 1, "mode": "standard"}
-)
+_PROBE_CONFIG = Config(connect_timeout=5, read_timeout=25, retries={"max_attempts": 1, "mode": "standard"})
 
 
 def _reasoning_model_for(region: str) -> str:
@@ -65,16 +64,20 @@ def probe_region(region: str) -> None:
     reasoning_model = _reasoning_model_for(region)
 
     print(f"\n=== {region} ===")
-    print(f"  {settings.bedrock_embedding_model_id}: " + _outcome(
-        lambda: client.invoke_model(modelId=settings.bedrock_embedding_model_id, body=embed_body)
-    ))
-    print(f"  {reasoning_model}: " + _outcome(
-        lambda: client.converse(
-            modelId=reasoning_model,
-            messages=[{"role": "user", "content": [{"text": "Reply with the single word: ok"}]}],
-            inferenceConfig={"maxTokens": 8},
+    print(
+        f"  {settings.bedrock_embedding_model_id}: "
+        + _outcome(lambda: client.invoke_model(modelId=settings.bedrock_embedding_model_id, body=embed_body))
+    )
+    print(
+        f"  {reasoning_model}: "
+        + _outcome(
+            lambda: client.converse(
+                modelId=reasoning_model,
+                messages=[{"role": "user", "content": [{"text": "Reply with the single word: ok"}]}],
+                inferenceConfig={"maxTokens": 8},
+            )
         )
-    ))
+    )
 
 
 if __name__ == "__main__":
@@ -86,5 +89,7 @@ if __name__ == "__main__":
     print(f"Configured BEDROCK_REGION: {settings.bedrock_region}")
     for candidate in regions:
         probe_region(candidate)
-    print("\nAll throttled? The clamp is account-level (ADR 008 addendum) — the demo still")
-    print("works on deterministic fallbacks; set BEDROCK_REGION to any region that shows OK.")
+    print("\nAll OK? Live Bedrock is open right now — but quotas are dynamic, so re-probe")
+    print("immediately before recording rather than trusting this run (ADR 008 addenda).")
+    print("All throttled? The demo still works end to end on deterministic fallbacks;")
+    print("set BEDROCK_REGION to any region that shows OK, and note which mode you're in.")
