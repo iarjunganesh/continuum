@@ -5,7 +5,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Nothing merged yet since `v0.7.0`.
+Nothing merged yet since `v0.7.1`.
 
 **Remaining before submission** (tracked in `submission/SUBMISSION.md`):
 
@@ -15,6 +15,20 @@ Nothing merged yet since `v0.7.0`.
 - **Record the demo video** per `submission/DEMO_SCRIPT.md`, then replace the "Not yet recorded" row in the README's Live Demo table and re-link the YouTube badge
 - **Complete the `submission/SUBMISSION.md` checklist** end to end
 - **Decide on `mcp` 2.0.0.** Pinned `<2` deliberately — the unit suite mocks the SDK at the import boundary, so it would pass green against a client that fails against the real Managed MCP Server. Lifting the cap needs a live round trip
+
+## [0.7.1] — 2026-08-01 — restore the Hugging Face Space build
+
+### Fixed
+
+- **The Hugging Face Space stopped building at `v0.7.0`, taking the functional demo URL offline.** That release raised the pydantic floor from `>=2.9` to `>=2.13,<3` as part of a general dependency-floor sweep. The Space builder does not install `requirements.txt` alone — it appends `gradio[oauth,mcp]==<sdk_version>`, and gradio's **`mcp` extra** pins `pydantic<=2.12.5,>=2.11.10`. The two ranges do not intersect, so the build died with `ResolutionImpossible` before the Space ever started. Nothing in this project needed 2.13; the real floor is `mcp` 1.29, which requires `pydantic>=2.12.0` on Python 3.14. Now pinned `pydantic>=2.12,<2.12.6`.
+
+  Two things this is *not*: it is not fixable by moving `sdk_version`, because every gradio 6.x carries the same `mcp`-extra cap (verified across 6.15 → 6.22); and the upper bound is not the project's usual "cap the next major" convention but a deliberate compatibility ceiling, commented as such in `requirements.txt`. It is pinned rather than left open at `<3` so CI resolves the same pydantic the Space runs — an open cap would have CI testing 2.13 while the Space silently ran 2.12.5.
+
+  The gap this exposes: `requirements.txt` is validated by CI, but the Space's *actual* install command is not, so a dependency edit can pass every gate and still take the demo down. Until that has a gate, treat a dependency change as unverified until the Space build goes green.
+
+### Changed
+
+- README's Pydantic badge corrected from `2.13 models` to `2.12`, and `submission/DEVPOST_README.md` regenerated to match.
 
 ## [0.7.0] — 2026-08-06 — judge-facing restructure, dependency hardening, tag history repaired
 
