@@ -1,0 +1,41 @@
+# Runtime dependencies for the orchestrator Lambda ONLY.
+#
+# WHY THIS FILE EXISTS. `infra/template.yaml` sets `CodeUri: ../`, so SAM's
+# Python builder would otherwise resolve the repo-root `requirements.txt` —
+# which carries the Gradio UI and the whole dev toolchain. That produced a
+# 387 MB artifact against Lambda's 250 MB unzipped limit: gradio 70 MB,
+# pandas 38 MB, numpy 54 MB, ruff 27 MB, pillow and mypy behind them. None of
+# it is reachable from the handler.
+#
+# `samconfig.toml` points `sam build` here with `manifest`. The root
+# requirements.txt stays the superset: CI installs from it, and the Hugging
+# Face Space builds the Gradio UI from it, so gradio must remain there.
+#
+# KEEP IN SYNC. These are floor/cap-pinned identically to the root file — a
+# drift means the Lambda runs different versions than CI tested. The set below
+# is the transitive import closure of infra/lambda_handler.py:
+#
+#   lambda_handler -> agents.orchestrator
+#     -> agents.correlation_agent   (boto3, psycopg)
+#     -> agents.memory_agent        (psycopg)
+#     -> agents.remediation_agent   (boto3)
+#     -> config                     (pydantic, pydantic-settings)
+#     -> observability.structured_logger (structlog)
+#
+# Deliberately ABSENT and why:
+#   mcp      — agents/query_agent.py is the only importer, and the orchestrator
+#              never imports it. The MCP read path runs in the API/UI, not the
+#              Lambda. Adding it here would ship an unused client into the
+#              function.
+#   fastapi/uvicorn — api/main.py is the local demo gateway (ADR 002); the
+#              Lambda entrypoint is the handler, not an ASGI app.
+#   gradio, pytest, ruff, mypy, psutil, httpx — UI, test and tooling only.
+#
+# If the handler's import chain grows, add the dependency here as well as to
+# the root file, or the function will fail at cold start with ImportError.
+
+boto3>=1.43,<2
+psycopg[binary]>=3.3,<4
+pydantic>=2.12,<2.12.6
+pydantic-settings>=2.14,<3
+structlog>=26.1,<27

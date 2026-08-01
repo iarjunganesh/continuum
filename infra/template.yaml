@@ -49,15 +49,19 @@ Parameters:
   CockroachDatabaseUrl:
     Type: String
     NoEcho: true
-  # Bedrock quotas on this account are dynamically adjusted. An account-level
-  # clamp held every region at effectively 0 through July 2026; an AWS Support
-  # eligibility review lifted it on 2026-08-06 and all candidate regions now
-  # probe OK (ADR 008 + addenda). Quotas remain dynamic, so run
-  # `make probe-bedrock` before the demo and override here if a region closed.
-  # The function itself stays in eu-central-1 (ADR 007).
+  # Kept as its own parameter, not folded into the stack region: Bedrock quotas
+  # on this account are dynamically adjusted, and moving Bedrock without
+  # redeploying the function into a different region is the escape hatch
+  # ADR 008 exists to provide.
+  #
+  # Defaults to eu-central-1 — the function's own region, so the Bedrock leg is
+  # in-region. It was eu-north-1 while an account-level quota clamp held every
+  # other region at effectively 0; that clamp lifted 2026-08-06 (ADR 008
+  # addendum 3). Quotas remain dynamic, so run `make probe-bedrock` before the
+  # demo and override here if this region has closed.
   BedrockRegion:
     Type: String
-    Default: eu-north-1
+    Default: eu-central-1
   BedrockEmbeddingModelId:
     Type: String
     Default: amazon.titan-embed-text-v2:0

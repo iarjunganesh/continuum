@@ -63,22 +63,59 @@ This split is deliberate: the Space is the *window* into the memory, not the thi
 
 The orchestrator (`agents/orchestrator.py`, handler `infra.lambda_handler.lambda_handler`) is the thing that recovers state, and it deploys as a Lambda function from `infra/template.yaml` (AWS SAM). `python3.14` is a **managed Lambda runtime** (added November 2025, based on `provided.al2023`), so the template's `Runtime: python3.14` deploys as-is — no container image needed.
 
-Prerequisites: AWS credentials with Lambda / IAM / CloudFormation access, the [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html), and a reachable `COCKROACH_DATABASE_URL`.
+### Prerequisites — check them first
 
 ```bash
-# First deploy — interactive; saves your choices to samconfig.toml
-sam build --use-container --template infra/template.yaml
-sam deploy --guided --template infra/template.yaml \
-  --stack-name continuum --region eu-central-1 \
-  --parameter-overrides CockroachDatabaseUrl="$COCKROACH_DATABASE_URL" BedrockRegion=eu-north-1
+make preflight-deploy
+```
 
-# Subsequent deploys
-make deploy   # = sam build --use-container + sam deploy (reuses samconfig.toml)
+`sam build` and `sam deploy` fail slowly and at different layers: a stopped Docker daemon surfaces minutes into a build, and an under-privileged IAM identity only surfaces once CloudFormation is already being called. `scripts/preflight_deploy.py` checks all of it up front and reports every failure at once, so one pass tells you everything to fix. `make deploy` is gated on it.
+
+| Prerequisite | Notes |
+| --- | --- |
+| **AWS SAM CLI** | [Install guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html). Not bundled with the AWS CLI — a separate install |
+| **Docker, daemon running** | `samconfig.toml` sets `use_container = true`; the build needs a live daemon, not just the binary |
+| **An admin-ish AWS profile** | **The app's own credentials cannot deploy.** `continuum-bedrock` is scoped to `bedrock:InvokeModel` on purpose, so it gets `AccessDenied` on CloudFormation. Deploy with a profile holding CloudFormation, IAM, Lambda, S3 and ECR — `export AWS_PROFILE=<admin>` for the deploy only, and leave the Bedrock-only user as the function's runtime identity |
+| **`COCKROACH_DATABASE_URL`** | Passed as the `NoEcho` `CockroachDatabaseUrl` parameter. Must include `sslmode=require` (ADR 005) |
+| **A packaged tree under 250 MB** | `CodeUri: ../` packages the **whole repo root**, so a local `.venv/` (~434 MB) or `.mypy_cache/` (~152 MB) counts toward Lambda's unzipped-size limit. The preflight measures the tree and names the offenders |
+
+### Build from a clean checkout
+
+A working tree carries build caches and a virtualenv that `CodeUri: ../` would package. Rather than pruning those out of the directory you work in — destructive, and easy to half-undo — clone the repo somewhere disposable and build there:
+
+```bash
+git clone --depth 1 https://github.com/iarjunganesh/continuum /tmp/continuum-build
+cd /tmp/continuum-build
+sam build
+```
+
+A clean checkout is ~6 MB. `sam build` needs **no AWS credentials**, so this step can be verified before any IAM setup exists.
+
+### Deploying
+
+```bash
+make deploy   # preflight → sam build → sam deploy
+```
+
+`make deploy` builds in place and therefore assumes a clean tree; from a working directory with a virtualenv, use the clone above and run `sam deploy` there. Deploy with the admin profile only:
+
+```bash
+AWS_PROFILE=continuum-deploy sam deploy \
+  --parameter-overrides CockroachDatabaseUrl="$COCKROACH_DATABASE_URL"
+```
+
+`samconfig.toml` is **checked in**, so the deploy is reproducible rather than depending on whoever ran `sam deploy --guided` first. It carries the stack name, region, capabilities and container-build flag — but **deliberately not `CockroachDatabaseUrl`**, which is a live cluster credential and is passed from the environment by the `deploy` target instead.
+
+To override the Bedrock region when a probe shows the default has closed:
+
+```bash
+sam deploy --parameter-overrides \
+  CockroachDatabaseUrl="$COCKROACH_DATABASE_URL" BedrockRegion=eu-west-1
 ```
 
 `--use-container` is **required when building on Windows or macOS**: without it, `sam build` bundles host-platform wheels for the compiled dependencies (`psycopg[binary]`, `pydantic-core`), and the resulting package crashes on Lambda's Linux runtime with import errors. The container build resolves Linux wheels regardless of host OS.
 
-Region is **eu-central-1** (co-located with the CockroachDB cluster, ADR 007); Bedrock calls target **eu-north-1** by default (ADR 008 + addendum) — both already defaulted in the template's parameters. Bedrock quotas on this account are dynamic and usually closed; run `make probe-bedrock` first and override `BedrockRegion` if the probe shows a different region open. A throttled region does **not** break the deploy or the demo — correlation and reasoning degrade to their deterministic fallbacks by design.
+Everything now runs in **eu-central-1** — Lambda, CockroachDB (ADR 007) and Bedrock (ADR 008 addendum 3) — so the Bedrock leg is in-region rather than a cross-region hop. `BedrockRegion` remains a **separate template parameter** rather than reusing the stack region: Bedrock quotas on this account are dynamic and account-level, so being able to move Bedrock without redeploying the function is deliberate. Run `make probe-bedrock` first and override `BedrockRegion` if eu-central-1 has closed. A throttled region does **not** break the deploy or the demo — correlation and reasoning degrade to their deterministic fallbacks by design, and the `correlation_source` / `reasoning_source` fields on every step record which path actually ran.
 
 **Packaging note.** The template's `CodeUri: ../` packages the repo root, so build from a checkout where the local `.venv/` is absent or moved aside — otherwise SAM bundles the virtualenv and blows past Lambda's unzipped-size limit. SAM installs the function's own dependencies from `requirements.txt`.
 

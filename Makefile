@@ -1,4 +1,4 @@
-.PHONY: install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark probe-bedrock deploy test lint format typecheck load-test devpost-readme coverage
+.PHONY: install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -61,9 +61,16 @@ probe-bedrock:
 # Windows/macOS hosts: psycopg[binary]/pydantic-core need Linux wheels.
 # First deploy is interactive: run the `sam deploy --guided` line from
 # docs/DEPLOY.md once to create samconfig.toml, then use this target.
-deploy:
-	sam build --use-container --template infra/template.yaml
-	sam deploy
+preflight-deploy:
+	python scripts/preflight_deploy.py
+
+# Gated on the preflight so a missing Docker daemon or an under-privileged
+# profile fails in seconds rather than minutes into a container build.
+# CockroachDatabaseUrl is passed here, NOT stored in samconfig.toml — it is a
+# live cluster credential (NoEcho in the template).
+deploy: preflight-deploy
+	sam build
+	sam deploy --parameter-overrides CockroachDatabaseUrl="$$COCKROACH_DATABASE_URL"
 
 test:
 	pytest tests/unit tests/integration -v

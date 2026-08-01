@@ -153,7 +153,7 @@ Nine decisions documented (001–009), **all accepted and implemented** — see 
 | [005](docs/adr/005-synthetic-incident-data.md) | Synthetic incident corpus only — no real infra, ever |
 | [006](docs/adr/006-scope-cuts.md) | Explicit scope cuts, documented instead of hidden |
 | [007](docs/adr/007-eu-central-1-region.md) | eu-central-1 deployment region, kept in sync across config/template/ADR |
-| [008](docs/adr/008-bedrock-region-split.md) | Bedrock calls target a separate region (`BEDROCK_REGION`, default eu-north-1) from the Lambda/CockroachDB region — this account's Bedrock quota was a dynamic account-level clamp that probed as ~0 across all regions and models (addendum; lifted 2026-08-06); the app degrades to deterministic fallbacks either way |
+| [008](docs/adr/008-bedrock-region-split.md) | Bedrock calls target their own `BEDROCK_REGION` setting rather than reusing `AWS_REGION`, so Bedrock can move without redeploying the Lambda — introduced when a dynamic account-level quota clamp probed as ~0 across all regions and models (lifted 2026-08-06); the default is back to eu-central-1 alongside the Lambda and cluster (addendum 3), and the app degrades to deterministic fallbacks either way |
 | [009](docs/adr/009-step-execution-semantics.md) | Each step runs in two explicit `SERIALIZABLE` transactions with a forward-step claim (`ON CONFLICT DO NOTHING`) for exactly-once; correlation/Bedrock is best-effort, off the recovery critical path |
 
 ---
@@ -200,6 +200,7 @@ Judging-criteria mapping and full submission narrative: [`submission/DEVPOST.md`
 | | |
 | --- | --- |
 | **App** | [https://huggingface.co/spaces/iarjunganesh/continuum](https://huggingface.co/spaces/iarjunganesh/continuum) *(deploys on push to `main`)* |
+| **Orchestrator** | Live on AWS Lambda — `continuum-orchestrator`, eu-central-1 (stack `continuum`, deployed via SAM). No provisioned concurrency, so every invocation is a genuine cold start: **1.71 s init, 129 MB / 512 MB** |
 | **Demo Video** | *Not yet recorded.* Recording script: [`submission/DEMO_SCRIPT.md`](submission/DEMO_SCRIPT.md) |
 | **Try It Now** | `make chaos-demo` — kill the agent mid-incident, watch it resume from CockroachDB |
 
@@ -345,7 +346,7 @@ tag v*.*.*   → GitHub Release, notes pulled from CHANGELOG.md
 
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`.github/workflows/release.yml`](.github/workflows/release.yml), and [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
-The unit suite (46 tests, one file per agent/module, 100% measured coverage against a 90% CI gate) pins the properties the demo depends on: recovery read happens before any write, each step commits inside an explicit `SERIALIZABLE` transaction, interrupted steps are re-executed (never skipped, never duplicated), a forward step is claimed exactly once under concurrent invocations, and incidents resolve atomically with the final step.
+The unit suite (53 tests, one file per agent/module, 100% measured coverage against a 90% CI gate) pins the properties the demo depends on: recovery read happens before any write, each step commits inside an explicit `SERIALIZABLE` transaction, interrupted steps are re-executed (never skipped, never duplicated), a forward step is claimed exactly once under concurrent invocations, and incidents resolve atomically with the final step.
 
 [`tests/integration/test_recovery_e2e.py`](tests/integration/test_recovery_e2e.py) drives that same resume-and-exactly-once contract against the real schema on a real CockroachDB instance CI spins up — not just against mocks — and [`tests/integration/test_chaos_kill_e2e.py`](tests/integration/test_chaos_kill_e2e.py) goes one step further: it spawns the orchestrator as a real subprocess and hard-kills it mid-step with [`scripts/chaos_kill.py`](scripts/chaos_kill.py) (a real `SIGKILL`/`TerminateProcess`, no graceful shutdown), then asserts a cold restart resumes the interrupted step exactly once from CockroachDB. The same script drives the literal process-kill beat live in the demo.
 

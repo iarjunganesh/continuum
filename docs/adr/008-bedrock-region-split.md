@@ -79,10 +79,9 @@ both models**:
 | eu-west-3 | OK (0.3s) | OK (1.3s) |
 | us-west-2 | OK (0.7s) | OK (1.7s) |
 
-**No config change was needed, and the decision in this ADR still stands.** The
-`AWS_REGION` / `BEDROCK_REGION` split remains as documented — it is now a
-deliberate seam rather than a workaround, and re-collapsing it buys nothing while
-removing the ability to move Bedrock independently of the Lambda.
+**No config change was needed at the time.** The `AWS_REGION` / `BEDROCK_REGION`
+split remained as documented — a deliberate seam rather than a workaround.
+(Addendum 3 below revisits the *default value*, though not the seam itself.)
 
 Three consequences that outlive the clamp:
 
@@ -97,3 +96,52 @@ Three consequences that outlive the clamp:
 3. **The fallbacks stay.** They are not scaffolding to be removed now that Bedrock
    works; they are what makes the recovery guarantee independent of a third-party
    API, and ADR 009 keeps correlation off the critical path for the same reason.
+
+---
+
+## Addendum 3 — 2026-08-01: default consolidated onto eu-central-1
+
+Addendum 2 concluded that re-collapsing the split "buys nothing." That was right
+about the *seam* and wrong about the *default*, and the two are separable.
+
+**What changed:** the default `BEDROCK_REGION` is now **eu-central-1** — the same
+region as the Lambda and the CockroachDB cluster. `BEDROCK_REGION` remains a
+distinct setting from `AWS_REGION`; only its default value moved.
+
+**Why now.** The original choice of eu-north-1 rested on one fact: it was *"the
+only region ever observed accepting calls"* under the account-level clamp. Once
+the clamp lifted, that fact stopped being true and nothing else argued for the
+two regions differing. A fresh probe on 2026-08-01 (the first run of Continuum's
+own Bedrock code, not just `probe_bedrock.py`'s):
+
+| Region | Titan Embed V2 | Claude Sonnet 4.5 |
+| --- | --- | --- |
+| eu-north-1 | OK (0.2s) | OK (1.5s) |
+| eu-west-1 | OK (0.3s) | OK (1.4s) |
+| **eu-central-1** | **OK (0.3s)** | **OK (1.2s)** — fastest of the five |
+| eu-west-3 | OK (0.3s) | OK (1.3s) |
+| us-west-2 | OK (0.7s) | OK (2.1s) |
+
+Read those numbers with their bias in mind: they were measured from a developer
+workstation in the Nordics, which flatters eu-north-1 (Stockholm) on the Titan
+leg. Production traffic originates from the **Lambda in eu-central-1**, where
+eu-central-1 is in-region and eu-north-1 is a cross-region hop — so the
+deployed system favours eu-central-1 by more than this table shows.
+
+**What this buys:**
+
+- The cross-region hop listed as a cost in *Consequences* above is gone from the
+  default path.
+- One less pair of values that must agree. `CLAUDE.md` warns that region drift
+  "fails silently as a Bedrock access error"; a single default removes the
+  most likely source of it.
+
+**What deliberately does not change:**
+
+- `BEDROCK_REGION` stays a separate setting. The durable lesson of this ADR is
+  that quotas are dynamic and account-level; the ability to move Bedrock without
+  redeploying the Lambda is the whole point of the seam, and addendum 2's
+  reasoning on that still holds.
+- `make probe-bedrock` stays a pre-recording step. eu-central-1 being open today
+  says nothing about tomorrow.
+- The deterministic fallbacks stay, for the reasons in addendum 2 point 3.

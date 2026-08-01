@@ -18,11 +18,12 @@ Run explicitly against a test cluster:
 from __future__ import annotations
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import psycopg
 import pytest
 
+from agents.remediation_agent import SOURCE_BEDROCK, ProposedAction
 from config import settings
 
 # The `correlation_id` cleanup fixture lives in tests/integration/conftest.py.
@@ -43,7 +44,17 @@ def _alert(correlation_id: str) -> dict:
 
 
 def _proposed(action="do_thing"):
-    return MagicMock(action=action, rationale="integration test rationale", based_on_incident_id=None)
+    """A real ProposedAction, deliberately not a MagicMock. This test writes to
+    a real JSONB column, so every field has to survive json.dumps — and a
+    MagicMock invents attributes rather than failing, which previously put an
+    unserializable value in `detail` and broke only here, never in the mocked
+    unit suite. The dataclass makes that impossible by construction."""
+    return ProposedAction(
+        action=action,
+        rationale="integration test rationale",
+        based_on_incident_id=None,
+        source=SOURCE_BEDROCK,
+    )
 
 
 @pytest.fixture(autouse=True)

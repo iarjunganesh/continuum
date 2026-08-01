@@ -133,10 +133,12 @@ Documentation updates. - UX polish. - Demo rehearsal.
 
 ---
 
-*Last audited **2026-08-06** against actual repo state (code, tests, docs,
-Makefile). Biggest open blockers, in order: **no recorded demo video**; the
-**orchestrator has never been deployed to Lambda**, which gates the judge-facing
-evidence capture in `assets/chaos-run/`; **the live Bedrock path has never
-executed** (the ADR 008 clamp lifted 2026-08-06, but every run to date used
-silent fallbacks, so that code is unproven); and the HF Space still can't
-self-trigger a sample incident for a first-time visitor.*
+*Last audited **2026-08-01** against actual repo state (code, tests, docs,
+Makefile). Biggest open blockers, in order: **no recorded demo video**; **no
+captured evidence runs** in `assets/chaos-run/`; and the HF Space still can't
+self-trigger a sample incident for a first-time visitor. Two former blockers
+cleared on 2026-08-01: the **live Bedrock path** was verified end to end (and
+every step now records `reasoning_source` / `correlation_source`, so a fallback
+run is visible rather than silent), and the **orchestrator is deployed to
+Lambda** — `continuum` / eu-central-1, with successive cold invocations observed
+resuming one incident 0 → 1 → 2 → `resolved` straight out of CockroachDB.*

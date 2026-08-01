@@ -37,6 +37,12 @@ remediation = RemediationAgent()
 
 _INCOMPLETE = ("proposed", "executing")
 
+# Did the Bedrock embed + vector search actually run for this step? See the
+# STEP 2 comment — the fallback is silent by design, so this is the only way
+# to distinguish "no similar incidents" from "Bedrock was unreachable".
+CORRELATION_BEDROCK = "bedrock"
+CORRELATION_UNAVAILABLE = "unavailable"
+
 
 def handle_alert(alert: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -97,11 +103,19 @@ def handle_alert(alert: Dict[str, Any]) -> Dict[str, Any]:
     # no precedent (remediation falls back to paging on-call) rather than
     # aborting the incident before it's even durable — otherwise a red Bedrock
     # endpoint would take down the very thing this project exists to prove.
+    #
+    # `correlation_source` records which of those two outcomes actually
+    # happened. Because the degradation is silent by design, a throttled
+    # Bedrock account otherwise produces output identical to a healthy one —
+    # so without this marker neither the UI, the demo video, nor a judge can
+    # tell whether Distributed Vector Indexing and Bedrock really ran.
     matches = []
+    correlation_source = CORRELATION_BEDROCK
     try:
         embedding = correlation.embed(alert["text"])
         matches = correlation.find_similar(alert["service"], embedding)
     except Exception as exc:  # noqa: BLE001 — correlation is best-effort by design
+        correlation_source = CORRELATION_UNAVAILABLE
         log.warning("correlation_unavailable", correlation_id=correlation_id, error=str(exc))
 
     # --- STEP 3: propose + execute this step across two explicit transactions ---
@@ -114,6 +128,11 @@ def handle_alert(alert: Dict[str, Any]) -> Dict[str, Any]:
             "rationale": proposed.rationale,
             "based_on": proposed.based_on_incident_id,
             "reexecuted_after_interrupt": interrupted,
+            # Persisted, not just logged: the durable record of a step should
+            # say how it was reasoned about, so evidence captured from the
+            # database after the fact is self-describing.
+            "reasoning_source": proposed.source,
+            "correlation_source": correlation_source,
         },
         resuming=interrupted,
     )
@@ -126,6 +145,8 @@ def handle_alert(alert: Dict[str, Any]) -> Dict[str, Any]:
             "state": existing.state if existing else "remediating",
             "resumed": existing is not None,
             "reexecuted_after_interrupt": interrupted,
+            "correlation_source": correlation_source,
+            "reasoning_source": proposed.source,
             "skipped_duplicate": True,
         }
 
@@ -142,6 +163,8 @@ def handle_alert(alert: Dict[str, Any]) -> Dict[str, Any]:
         "state": "resolved" if resolved else "remediating",
         "resumed": existing is not None,
         "reexecuted_after_interrupt": interrupted,
+        "correlation_source": correlation_source,
+        "reasoning_source": proposed.source,
     }
 
 

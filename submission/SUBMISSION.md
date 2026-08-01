@@ -20,8 +20,11 @@ box here is the honest state, not an oversight.
 
 ## Required Project Requirements
 
-- [ ] **Uses CockroachDB as persistent memory layer, deployed on AWS** — *CockroachDB side is
-      complete and live; the AWS Lambda deployment is the one outstanding piece*
+- [x] **Uses CockroachDB as persistent memory layer, deployed on AWS** — *CockroachDB Cloud is
+      live, and the orchestrator runs on AWS Lambda in eu-central-1 (deployed 2026-08-01). The
+      recovery contract was observed on the deployed function: successive cold invocations drove
+      one incident 0 → 1 → 2 → `resolved`, each resuming from CockroachDB with the same
+      `incident_id`*
 - [x] **≥2 CockroachDB tools meaningfully integrated** (not merely initialized):
   - [x] **Distributed Vector Indexing** — `incident_embeddings` `VECTOR(1024)` with a
         `service`-prefixed C-SPANN index; the Correlation Agent's live query filters and ANN-ranks
@@ -31,10 +34,14 @@ box here is the honest state, not an oversight.
   - *ccloud CLI and the Agent Skills Repo — evaluated and deliberately not used (ADR 004); not
     claimed as additional tools*
 - [x] **≥1 AWS service:**
-  - [x] **Amazon Bedrock** — Titan Text Embeddings V2 + Claude Sonnet 4.5, code complete and
-        unit-tested. **⚠ The live path has never executed** — see Known Gaps below
-  - [ ] **AWS Lambda** — SAM template (`infra/template.yaml`) ready and reviewed; **not yet
-        deployed**
+  - [x] **Amazon Bedrock** — Titan Text Embeddings V2 + Claude Sonnet 4.5, verified end to end
+        (2026-08-01) both locally and from the deployed Lambda. Every remediation step records
+        `reasoning_source` / `correlation_source`, so "Bedrock actually ran" is checkable in the
+        database rather than assumed — the deploy smoke test returned `bedrock` for both
+  - [x] **AWS Lambda** — deployed from `infra/template.yaml` via SAM:
+        `arn:aws:lambda:eu-central-1:504804196134:function:continuum-orchestrator`, stack
+        `continuum`. No provisioned concurrency (ADR 002), so every invocation is a cold start —
+        1.71 s init, 129 MB of a 512 MB allocation
 
 ## Submission Materials
 
@@ -86,10 +93,10 @@ them unlisted reads the whole checklist as unreliable.
 
 | Gap | Impact | Status |
 | --- | --- | --- |
-| **Lambda never deployed** | The "deployed on AWS" requirement is not yet satisfiable by inspection | Template ready; needs an admin AWS profile (app credentials are Bedrock-invoke only) and a first `sam deploy --guided` |
-| **Live Bedrock path never executed** | Titan/Claude response handling is unproven, not proven-good — every run to date used silent fallbacks | ADR 008 clamp lifted 2026-08-06; both paths need one end-to-end verification run |
+| ~~**Lambda never deployed**~~ — **resolved 2026-08-01** | The "deployed on AWS" requirement was not satisfiable by inspection | Deployed to `continuum` / eu-central-1. Two packaging bugs surfaced and were fixed on the way: `CodeUri: ../` pulled the root `requirements.txt` into the function (387 MB vs a 250 MB limit — now `infra/requirements-lambda.txt`), and a stray `template` key in `samconfig.toml` would have deployed the *unbuilt* template |
+| ~~**Live Bedrock path never executed**~~ — **resolved 2026-08-01** | Titan/Claude response handling was unproven; every run to date had used silent fallbacks | Both paths verified end to end: `embed()` returns 1024 floats matching `VECTOR(1024)`, `_propose_via_bedrock()` parsed real Claude output 3/3. Every step now records `reasoning_source` / `correlation_source` so the mode is visible rather than inferred |
 | **No demo video** | A required submission material | Scripted in `DEMO_SCRIPT.md`, unrecorded |
-| **No captured evidence runs** | `assets/chaos-run/` is scaffolding — capture plan and shot list only | Gated on the Lambda deploy so evidence shows the deployed system |
+| **No captured evidence runs** | `assets/chaos-run/` is scaffolding — capture plan and shot list only | No longer gated: the function is deployed, so the capture can show the real cold-Lambda recovery |
 | **HF Space can't self-trigger an incident** | A first-time judge sees state but can't create any | Read-only by design (single write path); an incident-start CTA is not currently in scope |
 
 ## Feedback for Cockroach Labs *(optional submission item — draft)*

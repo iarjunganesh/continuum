@@ -1,0 +1,48 @@
+# AWS SAM deploy configuration for the Continuum orchestrator.
+#
+# Checked in deliberately: `sam deploy --guided` writes this file, but a
+# generated-on-first-run config means the deploy is only reproducible on the
+# machine that happened to run it. Every non-secret choice here is a reviewable
+# artifact, the same reasoning that keeps `ProvisionedConcurrencyConfig` absent
+# from infra/template.yaml rather than unset in a console (ADR 002).
+#
+# THE DATABASE URL IS NOT IN THIS FILE, AND MUST NOT BE ADDED.
+# `CockroachDatabaseUrl` is NoEcho in the template and carries cluster
+# credentials. It is passed at deploy time from the environment — see the
+# `deploy` target in the Makefile. Adding it to `parameter_overrides` here
+# would commit a live credential to the repo.
+version = 0.1
+
+[default.global.parameters]
+stack_name = "continuum"
+region = "eu-central-1"          # co-located with the CockroachDB cluster (ADR 007)
+
+[default.build.parameters]
+template = "infra/template.yaml"
+# Required on Windows and macOS hosts. Without it, `sam build` bundles
+# host-platform wheels for the compiled dependencies (psycopg[binary],
+# pydantic-core) and the function fails at import on Lambda's Linux runtime.
+use_container = true
+# CodeUri is the repo root, so the Python builder would otherwise resolve the
+# root requirements.txt and ship the Gradio UI plus the dev toolchain into the
+# function — a 387 MB artifact against Lambda's 250 MB unzipped limit. This
+# manifest is the handler's actual import closure. See infra/requirements-lambda.txt.
+manifest = "infra/requirements-lambda.txt"
+
+[default.deploy.parameters]
+# NO `template` KEY HERE, DELIBERATELY. Without it `sam deploy` uses
+# .aws-sam/build/template.yaml — the built artifact, with dependencies resolved
+# and CodeUri rewritten. Pointing it back at infra/template.yaml would silently
+# deploy the *unbuilt* template, packaging the entire repo root from source.
+capabilities = "CAPABILITY_IAM"   # the template creates the function's execution role
+resolve_s3 = true                 # managed staging bucket; no manual bucket to create
+confirm_changeset = false
+fail_on_empty_changeset = false   # a no-op redeploy should not exit non-zero
+# BedrockRegion is intentionally NOT overridden here — it defaults to
+# eu-central-1 in the template, the same region as the function (ADR 008
+# addendum 3). Quotas are dynamic: run `make probe-bedrock` and override on the
+# command line if that region has closed.
+
+[default.remote_invoke.parameters]
+stack_name = "continuum"
+region = "eu-central-1"

@@ -5,13 +5,48 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Nothing merged yet since `v0.7.1`.
+### Verified
+
+- **The orchestrator is deployed to AWS Lambda and the recovery guarantee is proven there** — `arn:aws:lambda:eu-central-1:504804196134:function:continuum-orchestrator`, stack `continuum`, first deploy 2026-08-01. Until now Lambda was a claim backed by a template nobody had run. Four `sam remote invoke` calls, each a genuinely cold start (no provisioned concurrency, ADR 002), drove one incident end to end:
+
+  | Invocation | `step_index` | Action Claude proposed | `resumed` | State |
+  | --- | --- | --- | --- | --- |
+  | 1 | 0 | `rollback_deployment` | false | remediating |
+  | 2 | 1 | `restart_connection_pool` | **true** | remediating |
+  | 3 | 2 | `increase_connection_pool_size` | **true** | **resolved** |
+
+  Every one reported `correlation_source: bedrock` and `reasoning_source: bedrock`, so Titan embedding, the C-SPANN vector search and Claude reasoning all demonstrably ran *inside Lambda* under the function's own execution role — not from a developer workstation, and not on fallbacks. Without those markers this output would have been indistinguishable from a fully degraded run. The steps are a coherent escalation rather than three restatements of one idea.
+
+  Cold-start cost: **1.71 s init**, 129 MB of the 512 MB allocation. The second invocation recovered the incident and advanced to step 1 while holding the same `incident_id` — the read-before-write contract in ADR 002, observed on the real runtime rather than asserted by a test.
+
+- **The live Bedrock paths execute correctly — first time in this project's history.** Both had never run: every correlation and remediation call to date fell back silently, so the Titan and Claude response-handling code was unproven rather than proven-good. Driven against live Bedrock on 2026-08-01, bypassing `propose_next_step`'s `except Exception` (which is precisely what would hide a parsing bug):
+  - `CorrelationAgent.embed()` returns **1024 floats**, matching `VECTOR(1024)` and `embedding_dimensions` exactly.
+  - `RemediationAgent._propose_via_bedrock()` parsed real Claude output on **3/3** calls — the code-fence stripping and `json.loads` handle what the model actually returns, producing e.g. `rollback_deploy_v2_31_0`.
+  - The public path takes live Bedrock, not the fallback.
+
+  Note the distinction from `make probe-bedrock`, which makes its own boto3 calls and therefore only ever proved *account access*. This exercised Continuum's own code.
+
+### Added
+
+- **`reasoning_source` and `correlation_source` — the Bedrock path is now self-reporting.** Both Bedrock legs degrade silently by design, which meant a fully throttled account produced output byte-identical to a healthy one: nothing in the orchestrator's return value, the persisted step, or the UI said whether Claude had reasoned about a step or a deterministic replay had. The demo could not prove Bedrock ran at all. Every step now records which path produced it (`bedrock` / `precedent_replay` / `no_precedent`, and `bedrock` / `unavailable` for correlation) in the orchestrator result, the structlog line, **and the durable `remediation_steps.detail` JSONB** — so evidence read back from CockroachDB after the fact is self-describing rather than needing a human to remember which mode the run was in. The Gradio timeline renders it as a chip per step. Steps written before the field existed render no chip: absence is not evidence of a fallback.
+- **`samconfig.toml`, checked in.** `sam deploy --guided` generates this on first run, which makes the deploy reproducible only on the machine that happened to run it. Every non-secret choice — stack name, region, capabilities, container build — is now a reviewable artifact. **`CockroachDatabaseUrl` is deliberately absent** and passed from the environment by the `deploy` target: it is a live cluster credential, `NoEcho` in the template, and belongs nowhere near the repo.
+- **`scripts/preflight_deploy.py` / `make preflight-deploy`, gating `make deploy`.** `sam build` and `sam deploy` fail slowly and at different layers — a stopped Docker daemon surfaces minutes into a container build, an under-privileged identity only once CloudFormation is already being called. This checks all six preconditions up front and reports every failure at once. On its first run it caught four, including one the docs only warned about in prose: a `.venv/` in the repo root, which `CodeUri: ../` would package straight past Lambda's size limit.
+
+### Fixed
+
+- **The deploy preflight reported the AWS SAM CLI as missing even when it was installed.** On Windows SAM ships as a `sam.CMD` shim; `shutil.which` finds it, but `subprocess` uses `CreateProcess`, which performs no `PATHEXT` lookup, so a bare `"sam"` raised `FileNotFoundError`. The check reported the tool absent on exactly the platform `docs/DEPLOY.md` targets. `_run()` now resolves `argv[0]` to a full path before executing.
+- **The packaging check looked for `.venv/` by name and would have missed everything else.** A working tree here also carries a 152 MB `.mypy_cache/`, and `CodeUri: ../` packages the entire repo root. It now measures the tree (~593 MB against Lambda's 250 MB unzipped limit) and names the largest offenders, rather than enumerating the ones someone happened to think of. The documented fix is to build from a clean `git clone` (~6 MB) instead of pruning a working tree.
+- **Test fixtures built `ProposedAction` stand-ins with `MagicMock`, which invents any attribute asked of it.** Adding `source` therefore produced a `MagicMock` rather than a string, and the orchestrator wrote it into the `detail` JSONB — where psycopg's `json.dumps` raised *"not JSON serializable"*. It passed the entire unit suite (which mocks the memory agent and so never reaches the dump) and failed only against a live CockroachDB instance, which is exactly what the integration suite exists to catch. Both `_proposed()` helpers now return a **real `ProposedAction`**, so any future field is forced to carry a real value instead of silently becoming a mock. A companion unit test asserts `detail` survives `json.dumps`, moving this class of failure from the slow suite to the fast one.
+
+### Changed
+
+- **`BEDROCK_REGION` now defaults to `eu-central-1`, alongside the Lambda and the CockroachDB cluster** (ADR 008 addendum 3). The split existed for exactly one reason — an account-level quota clamp under which eu-north-1 was *"the only region ever observed accepting calls"*. That clamp lifted, and a fresh probe shows eu-central-1 open on both models and the **fastest Claude of the five candidates** (1.2s). Those timings were measured from a Nordic workstation, which flatters eu-north-1 on latency; production traffic originates from the eu-central-1 Lambda, where the old default was a cross-region hop — so the deployed system favours the change by more than the numbers show.
+
+  **The seam itself stays**: `BEDROCK_REGION` remains a setting distinct from `AWS_REGION`, because the durable lesson of ADR 008 is that quotas are dynamic and account-level, and moving Bedrock without redeploying the function is the whole point. Same value, still two knobs. Addendum 2 concluded that re-collapsing the split "buys nothing" — right about the seam, wrong about the default, and addendum 3 records why the two are separable. `make probe-bedrock` remains a pre-recording step, and its candidate list now leads with eu-central-1.
 
 **Remaining before submission** (tracked in `submission/SUBMISSION.md`):
 
-- **Verify the live Bedrock paths end to end.** The ADR 008 quota clamp lifted 2026-08-06, but every correlation and remediation call in this project's history fell back silently — the real Titan and Claude response-handling code has never executed and is unproven rather than proven-good
-- **Deploy the orchestrator to Lambda** (`make deploy`, `docs/DEPLOY.md`). Never done; no `samconfig.toml` yet, and it needs an admin AWS profile since the app credentials are Bedrock-invoke only
-- **Capture the judge-facing evidence runs** into `assets/chaos-run/` — local kill and cold-Lambda, per the plan and numbered shot list in `assets/README.md`. Gated on the deploy above so the evidence shows the deployed system
+- **Capture the judge-facing evidence runs** into `assets/chaos-run/` — local kill and cold-Lambda, per the plan and numbered shot list in `assets/README.md`. No longer gated: the function is deployed, so the evidence can show the real thing
 - **Record the demo video** per `submission/DEMO_SCRIPT.md`, then replace the "Not yet recorded" row in the README's Live Demo table and re-link the YouTube badge
 - **Complete the `submission/SUBMISSION.md` checklist** end to end
 - **Decide on `mcp` 2.0.0.** Pinned `<2` deliberately — the unit suite mocks the SDK at the import boundary, so it would pass green against a client that fails against the real Managed MCP Server. Lifting the cap needs a live round trip

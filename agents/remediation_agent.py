@@ -38,11 +38,22 @@ _PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "remediation
 PROMPT_TEMPLATE = _PROMPT_PATH.read_text(encoding="utf-8").strip()
 
 
+# Which reasoning path produced a step. Both Bedrock paths degrade *silently*
+# by design (see propose_next_step), so without an explicit marker a throttled
+# account is indistinguishable from a healthy one in the output — the demo
+# would look identical either way. This is what makes "Claude reasoned about
+# this step" a checkable fact rather than a claim.
+SOURCE_BEDROCK = "bedrock"
+SOURCE_PRECEDENT_REPLAY = "precedent_replay"
+SOURCE_NO_PRECEDENT = "no_precedent"
+
+
 @dataclass
 class ProposedAction:
     action: str
     rationale: str
     based_on_incident_id: Optional[str]
+    source: str
 
 
 class RemediationAgent:
@@ -66,6 +77,7 @@ class RemediationAgent:
                 action="page_on_call_engineer",
                 rationale="No correlated precedent found — escalate to human judgement.",
                 based_on_incident_id=None,
+                source=SOURCE_NO_PRECEDENT,
             )
 
         best = matches[0]
@@ -77,12 +89,14 @@ class RemediationAgent:
                 action=f"replay_remediation_from_incident_{best.incident_id}_step_{step_index}",
                 rationale=f"Closest precedent (distance={best.distance:.4f}) previously resolved via this path.",
                 based_on_incident_id=best.incident_id,
+                source=SOURCE_PRECEDENT_REPLAY,
             )
         log.info(
             "remediation_proposed",
             based_on=proposed.based_on_incident_id,
             step_index=step_index,
             action=proposed.action,
+            source=proposed.source,
         )
         return proposed
 
@@ -109,4 +123,5 @@ class RemediationAgent:
             action=parsed["action"],
             rationale=parsed["rationale"],
             based_on_incident_id=matches[0].incident_id,
+            source=SOURCE_BEDROCK,
         )

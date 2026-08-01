@@ -30,16 +30,20 @@ class Settings(BaseSettings):
     # AWS — eu-central-1 co-locates the Lambda with the CockroachDB Cloud
     # cluster used for this build (see docs/adr/007-eu-central-1-region.md).
     aws_region: str = "eu-central-1"
-    # bedrock-runtime clients call THIS region, not aws_region. Bedrock
-    # on-demand quotas are per-account and dynamically adjusted: an
-    # account-level clamp held every probed region at effectively 0 through
-    # July 2026 (ThrottlingException on the first call — Titan, Claude, and
-    # first-party Nova alike) until an AWS Support eligibility review lifted it
-    # on 2026-08-06. eu-north-1 stays the default, but quotas remain dynamic —
-    # run `make probe-bedrock` before relying on any region (ADR 008 + addenda).
-    # Lambda + CockroachDB stay in eu-central-1 (ADR 007); only Bedrock calls
-    # cross regions.
-    bedrock_region: str = "eu-north-1"
+    # bedrock-runtime clients call THIS region, not aws_region. It stays a
+    # SEPARATE setting on purpose: Bedrock on-demand quotas are per-account and
+    # dynamically adjusted, so being able to move Bedrock without moving the
+    # Lambda is the escape hatch ADR 008 exists to provide. Do not collapse it
+    # into aws_region.
+    #
+    # The default is eu-central-1 — the same region as the Lambda, so the
+    # Bedrock leg is in-region rather than a cross-region hop. It was
+    # eu-north-1 while an account-level quota clamp held every other region at
+    # effectively 0; that clamp lifted 2026-08-06 and eu-central-1 now probes
+    # open, which removed the only reason for the two to differ (ADR 008
+    # addendum 3). Quotas remain dynamic — run `make probe-bedrock` before
+    # relying on any region, and override BEDROCK_REGION if this one closes.
+    bedrock_region: str = "eu-central-1"
     # Titan Text Embeddings V2 — outputs 256/512/1024 dims; must match
     # infra/schema.sql VECTOR(1024) and embedding_dimensions below.
     bedrock_embedding_model_id: str = "amazon.titan-embed-text-v2:0"

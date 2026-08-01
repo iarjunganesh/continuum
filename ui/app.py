@@ -63,6 +63,16 @@ SEVERITY_META = {
     "high": (SERIOUS, "High"),
     "critical": (CRITICAL, "Critical"),
 }
+# How a step was reasoned about → (color, glyph, label). Read from
+# remediation_steps.detail->>'reasoning_source'. Both Bedrock paths degrade
+# silently by design, so a throttled account renders identically to a healthy
+# one unless the timeline says which one ran. Steps written before this field
+# existed have no value and simply render no chip.
+SOURCE_META = {
+    "bedrock": (PURPLE, "◆", "Claude via Bedrock"),
+    "precedent_replay": (MUTED, "◇", "precedent replay (Bedrock unavailable)"),
+    "no_precedent": (MUTED, "○", "no precedent — escalated"),
+}
 # Remediation step status → (color, glyph, label, pulse?)
 STEP_META = {
     "proposed": (MUTED, "○", "proposed", False),
@@ -225,6 +235,14 @@ def _ago(dt) -> str:
 
 def _chip(color: str, glyph: str, label: str) -> str:
     return f'<span class="cx-chip" style="--c:{color}"><span class="g">{glyph}</span>{_esc(label)}</span>'
+
+
+def _source_chip(source: str | None) -> str:
+    """Chip naming the reasoning path behind a step. Empty for steps written
+    before the field existed — absence is not evidence of a fallback."""
+    if not source or source not in SOURCE_META:
+        return ""
+    return _chip(*SOURCE_META[source])
 
 
 def _mini_stepper(steps: list[dict]) -> str:
@@ -393,7 +411,8 @@ def load_timeline(incident_id: str | None):
             head = cur.fetchone()
             cur.execute(
                 """
-                SELECT step_index, action, status, proposed_by, created_at
+                SELECT step_index, action, status, proposed_by, created_at,
+                       detail ->> 'reasoning_source' AS reasoning_source
                 FROM remediation_steps WHERE incident_id = %s ORDER BY step_index
             """,
                 (incident_id,),
@@ -437,6 +456,7 @@ def load_timeline(incident_id: str | None):
               <span class="cx-idx">step {s["step_index"]}</span>
               <span class="cx-action">{_esc(s["action"])}</span>
               {_chip(color, glyph, label)}
+              {_source_chip(s.get("reasoning_source"))}
             </div>
             {flag}
             <div class="cx-when">{_ago(s.get("created_at"))} · {_esc(s.get("proposed_by"))}</div>

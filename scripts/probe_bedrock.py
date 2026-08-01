@@ -12,8 +12,8 @@ reasoning model) per candidate region, retries disabled — negligible token
 spend, fast failure.
 
 Usage:
-    python scripts/probe_bedrock.py                    # probe candidate regions
-    python scripts/probe_bedrock.py --region eu-north-1  # probe one region
+    python scripts/probe_bedrock.py                        # probe candidate regions
+    python scripts/probe_bedrock.py --region eu-central-1  # probe one region
 """
 
 import argparse
@@ -31,8 +31,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import settings  # noqa: E402
 
 # EU regions the eu.* cross-region profiles can be invoked from, plus us-west-2
-# as the out-of-geo fallback candidate (us.* profile).
-CANDIDATE_REGIONS = ["eu-north-1", "eu-west-1", "eu-central-1", "eu-west-3", "us-west-2"]
+# as the out-of-geo fallback candidate (us.* profile). eu-central-1 leads: it is
+# the configured default and the Lambda's own region, so it is the one that
+# matters most (ADR 008 addendum 3). The rest are ranked as fallbacks.
+CANDIDATE_REGIONS = ["eu-central-1", "eu-north-1", "eu-west-1", "eu-west-3", "us-west-2"]
 
 _PROBE_CONFIG = Config(connect_timeout=5, read_timeout=25, retries={"max_attempts": 1, "mode": "standard"})
 
