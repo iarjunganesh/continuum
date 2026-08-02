@@ -1,4 +1,4 @@
-.PHONY: check-drift install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark resilience-bench probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
+.PHONY: charts check-drift install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark resilience-bench probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -63,6 +63,12 @@ probe-bedrock:
 # runs against a live cluster; raise with --kills / --agents / --max-vectors.
 resilience-bench:
 	python scripts/resilience_bench.py
+
+# Render the newest evidence run to theme-aware SVG charts (assets/charts/).
+# Generated, never screenshotted — a screenshot of a number is stale the moment
+# the number changes, and every chart carries the run id that produced it.
+charts:
+	python scripts/build_charts.py
 
 # Fails when a doc disagrees with the repo: version fields, future-dated
 # claims, stated test/ADR counts, broken links, stale generated files.

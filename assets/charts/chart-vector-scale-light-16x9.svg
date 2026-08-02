@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"
+     viewBox="0 0 1920 1080" role="img" aria-label="Vector search latency versus corpus size">
+  <title>Vector search latency versus corpus size</title>
+  <rect width="1920" height="1080" fill="#ffffff"/>
+<text x="211" y="62" fill="#14131a" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="42.0" font-weight="700">Vector search stays flat as the corpus grows</text><text x="211" y="104" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="25.0">At 10,000 vectors CockroachDB&#8217;s C-SPANN index is <tspan font-weight="700" fill="#14131a">6.1&#215; faster</tspan> than a full scan</text>
+<line x1="211" y1="908.0" x2="1786" y2="908.0" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="197" y="913.0" text-anchor="end" fill="#6b6975" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="20.0">0</text>
+<line x1="211" y1="751.0" x2="1786" y2="751.0" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="197" y="756.0" text-anchor="end" fill="#6b6975" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="20.0">200</text>
+<line x1="211" y1="594.0" x2="1786" y2="594.0" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="197" y="599.0" text-anchor="end" fill="#6b6975" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="20.0">400</text>
+<line x1="211" y1="437.0" x2="1786" y2="437.0" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="197" y="442.0" text-anchor="end" fill="#6b6975" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="20.0">600</text>
+<line x1="211" y1="280.0" x2="1786" y2="280.0" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="197" y="285.0" text-anchor="end" fill="#6b6975" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="20.0">800</text>
+<text x="197" y="258" text-anchor="end" fill="#6b6975" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19.0">ms</text>
+<text x="211.0" y="942" text-anchor="middle" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="21.0">100</text>
+<text x="736.0" y="942" text-anchor="middle" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="21.0">1,000</text>
+<text x="1261.0" y="942" text-anchor="middle" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="21.0">5,000</text>
+<text x="1786.0" y="942" text-anchor="middle" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="21.0">10,000</text>
+<text x="998" y="978" text-anchor="middle" fill="#6b6975" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="20.0">vectors in the corpus</text>
+<polyline points="211.0,862.4 736.0,826.1 1261.0,598.1 1786.0,398.1" fill="none" stroke="#b8420f" stroke-width="3.0" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="211.0" cy="862.4" r="7.0" fill="#b8420f" stroke="#ffffff" stroke-width="3.0"/>
+<circle cx="736.0" cy="826.1" r="7.0" fill="#b8420f" stroke="#ffffff" stroke-width="3.0"/>
+<circle cx="1261.0" cy="598.1" r="7.0" fill="#b8420f" stroke="#ffffff" stroke-width="3.0"/>
+<circle cx="1786.0" cy="398.1" r="7.0" fill="#b8420f" stroke="#ffffff" stroke-width="3.0"/>
+<text x="1766" y="342" text-anchor="end" fill="#14131a" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="26.0" font-weight="700">full scan</text>
+<text x="1766" y="374" text-anchor="end" fill="#44424d" font-family="ui-monospace, 'Cascadia Code', Consolas, 'SF Mono', monospace" font-size="23.0">650 ms</text>
+<polyline points="211.0,873.4 736.0,857.0 1261.0,841.3 1786.0,823.9" fill="none" stroke="#6933ff" stroke-width="3.0" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="211.0" cy="873.4" r="7.0" fill="#6933ff" stroke="#ffffff" stroke-width="3.0"/>
+<circle cx="736.0" cy="857.0" r="7.0" fill="#6933ff" stroke="#ffffff" stroke-width="3.0"/>
+<circle cx="1261.0" cy="841.3" r="7.0" fill="#6933ff" stroke="#ffffff" stroke-width="3.0"/>
+<circle cx="1786.0" cy="823.9" r="7.0" fill="#6933ff" stroke="#ffffff" stroke-width="3.0"/>
+<text x="1766" y="768" text-anchor="end" fill="#14131a" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="26.0" font-weight="700">C-SPANN index</text>
+<text x="1766" y="800" text-anchor="end" fill="#44424d" font-family="ui-monospace, 'Cascadia Code', Consolas, 'SF Mono', monospace" font-size="23.0">107 ms</text>
+<text x="211" y="1054" fill="#6b6975" font-family="ui-monospace, 'Cascadia Code', Consolas, 'SF Mono', monospace" font-size="17.0">warm connection, p50 &#183; run cebb0501 &#183; make resilience-bench</text>
+</svg>

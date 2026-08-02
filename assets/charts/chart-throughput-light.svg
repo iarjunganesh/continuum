@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700"
+     viewBox="0 0 1200 700" role="img" aria-label="Concurrent agent throughput">
+  <title>Concurrent agent throughput</title>
+  <rect width="1200" height="700" fill="#ffffff"/>
+<text x="132" y="40" fill="#14131a" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="27.2" font-weight="700">Concurrent agents, zero failures</text><text x="132" y="67" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16.2">Agents completing durable checkpoints per second &#183; throughput climbs with concurrency</text>
+<line x1="132" y1="588.0" x2="1116" y2="588.0" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="123" y="591.2" text-anchor="end" fill="#6b6975" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.0">0</text>
+<line x1="132" y1="486.5" x2="1116" y2="486.5" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="123" y="489.7" text-anchor="end" fill="#6b6975" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.0">17</text>
+<line x1="132" y1="385.0" x2="1116" y2="385.0" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="123" y="388.2" text-anchor="end" fill="#6b6975" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.0">35</text>
+<line x1="132" y1="283.5" x2="1116" y2="283.5" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="123" y="286.7" text-anchor="end" fill="#6b6975" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.0">52</text>
+<line x1="132" y1="182.0" x2="1116" y2="182.0" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="123" y="185.2" text-anchor="end" fill="#6b6975" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.0">70</text>
+<path d="M 227.1 588.0 L 227.1 541.2 Q 227.1 537.3 231.0 537.3 L 361.0 537.3 Q 364.9 537.3 364.9 541.2 L 364.9 588.0 Z" fill="#6933ff"/>
+<text x="296.0" y="526" text-anchor="middle" fill="#14131a" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19.4" font-weight="700">8.7</text>
+<text x="296.0" y="611" text-anchor="middle" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14.9">10 agents</text>
+<text x="296.0" y="632" text-anchor="middle" fill="#6b6975" font-family="ui-monospace, 'Cascadia Code', Consolas, 'SF Mono', monospace" font-size="11.7">0 failures</text>
+<path d="M 555.1 588.0 L 555.1 389.5 Q 555.1 385.6 559.0 385.6 L 689.0 385.6 Q 692.9 385.6 692.9 389.5 L 692.9 588.0 Z" fill="#6933ff"/>
+<text x="624.0" y="374" text-anchor="middle" fill="#14131a" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19.4" font-weight="700">34.7</text>
+<text x="624.0" y="611" text-anchor="middle" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14.9">50 agents</text>
+<text x="624.0" y="632" text-anchor="middle" fill="#6b6975" font-family="ui-monospace, 'Cascadia Code', Consolas, 'SF Mono', monospace" font-size="11.7">0 failures</text>
+<path d="M 883.1 588.0 L 883.1 267.1 Q 883.1 263.2 887.0 263.2 L 1017.0 263.2 Q 1020.9 263.2 1020.9 267.1 L 1020.9 588.0 Z" fill="#6933ff"/>
+<text x="952.0" y="252" text-anchor="middle" fill="#14131a" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19.4" font-weight="700">55.7</text>
+<text x="952.0" y="611" text-anchor="middle" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14.9">100 agents</text>
+<text x="952.0" y="632" text-anchor="middle" fill="#6b6975" font-family="ui-monospace, 'Cascadia Code', Consolas, 'SF Mono', monospace" font-size="11.7">0 failures</text>
+<line x1="132" y1="588.0" x2="1116" y2="588.0" stroke="rgba(0,0,0,0.25)" stroke-width="1.5"/>
+<text x="132" y="683" fill="#6b6975" font-family="ui-monospace, 'Cascadia Code', Consolas, 'SF Mono', monospace" font-size="11.0">CockroachDB memory layer only &#183; run cebb0501</text>
+</svg>

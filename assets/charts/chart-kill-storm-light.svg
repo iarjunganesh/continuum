@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700"
+     viewBox="0 0 1200 700" role="img" aria-label="Killed mid-incident, fifty times">
+  <title>Killed mid-incident, fifty times</title>
+  <rect width="1200" height="700" fill="#ffffff"/>
+<text x="96" y="91" fill="#14131a" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="29.8" font-weight="700">Killed mid-incident, fifty times</text>
+<text x="96" y="133" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16.9">Each incident interrupted with a step durably executing, then invoked cold</text>
+<rect x="96.0" y="238.0" width="238.4" height="238.0" rx="12" fill="#f7f7f5" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="215.2" y="371" text-anchor="middle" fill="#14131a" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="67.4" font-weight="800">50</text>
+<text x="215.2" y="433" text-anchor="middle" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16.2">interrupted</text>
+<rect x="352.5" y="238.0" width="238.4" height="238.0" rx="12" fill="#f7f7f5" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="471.7" y="371" text-anchor="middle" fill="#0a7d0a" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="67.4" font-weight="800">50</text>
+<text x="471.7" y="433" text-anchor="middle" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16.2">resumed</text>
+<rect x="609.1" y="238.0" width="238.4" height="238.0" rx="12" fill="#f7f7f5" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="728.3" y="371" text-anchor="middle" fill="#0a7d0a" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="67.4" font-weight="800">0</text>
+<text x="728.3" y="433" text-anchor="middle" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16.2">duplicated actions</text>
+<rect x="865.6" y="238.0" width="238.4" height="238.0" rx="12" fill="#f7f7f5" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+<text x="984.8" y="371" text-anchor="middle" fill="#0a7d0a" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="67.4" font-weight="800">0</text>
+<text x="984.8" y="433" text-anchor="middle" fill="#44424d" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16.2">lost steps</text>
+<text x="96" y="683" fill="#6b6975" font-family="ui-monospace, 'Cascadia Code', Consolas, 'SF Mono', monospace" font-size="11.0">counted from the durable rows, not from logs &#183; run cebb0501</text>
+</svg>
