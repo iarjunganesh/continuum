@@ -34,25 +34,22 @@ Kill the agent by every plausible mechanism; prove it resumes exactly once.
 
 | Failure mode | Status | Evidence |
 | --- | --- | --- |
-| Real `SIGKILL` mid-step | ✅ | `tests/integration/test_chaos_kill_e2e.py` in CI on every push; `scripts/resilience_bench.py --real-kills N` for statistical weight |
-| Injected durable interrupt (large N) | ✅ | `resilience_bench.py` kill storm — the exact `executing` state a kill leaves |
-| **Lambda timeout** | ❌ | The most compelling one and untested: AWS kills the function itself mid-step. Nobody can argue that was staged |
-| **Container / execution-environment restart** | ❌ | Distinct from a process kill — the whole sandbox goes |
-| **Deployment restart mid-incident** | ❌ | `sam deploy` while an incident is in flight |
+| Real `SIGKILL` mid-step | ✅ | 3/3 resumed, 0 duplicated. `test_chaos_kill_e2e.py` in CI every push; `--real-kills N` for weight |
+| Injected durable interrupt (large N) | ✅ | **50/50 resumed, 0 duplicated, 0 lost, 0 wrong-step** |
+| **Lambda timeout — AWS performs the kill** | ✅ | **3/3 killed by AWS, 3/3 resumed, 0 duplicated.** The function's own `Timeout` is lowered below the step window, so Lambda terminates the invocation with no catchable signal. Nobody can argue this one was staged |
+| Container / execution-environment restart | ⚠️ | Largely subsumed: a Lambda timeout *is* the execution environment being taken away mid-step. A separate container harness would re-prove the same contract |
+| Deployment restart mid-incident | ❌ | `sam deploy` while an incident is in flight. Lowest marginal value of the three — the same durable `executing` state is what recovery reads either way |
 
-Metrics already captured per run: resume latency (p50/p95/p99), duplicated
-actions, lost steps, resumed-at-wrong-step. Correctness counts are absolute —
-any non-zero value is a defect, not a percentile.
-
-**Next:** the three ❌ rows. They complete the failure-mode matrix and are the
-strongest evidence in the whole submission.
+Metrics captured per run: resume latency (p50/p95/p99), duplicated actions, lost
+steps, resumed-at-wrong-step. Correctness counts are absolute — any non-zero
+value is a defect, not a percentile.
 
 ### 2. Concurrent agent benchmark
 
 | Aspect | Status | Evidence |
 | --- | --- | --- |
-| Exactly-once correctness under contention | ✅ | `resilience_bench.py` — K invocations racing the same step at K = 2/5/10/25, zero violations |
-| **Throughput / latency at 10, 50, 100 agents** | ❌ | Correctness is proven; *scale* is not. Distinct question: does the memory layer hold up, not just stay correct |
+| Exactly-once correctness under contention | ✅ | K invocations racing the same step at K = 2/5/10/25 — **zero violations at every level** |
+| Throughput / latency at 10, 50, 100 agents | ✅ | **Zero failures at every level**; 8.8 → 34.8 → 47.4 completed/s as agents go 10 → 50 → 100. Per-agent p50 rises 1132 → 1583 ms while throughput climbs — the cluster absorbs concurrency rather than rejecting it |
 
 ### 3. Memory retrieval benchmark
 
@@ -64,6 +61,13 @@ with which path actually executed counted rather than assumed.
 Vector search at scale lives in [`RESILIENCE.md`](RESILIENCE.md) — a curve
 against a forced full-scan baseline, because a benchmark over 70 vectors cannot
 support any claim about an ANN index.
+
+That curve earned its keep immediately: it refused to behave, and the reason was
+that `find_similar` had never used the C-SPANN index at all. Joining `incidents`
+in the same statement as the `<->` ordering made CockroachDB fall back to a full
+scan, so results were correct and the index was decorative. Fixed in `ebd0986`;
+C-SPANN now holds ~flat (391 → 431 ms) from 100 to 10,000 vectors while the full
+scan grows 2.5× (393 → 995 ms).
 
 ### 4. End-to-end demo video
 

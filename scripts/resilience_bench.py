@@ -131,6 +131,33 @@ def _cleanup(correlation_ids: list[str]) -> None:
         _retry_serialization(_go, "cleanup")
 
 
+def _code_ref() -> str:
+    """The commit these numbers were measured at, plus a dirty-tree marker.
+
+    Without it a generated benchmark is unfalsifiable: a reader cannot tell
+    whether the table describes the code they are reading or a version from
+    before a fix that invalidated it.
+    """
+    try:
+        sha = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=Path(__file__).resolve().parent.parent,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=Path(__file__).resolve().parent.parent,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout.strip()
+        return f"{sha}{' (working tree dirty)' if dirty else ''}" if sha else "(unknown)"
+    except Exception:  # noqa: BLE001 — provenance is best-effort, never fatal
+        return "(unknown)"
+
+
 def _pctl(samples: list[float], p: float) -> float:
     if not samples:
         return 0.0
@@ -725,7 +752,13 @@ two-phase checkpoint (`open_incident` → `checkpoint_step_start` →
 answer: **when the agent dies mid-incident, does it resume exactly once — every
 time, under contention, at scale?**
 
-**Run:** {now} · Reproduce with `make resilience-bench`.
+**Run:** {now} · **Code:** `{_code_ref()}` · Reproduce with `make resilience-bench`.
+
+<sub>The commit is recorded because a benchmark outlives the code it measured. An
+earlier version of this file published a vector-search table generated *before*
+`find_similar` was fixed to actually use the C-SPANN index — the numbers were
+meaningless and nothing on the page said so. If the commit above predates a change
+to what is being measured, treat the numbers as stale and re-run.</sub>
 
 ---
 

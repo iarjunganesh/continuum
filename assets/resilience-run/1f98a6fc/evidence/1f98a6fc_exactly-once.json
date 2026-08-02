@@ -1,0 +1,26 @@
+[
+  {
+    "concurrency": 2,
+    "trials": 5,
+    "claimed": 1,
+    "violations": 0
+  },
+  {
+    "concurrency": 5,
+    "trials": 5,
+    "claimed": 1,
+    "violations": 0
+  },
+  {
+    "concurrency": 10,
+    "trials": 5,
+    "claimed": 1,
+    "violations": 0
+  },
+  {
+    "concurrency": 25,
+    "trials": 5,
+    "claimed": 1,
+    "violations": 0
+  }
+]

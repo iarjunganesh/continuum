@@ -400,6 +400,12 @@ What a remediation step actually costs, measured — not modelled. Reproduce wit
 
 **Run:** {now} · **Vector search:** {vec_note}
 
+**Correctness under adversity — kill storms, exactly-once under contention,
+concurrent-agent throughput and vector search at scale — is measured separately
+in [`RESILIENCE.md`](RESILIENCE.md).** This file answers *how fast*; that one
+answers *does it stay correct when things go wrong*, which is the claim the
+project actually rests on.
+
 ## 1. What this measures, and why
 
 Continuum's claim is that an agent can be killed mid-incident and resume from

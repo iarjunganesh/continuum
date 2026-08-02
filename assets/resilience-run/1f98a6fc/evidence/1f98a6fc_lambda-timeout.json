@@ -1,0 +1,14 @@
+{
+  "n": 3,
+  "timed_out": 3,
+  "resumed": 3,
+  "duplicated": 0,
+  "not_interrupted": 0,
+  "resume_ms": [
+    8671.431599999778,
+    8820.183800009545,
+    8696.305999998003
+  ],
+  "timeout_used": 6,
+  "timeout_restored": 60
+}
