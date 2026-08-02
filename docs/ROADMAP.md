@@ -66,14 +66,29 @@ That curve earned its keep immediately: it refused to behave, and the reason was
 that `find_similar` had never used the C-SPANN index at all. Joining `incidents`
 in the same statement as the `<->` ordering made CockroachDB fall back to a full
 scan, so results were correct and the index was decorative. Fixed in `ebd0986`;
-C-SPANN now holds ~flat (391 → 431 ms) from 100 to 10,000 vectors while the full
-scan grows 2.5× (393 → 995 ms).
+on a warm connection C-SPANN now holds 44 → 107 ms from 100 to 10,000 vectors
+(2.4×) while the full scan grows 58 → 650 ms (11.2×) — **6.1× faster at 10,000**.
+Measuring warm and cold separately is what made that visible: a ~340 ms TLS
+handshake floor had been burying the whole difference.
 
 ### 4. End-to-end demo video
 
-❌ **Not recorded.** Scripted in
-[`submission/DEMO_SCRIPT.md`](../submission/DEMO_SCRIPT.md). A required
-submission material, and the single largest remaining risk.
+❌ **Not recorded** — and it remains the single largest outstanding risk, since it
+is required submission material.
+
+Everything upstream of the recording session is now done and committed:
+
+| Input | State |
+| --- | --- |
+| Shooting script — beats, OBS settings, capture list, assembly, honesty rules | ✅ [`submission/DEMO_SCRIPT.md`](../submission/DEMO_SCRIPT.md) |
+| Narration audio — 13 clips, 2:27.7, Amazon Polly | ✅ `assets/demo-voiceover/` (`make voiceover`) |
+| Caption track, timed to the measured clips | ✅ `assets/demo-video/continuum.srt` |
+| Benchmark charts, 1920×1080 PNG for the timeline | ✅ `assets/charts/` (`make charts`) |
+| Opening/closing cards, architecture diagrams | ✅ `assets/demo-cards/`, `assets/architecture/` |
+| **The 9 stills** | ❌ pending capture |
+| **Recording #1 — kill and recover** | ❌ pending |
+| **Recording #2 — live MCP query** | ❌ pending (optional; `s06` still is the fallback) |
+| **Assembly, export, upload** | ❌ pending |
 
 Blocked on nothing technical: Bedrock is verified, the Lambda is deployed, the
 kill-and-recover flow works. It needs a recording session.

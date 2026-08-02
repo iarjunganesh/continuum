@@ -1,4 +1,4 @@
-.PHONY: charts check-drift install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark resilience-bench probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
+.PHONY: charts voiceover check-drift install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark resilience-bench probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -69,6 +69,13 @@ resilience-bench:
 # the number changes, and every chart carries the run id that produced it.
 charts:
 	python scripts/build_charts.py
+
+# Synthesise the demo narration with Amazon Polly and rebuild the caption track.
+# scripts/generate_demo_voiceover.py owns the narration TEXT — edit it there, re-run,
+# and paste the emitted table into submission/DEMO_SCRIPT.md. Needs polly:SynthesizeSpeech
+# (AWS_PROFILE=continuum-admin; the default bedrock-only identity gets AccessDenied).
+voiceover:
+	python scripts/generate_demo_voiceover.py
 
 # Fails when a doc disagrees with the repo: version fields, future-dated
 # claims, stated test/ADR counts, broken links, stale generated files.

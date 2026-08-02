@@ -75,7 +75,13 @@ a judge to discover. See ADR 008 and its addendum for the account-level quota hi
 
 | Folder | Contents |
 | --- | --- |
-| [`architecture/`](architecture/) | Mermaid source + brand-themed SVG/PNG renders of the README diagram |
+| [`architecture/`](architecture/) | Mermaid source + brand-themed SVG/PNG renders of the README diagrams |
+| [`charts/`](charts/) | **Generated** — theme-aware benchmark charts from the newest evidence run (`make charts`). SVG for docs, PNG at 1920×1080 for the video timeline |
 | [`demo-cards/`](demo-cards/) | README banner + sign-off cards (light/dark) |
 | [`demo-video/`](demo-video/) | Final cut, captions, per-beat takes, and static flash-cut frames |
+| [`demo-voiceover/`](demo-voiceover/) | **Generated** — Amazon Polly narration, one clip per beat (`make voiceover`) |
+| [`resilience-run/`](resilience-run/) | Correctness-under-adversity evidence — kill storms, Lambda timeouts, exactly-once, vector scale |
 | `logo.svg` | Project mark, used in the README header |
+
+Charts and voiceover are **generated, never hand-edited** — regenerate from source rather than
+touching the output, or the two copies drift. See the generated-files table in `CLAUDE.md`.

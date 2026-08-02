@@ -1,0 +1,229 @@
+1
+00:00:03,000 --> 00:00:07,482
+The conditions that cause a production
+incident — a node failure, a bad deploy,
+
+2
+00:00:07,482 --> 00:00:12,078
+memory exhaustion — are the same conditions
+that kill the agent responding to it.
+
+3
+00:00:12,078 --> 00:00:16,143
+And an agent that holds its state in
+memory doesn't degrade gracefully.
+
+4
+00:00:16,143 --> 00:00:17,404
+It stops.
+
+5
+00:00:17,404 --> 00:00:20,080
+Then a human restarts
+the incident from zero,
+
+6
+00:00:20,080 --> 00:00:23,112
+with no idea which remediation
+actions already ran.
+
+7
+00:00:24,500 --> 00:00:30,793
+Continuum is an incident-response agent whose memory
+lives in CockroachDB instead of in the process.
+
+8
+00:00:30,793 --> 00:00:34,681
+It runs on AWS Lambda with
+no provisioned concurrency,
+
+9
+00:00:34,681 --> 00:00:36,985
+so every invocation starts cold.
+
+10
+00:00:36,985 --> 00:00:39,476
+Which means the process is allowed to die.
+
+11
+00:00:40,500 --> 00:00:42,595
+Five agents, one write path.
+
+12
+00:00:42,595 --> 00:00:43,911
+Before any reasoning,
+
+13
+00:00:43,911 --> 00:00:48,798
+the orchestrator's first action is always
+a recovery read against CockroachDB.
+
+14
+00:00:48,798 --> 00:00:52,798
+If an incident is already open, it
+picks up from the durable state —
+
+15
+00:00:52,798 --> 00:00:53,916
+never from scratch.
+
+16
+00:00:54,900 --> 00:00:56,423
+An alert fires.
+
+17
+00:00:56,423 --> 00:00:58,104
+Bedrock embeds it.
+
+18
+00:00:58,104 --> 00:01:01,892
+CockroachDB's vector index
+finds the closest past incident,
+
+19
+00:01:01,892 --> 00:01:04,075
+and Claude proposes the next step.
+
+20
+00:01:04,075 --> 00:01:07,356
+That step is committed as
+executing — before it runs.
+
+21
+00:01:08,400 --> 00:01:09,527
+Now watch.
+
+22
+00:01:09,527 --> 00:01:11,611
+The process is killed mid-step.
+
+23
+00:01:11,611 --> 00:01:13,299
+No graceful shutdown.
+
+24
+00:01:13,299 --> 00:01:14,602
+No checkpoint.
+
+25
+00:01:14,602 --> 00:01:16,344
+Nothing gets a chance to clean up.
+
+26
+00:01:21,300 --> 00:01:23,162
+The process is gone.
+
+27
+00:01:23,162 --> 00:01:27,919
+The step is still there — sitting in
+executing, with nothing alive that owns it.
+
+28
+00:01:27,919 --> 00:01:31,212
+That row is the agent's memory,
+and it outlived the agent.
+
+29
+00:01:35,200 --> 00:01:37,269
+A cold Lambda invocation.
+
+30
+00:01:37,269 --> 00:01:42,763
+It reads CockroachDB first, finds the
+interrupted step, and re-runs that exact step.
+
+31
+00:01:42,763 --> 00:01:44,390
+Not from scratch.
+
+32
+00:01:44,390 --> 00:01:45,648
+Not skipped.
+
+33
+00:01:45,648 --> 00:01:46,816
+Not duplicated.
+
+34
+00:01:48,800 --> 00:01:50,794
+That isn't one lucky take.
+
+35
+00:01:50,794 --> 00:01:52,955
+Fifty interrupted incidents.
+
+36
+00:01:52,955 --> 00:01:54,782
+Fifty clean resumes.
+
+37
+00:01:54,782 --> 00:01:59,515
+Zero duplicated actions, zero lost
+steps — counted from the durable rows,
+
+38
+00:01:59,515 --> 00:02:00,488
+not from a log.
+
+39
+00:02:01,300 --> 00:02:03,897
+And it isn't only our own kill switch.
+
+40
+00:02:03,897 --> 00:02:07,553
+Here, AWS terminates the
+function itself, mid-step,
+
+41
+00:02:07,553 --> 00:02:10,206
+with no signal the process can catch.
+
+42
+00:02:10,206 --> 00:02:12,820
+All fifteen recovered, exactly once.
+
+43
+00:02:13,600 --> 00:02:15,911
+The memory layer scales with it.
+
+44
+00:02:15,911 --> 00:02:18,483
+From one hundred
+incidents to ten thousand,
+
+45
+00:02:18,483 --> 00:02:23,087
+CockroachDB's vector index stays flat
+while a full scan climbs away from it —
+
+46
+00:02:23,087 --> 00:02:25,000
+six times faster at the top end.
+
+47
+00:02:25,800 --> 00:02:31,268
+The same memory is queryable live,
+through CockroachDB's managed MCP server —
+
+48
+00:02:31,268 --> 00:02:34,392
+read-only, called by
+the application itself.
+
+49
+00:02:35,200 --> 00:02:37,699
+Type-checked, linted and gated in CI,
+
+50
+00:02:37,699 --> 00:02:43,576
+with the recovery contract pinned by tests
+that hard-kill a real process on every push.
+
+51
+00:02:44,400 --> 00:02:46,751
+Agents will keep dying mid-task.
+
+52
+00:02:46,751 --> 00:02:50,088
+Continuum is the one that picks
+up exactly where it left off.

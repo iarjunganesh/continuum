@@ -107,7 +107,10 @@ regenerate rather than hand-editing, or the two copies drift and CI catches you 
 | `submission/DEVPOST_README.md` | `README.md` | `make devpost-readme` — **CI fails if stale** (`--check`) |
 | `assets/architecture/*-{dark,light}{,-16x9}.{svg,png}` | `*.mmd` | see `assets/architecture/README.md` |
 | `assets/demo-cards/*-{dark,light}{,-native}.png` | `*.svg` | see `assets/demo-cards/README.md` |
+| `assets/charts/chart-*-{dark,light}{,-16x9}.{svg,png}` | newest `assets/resilience-run/` | `make charts` |
+| `assets/demo-voiceover/vo_*.mp3` + `assets/demo-video/continuum.srt` | `scripts/generate_demo_voiceover.py` | `make voiceover` |
 | `docs/BENCHMARKS.md` | live cluster | `make benchmark` |
+| `docs/RESILIENCE.md` | live cluster | `make resilience-bench` |
 
 **`README.md` and `submission/DEVPOST_README.md` must never be out of sync — treat them as one
 file with two renderings.** The mirror is what gets pasted into Devpost, so a stale one ships

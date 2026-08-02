@@ -40,6 +40,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -307,6 +309,54 @@ def stat_tiles_svg(title: str, sub: str, tiles: list[tuple], t: dict, run_id: st
 
 
 # --- driver ----------------------------------------------------------------
+CHROMIUM_CANDIDATES = (
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    "chromium",
+    "google-chrome",
+)
+
+
+def _chromium() -> str | None:
+    for candidate in CHROMIUM_CANDIDATES:
+        resolved = shutil.which(candidate) or (candidate if Path(candidate).exists() else None)
+        if resolved:
+            return resolved
+    return None
+
+
+def rasterise(svg_path: Path, width: int, height: int) -> Path | None:
+    """Render an SVG to PNG via headless Chromium.
+
+    ffmpeg cannot rasterise SVG (no librsvg in the standard Windows builds) and
+    ImageMagick isn't a dependency worth adding for four files, but every machine that
+    can edit this video already has Edge or Chrome. Returns None if neither is present —
+    the SVGs are still written, and a missing PNG is a smaller problem than a failed build.
+    """
+    browser = _chromium()
+    if not browser:
+        print(f"  (no Chromium found — skipped PNG for {svg_path.name})")
+        return None
+
+    png_path = svg_path.with_suffix(".png")
+    subprocess.run(
+        [
+            browser,
+            "--headless",
+            "--disable-gpu",
+            "--hide-scrollbars",
+            "--force-device-scale-factor=1",
+            f"--window-size={width},{height}",
+            f"--screenshot={png_path}",
+            svg_path.resolve().as_uri(),
+        ],
+        capture_output=True,
+        check=False,
+        timeout=60,
+    )
+    return png_path if png_path.exists() else None
+
+
 def newest_run() -> Path:
     runs = [p for p in RUNS_DIR.iterdir() if p.is_dir()] if RUNS_DIR.exists() else []
     if not runs:
@@ -380,6 +430,13 @@ def build(run_dir: Path) -> list[Path]:
                 path = OUT_DIR / f"chart-{name}-{mode}{suffix}.svg"
                 path.write_text(render(theme, w, h), encoding="utf-8")
                 written.append(path)
+                # Video editors (Clipchamp, CapCut) cannot import SVG at all, so the
+                # 16:9 variants — the ones that go on the timeline — also ship as PNG.
+                # The embeddable size stays SVG-only: it is for Markdown, which prefers it.
+                if suffix == "-16x9":
+                    png = rasterise(path, w, h)
+                    if png:
+                        written.append(png)
     return written
 
 
