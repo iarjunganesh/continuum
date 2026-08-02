@@ -30,11 +30,13 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import subprocess
 import sys
+import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -46,6 +48,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = REPO_ROOT / "assets" / "demo-voiceover"
 SRT_PATH = REPO_ROOT / "assets" / "demo-video" / "continuum.srt"
+# Committed sentence timings, keyed by voice + text + clip duration. This is what makes
+# continuum.srt reproducible: Polly returns a slightly different neural duration on each
+# call, so without it every regeneration rewrites the captions with jittered timestamps.
+MARKS_PATH = REPO_ROOT / "assets" / "demo-voiceover" / "speech-marks.json"
 
 # Generative Polly, matching the Lambda's region. Ruth reads level and unhurried,
 # which is what the kill-and-recover beats need — the tension is in the silence after
@@ -204,6 +210,31 @@ def synthesize(beat: Beat) -> Path:
 
 
 def speech_marks(beat: Beat, clip_duration: float) -> list[tuple[float, str]]:
+    """Cached wrapper around `_fetch_marks`, keyed by voice + text + clip duration.
+
+    Without the cache this file is not reproducible: Polly returns a marginally
+    different neural duration on each call, the scale factor moves with it, and every
+    run rewrites `continuum.srt` with jittered timestamps even when nothing changed.
+    A generated file that changes on every regeneration makes "is this current?"
+    unanswerable — which is the whole failure mode `make check-drift` exists to stop.
+
+    The key includes the clip duration, so re-synthesising the audio correctly
+    invalidates the cached offsets rather than silently keeping stale ones.
+    """
+    digest = hashlib.sha256(f"{VOICE_ID}|{ENGINE}|{beat.text}|{clip_duration:.3f}".encode()).hexdigest()
+    cache = json.loads(MARKS_PATH.read_text(encoding="utf-8")) if MARKS_PATH.exists() else {}
+
+    entry = cache.get(beat.stem)
+    if entry and entry.get("key") == digest:
+        return [(offset, sentence) for offset, sentence in entry["offsets"]]
+
+    offsets = _fetch_marks(beat, clip_duration)
+    cache[beat.stem] = {"key": digest, "offsets": offsets}
+    MARKS_PATH.write_text(json.dumps(cache, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return offsets
+
+
+def _fetch_marks(beat: Beat, clip_duration: float) -> list[tuple[float, str]]:
     """Sentence start offsets within the clip, in seconds, paired with their text.
 
     The generative engine emits no speech marks, so the offsets come from the *neural*
@@ -253,6 +284,7 @@ def _timestamp(seconds: float) -> str:
 
 MAX_CUE_CHARS = 84  # two lines of ~42, the usual subtitle ceiling
 MAX_LINE_CHARS = 42
+MIN_CUE_SECONDS = 0.7  # below this a cue is gone before it can be read
 
 
 def _split_cue(start: float, end: float, text: str) -> list[tuple[float, float, str]]:
@@ -263,47 +295,83 @@ def _split_cue(start: float, end: float, text: str) -> list[tuple[float, float, 
     (where the voice already pauses), and the time is divided by character share so the
     text keeps pace with the audio.
     """
-    if len(text) <= MAX_CUE_CHARS:
-        return [(start, end, _wrap(text))]
+    # Wrap to real lines first, then pair them. Grouping by character count instead
+    # would let two lines of 42 become three when the words don't divide evenly —
+    # which is precisely how a 3-line cue shipped once already.
+    lines: list[str] = []
+    for clause in re.split(r"(?<=[—,;:])\s+", text):
+        lines.extend(textwrap.wrap(clause, MAX_LINE_CHARS))
+    parts = ["\n".join(lines[i : i + 2]) for i in range(0, len(lines), 2)]
 
-    parts, current = [], ""
-    for chunk in re.split(r"(?<=[—,;:])\s+", text):
-        candidate = f"{current} {chunk}".strip()
-        if current and len(candidate) > MAX_CUE_CHARS:
-            parts.append(current)
-            current = chunk
-        else:
-            current = candidate
-    if current:
-        parts.append(current)
+    if len(parts) <= 1:
+        return [(start, end, parts[0] if parts else text)]
 
-    total = sum(len(part) for part in parts) or 1
-    span = end - start
     out, elapsed = [], start
-    for part in parts:
-        share = span * len(part) / total
-        out.append((elapsed, elapsed + share, _wrap(part)))
+    shares = _allocate(end - start, [len(p) for p in parts])
+    for part, share in zip(parts, shares, strict=True):
+        out.append((elapsed, elapsed + share, part))
         elapsed += share
     return out
 
 
+def _allocate(span: float, weights: list[float]) -> list[float]:
+    """Split `span` by weight, but never below `MIN_CUE_SECONDS` for any share.
+
+    Purely proportional allocation produced a 0.34 s fragment — legal SRT, and gone
+    from the screen before a viewer registers it. Each cue is floored first and only
+    the remainder is distributed, so a short trailing clause borrows from its
+    neighbours instead of vanishing.
+    """
+    count = len(weights)
+    if span < count * MIN_CUE_SECONDS:  # too tight to floor — split evenly
+        return [span / count] * count
+    total = sum(weights) or 1
+    remainder = span - count * MIN_CUE_SECONDS
+    return [MIN_CUE_SECONDS + remainder * weight / total for weight in weights]
+
+
 def _wrap(text: str) -> str:
-    """At most two lines, broken at a word boundary near the middle."""
+    """At most two lines, each within the per-line ceiling, balanced by word count."""
     if len(text) <= MAX_LINE_CHARS:
         return text
-    midpoint = len(text) // 2
-    space = min(
-        (i for i, ch in enumerate(text) if ch == " "),
-        key=lambda i: abs(i - midpoint),
-        default=-1,
-    )
-    return text if space < 0 else f"{text[:space]}\n{text[space + 1 :]}"
+    lines = textwrap.wrap(text, MAX_LINE_CHARS)
+    return "\n".join(lines)
+
+
+def _validate(cues: list[tuple[float, float, str]]) -> list[str]:
+    """Structural checks on the finished track, run before it is written.
+
+    Every one of these corresponds to a defect that actually shipped: a cue wider
+    than two readable lines, cues overlapping because a beat's `starts_at` moved
+    without its predecessor's pad moving, and cues too brief to read. Reasoning about
+    the split logic did not catch them; checking the output did.
+    """
+    problems = []
+    previous_end = 0.0
+    for number, (start, end, text) in enumerate(cues, start=1):
+        if start < previous_end - 1e-3:
+            problems.append(f"cue {number}: starts {previous_end - start:.2f}s before the previous one ends")
+        if end <= start:
+            problems.append(f"cue {number}: non-positive duration")
+        elif end - start < MIN_CUE_SECONDS - 1e-3:
+            problems.append(f"cue {number}: {end - start:.2f}s is too brief to read")
+        lines = text.split("\n")
+        if len(lines) > 2:
+            problems.append(f"cue {number}: {len(lines)} lines, max 2")
+        for line in lines:
+            if len(line) > MAX_LINE_CHARS + 3:
+                problems.append(f"cue {number}: line is {len(line)} chars — {line[:40]!r}")
+        previous_end = end
+    return problems
 
 
 def build_srt(cues: list[tuple[float, float, str]]) -> str:
     """Judges may watch muted, and auto-generated captions mangle the words that
     matter most here — CockroachDB, C-SPANN, structlog. Ship an authored track."""
     split = [piece for cue in cues for piece in _split_cue(*cue)]
+    problems = _validate(split)
+    if problems:
+        raise ValueError("caption track failed validation:\n  " + "\n  ".join(problems))
     blocks = []
     for number, (start, end, text) in enumerate(split, start=1):
         blocks.append(f"{number}\n{_timestamp(start)} --> {_timestamp(end)}\n{text}\n")
@@ -393,8 +461,12 @@ def main() -> int:
         cues.extend(_cues_for(beat, speech_marks(beat, duration), duration))
 
     SRT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SRT_PATH.write_text(build_srt(cues), encoding="utf-8")
-    print(f"\nCaptions -> {SRT_PATH.relative_to(REPO_ROOT)} ({len(cues)} cues)")
+    srt = build_srt(cues)
+    SRT_PATH.write_text(srt, encoding="utf-8")
+    # Count what was written, not the pre-split sentence count — they differ, and
+    # reporting the wrong one makes the file look unchanged when it isn't.
+    written_cues = sum(1 for block in srt.strip().split("\n\n") if block.strip())
+    print(f"\nCaptions -> {SRT_PATH.relative_to(REPO_ROOT)} ({written_cues} cues)")
     print("\nPaste into submission/DEMO_SCRIPT.md:\n")
     print(emit_table(rows))
     return 0

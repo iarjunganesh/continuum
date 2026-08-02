@@ -14,6 +14,13 @@ default and reads as stock TTS to anyone who has watched an AWS tutorial.
 - `vo_00-problem … vo_12-close.mp3` — one clip per beat, **2:27.7 total** (147.7 s measured
   via ffprobe). Per-beat files rather than one track: the timeline stays deterministic, and
   re-cutting a single beat doesn't force a full re-record.
+- `speech-marks.json` — committed sentence timings, keyed by voice + text + clip duration.
+  **This is what makes the caption track reproducible.** Polly returns a marginally
+  different neural duration on each call, so without it every regeneration rewrites
+  `continuum.srt` with jittered timestamps and "is this file current?" stops having an
+  answer. With it, anyone — including CI, with no AWS credentials — regenerates the same
+  bytes. Changing the text or re-synthesising a clip invalidates the affected entry
+  automatically, because the duration is part of the key.
 - `audition-*.mp3` — scratch, from `--audition`. **Delete before committing**; they are a
   decision aid, not evidence.
 

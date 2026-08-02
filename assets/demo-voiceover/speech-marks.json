@@ -1,0 +1,227 @@
+{
+  "vo_00-problem": {
+    "key": "3043a2ca79efea8d6133f55bf9f6587430a293179511899ec5b2951959b03303",
+    "offsets": [
+      [
+        0.0,
+        "The conditions that cause a production incident — a node failure, a bad deploy, memory exhaustion — are the same conditions that kill the agent responding to it."
+      ],
+      [
+        9.077520372526193,
+        "And an agent that holds its state in memory doesn't degrade gracefully."
+      ],
+      [
+        13.142649592549475,
+        "It stops."
+      ],
+      [
+        14.404039580908032,
+        "Then a human restarts the incident from zero, with no idea which remediation actions already ran."
+      ]
+    ]
+  },
+  "vo_01-reveal": {
+    "key": "4f83a1d7c5c99aba9465b080866ce6358a8f97169eef5440a2c075b1520a4a5e",
+    "offsets": [
+      [
+        0.0,
+        "Continuum is an incident-response agent whose memory lives in CockroachDB instead of in the process."
+      ],
+      [
+        6.303112561174552,
+        "It runs on AWS Lambda with no provisioned concurrency, so every invocation starts cold."
+      ],
+      [
+        12.505448613376837,
+        "Which means the process is allowed to die."
+      ]
+    ]
+  },
+  "vo_02-architecture": {
+    "key": "91fd1fb2a029c62a824076ccf0e9eb4ee49f6a2e86eb1ba263af5ab28001c9d8",
+    "offsets": [
+      [
+        0.0,
+        "Five agents, one write path."
+      ],
+      [
+        2.0950176366843034,
+        "Before any reasoning, the orchestrator's first action is always a recovery read against CockroachDB."
+      ],
+      [
+        8.298241622574956,
+        "If an incident is already open, it picks up from the durable state — never from scratch."
+      ]
+    ]
+  },
+  "vo_03-normal": {
+    "key": "67aad468c7f5a7145453089c218f2f7f70f35e019598f56a919db1c2fe17255f",
+    "offsets": [
+      [
+        0.0,
+        "An alert fires."
+      ],
+      [
+        1.5229831460674155,
+        "Bedrock embeds it."
+      ],
+      [
+        3.204387640449438,
+        "CockroachDB's vector index finds the closest past incident, and Claude proposes the next step."
+      ],
+      [
+        9.174831460674156,
+        "That step is committed as executing — before it runs."
+      ]
+    ]
+  },
+  "vo_04-kill": {
+    "key": "f845d5899acb44bca26309fcd46d68a940b418f2c8d67b887e81bf8986735e83",
+    "offsets": [
+      [
+        0.0,
+        "Now watch."
+      ],
+      [
+        1.126808510638298,
+        "The process is killed mid-step."
+      ],
+      [
+        3.2105239361702127,
+        "No graceful shutdown."
+      ],
+      [
+        4.898976063829788,
+        "No checkpoint."
+      ],
+      [
+        6.201848404255319,
+        "Nothing gets a chance to clean up."
+      ]
+    ]
+  },
+  "vo_05-survives": {
+    "key": "9029621861f1ff5e1345ab073330ae88b659d55cdfa948a4dd30754455fade57",
+    "offsets": [
+      [
+        0.0,
+        "The process is gone."
+      ],
+      [
+        1.8624903381642515,
+        "The step is still there — sitting in executing, with nothing alive that owns it."
+      ],
+      [
+        6.618973429951692,
+        "That row is the agent's memory, and it outlived the agent."
+      ]
+    ]
+  },
+  "vo_06-resume": {
+    "key": "612eb950399c04045912b271f2bb5534ebdd76b4f21fa97da6f20cd0398ea8f8",
+    "offsets": [
+      [
+        0.0,
+        "A cold Lambda invocation."
+      ],
+      [
+        2.0686942800788954,
+        "It reads CockroachDB first, finds the interrupted step, and re-runs that exact step."
+      ],
+      [
+        7.56261932938856,
+        "Not from scratch."
+      ],
+      [
+        9.190272189349113,
+        "Not skipped."
+      ],
+      [
+        10.448481262327416,
+        "Not duplicated."
+      ]
+    ]
+  },
+  "vo_07-scale": {
+    "key": "a58f686ef40fd7ce60d02e8b3202c728ef0737d5f011b0ad412a6f9525587b05",
+    "offsets": [
+      [
+        0.0,
+        "That isn't one lucky take."
+      ],
+      [
+        1.9937455968688849,
+        "Fifty interrupted incidents."
+      ],
+      [
+        4.15522504892368,
+        "Fifty clean resumes."
+      ],
+      [
+        5.982189823874756,
+        "Zero duplicated actions, zero lost steps — counted from the durable rows, not from a log."
+      ]
+    ]
+  },
+  "vo_08-aws": {
+    "key": "46167baebf7cdfb94566fbbba6bb8bc6ab3c656f6cc35ce6664b0ecd81252b8f",
+    "offsets": [
+      [
+        0.0,
+        "And it isn't only our own kill switch."
+      ],
+      [
+        2.596673427991886,
+        "Here, AWS terminates the function itself, mid-step, with no signal the process can catch."
+      ],
+      [
+        8.905801217038539,
+        "All fifteen recovered, exactly once."
+      ]
+    ]
+  },
+  "vo_09-vector": {
+    "key": "e8f3e5fa1d88691fe4c782104b038cd7d23e2ec48e3eed497b8f0a39331601c4",
+    "offsets": [
+      [
+        0.0,
+        "The memory layer scales with it."
+      ],
+      [
+        2.311464968152866,
+        "From one hundred incidents to ten thousand, CockroachDB's vector index stays flat while a full scan climbs away from it — six times faster at the top end."
+      ]
+    ]
+  },
+  "vo_10-mcp": {
+    "key": "51c055753a95e4e78de2c17434ea7f85597b93d5efb9b6955cd91fbe12349bfa",
+    "offsets": [
+      [
+        0.0,
+        "The same memory is queryable live, through CockroachDB's managed MCP server — read-only, called by the application itself."
+      ]
+    ]
+  },
+  "vo_11-production": {
+    "key": "8c5daf34b20c34b54362a3528ccc1706f8652ee50e8b8def515761e6154400d7",
+    "offsets": [
+      [
+        0.0,
+        "Type-checked, linted and gated in CI, with the recovery contract pinned by tests that hard-kill a real process on every push."
+      ]
+    ]
+  },
+  "vo_12-close": {
+    "key": "ae468a925306ac768c34cc4740be54103ff0c5ba1a80cb02752f7675c288c6a6",
+    "offsets": [
+      [
+        0.0,
+        "Agents will keep dying mid-task."
+      ],
+      [
+        2.35104,
+        "Continuum is the one that picks up exactly where it left off."
+      ]
+    ]
+  }
+}

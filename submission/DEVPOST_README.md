@@ -365,6 +365,19 @@ Beyond tests: structlog JSON logging across every agent, secrets via environment
 
 What a remediation step actually costs, end to end: the CockroachDB legs (recovery read, both transaction commits, C-SPANN vector search, the full cold-resume path), the Bedrock legs (real Titan embedding), and the same work measured **on the deployed Lambda** rather than predicted from a workstation. Every run records which path actually executed — `correlation_source` / `reasoning_source` are counted, not assumed, so a throttled account can't quietly publish cheaper numbers under a Bedrock headline. `make benchmark` (add `--with-bedrock --lambda-n N` for the AWS legs; the default run needs no AWS). Full tables, methodology and caveats: [`docs/BENCHMARKS.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/BENCHMARKS.md).
 
+Speed is the less interesting half. The claim this project exists to make is about **correctness when things go badly**, so that is measured too — every number below counted from durable CockroachDB rows rather than from a log, against the live cluster and the deployed function. `make resilience-bench`; full method, sample sizes and caveats in [`docs/RESILIENCE.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/RESILIENCE.md), raw evidence under [`assets/resilience-run/`](https://github.com/iarjunganesh/continuum/tree/main/assets/resilience-run/).
+
+| Failure mode | Result |
+| --- | --- |
+| Kill storm — 50 incidents interrupted mid-step | **50 resumed · 0 duplicated · 0 lost** |
+| Real `SIGKILL` against a live process | 10 kills · **10 resumed · 0 duplicated** |
+| **AWS Lambda timeout — AWS does the killing** | 15 invocations · **15 killed by AWS · 15 resumed exactly once** |
+| Exactly-once under concurrent claimants | 100 trials, 5 levels up to 50-way · **0 violations** |
+| Concurrent agents | 10 / 50 / 100 · 55.7 completed/s · **0 failures** |
+| C-SPANN vector search, 100 → 10,000 vectors | 44 → 107 ms vs full scan 58 → 650 ms — **6.1× faster** |
+
+The Lambda-timeout row is the one that can't be argued with: the process isn't killed by our own script but by **AWS terminating the function**, with no signal the runtime can catch and no opportunity to checkpoint. Every one of those recovered exactly once.
+
 [`tests/load/k6_smoke.js`](https://github.com/iarjunganesh/continuum/blob/main/tests/load/k6_smoke.js) ramps concurrent users against `/api/v1/health` and the MCP-backed `/api/v1/incidents/open`, so the measurement covers the live MCP round trip rather than just FastAPI. It deliberately does **not** hammer `POST /alert`: that drives real state through the single write path, and exercising the forward-step claim outside controlled conditions would fabricate incidents rather than test them — exactly-once is proven in the integration suite instead.
 
 ```bash
