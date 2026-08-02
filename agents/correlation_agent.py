@@ -73,15 +73,32 @@ class CorrelationAgent:
     def find_similar(self, service: str, embedding: List[float], k: int = 5) -> List[CorrelationMatch]:
         vector_literal = "[" + ",".join(str(v) for v in embedding) + "]"
         with psycopg.connect(self._dsn) as conn, conn.cursor(row_factory=dict_row) as cur:
+            # THE CTE IS LOAD-BEARING — do not inline this back into a single
+            # SELECT with a JOIN. Joining `incidents` in the same statement as
+            # the `<->` ordering makes CockroachDB abandon the C-SPANN index and
+            # fall back to `spans: FULL SCAN` over incident_embeddings. Verified
+            # with EXPLAIN: with the JOIN inlined the plan never mentions
+            # idx_incident_embedding; with the ANN search isolated in this CTE
+            # the plan shows `vector search ... prefix spans: [/'<service>']`.
+            #
+            # That made the whole "Distributed Vector Indexing" claim untrue for
+            # a while, silently — the query returned correct results either way,
+            # just by scanning everything. tests/integration/test_vector_index.py
+            # asserts the plan, because no unit test can (psycopg is mocked at
+            # the import boundary, so SQL text changes go unnoticed).
             cur.execute(
                 """
-                SELECT e.incident_id, i.summary, i.state,
-                       e.embedding <-> %s::vector AS distance
-                FROM incident_embeddings e
-                JOIN incidents i ON i.incident_id = e.incident_id
-                WHERE e.service = %s
-                ORDER BY e.embedding <-> %s::vector
-                LIMIT %s
+                WITH nearest AS (
+                    SELECT incident_id, embedding <-> %s::vector AS distance
+                    FROM incident_embeddings
+                    WHERE service = %s
+                    ORDER BY embedding <-> %s::vector
+                    LIMIT %s
+                )
+                SELECT n.incident_id, i.summary, i.state, n.distance
+                FROM nearest n
+                JOIN incidents i ON i.incident_id = n.incident_id
+                ORDER BY n.distance
                 """,
                 (vector_literal, service, vector_literal, k),
             )
