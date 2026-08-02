@@ -1,0 +1,305 @@
+"""
+Fail the build when a document disagrees with the repo (`make check-drift`).
+
+CLAUDE.md has always asked for a documentation sweep on every change. Asking was
+not enough: a release date four days in the future shipped on page one of the
+changelog, and a stale test count survived four separate "sweeps" because each
+one checked the places someone happened to think of. Every drift caught in this
+project so far was found by a human noticing, which does not scale and is not
+reliable.
+
+So the sweep is a gate now. Each check below exists because that exact thing
+went stale at least once:
+
+  1. Version fields agree (pyproject, api/main.py, CHANGELOG's top release)
+  2. No date anywhere is in the future
+  3. Stated test counts match what pytest actually collects
+  4. Stated ADR count matches docs/adr/
+  5. Every relative markdown link resolves
+  6. Generated files are current (the Devpost mirror)
+  7. The Lambda manifest has not drifted from requirements.txt
+
+Exit code 0 only when everything agrees, so CI can gate on it.
+
+Usage:
+    python scripts/check_drift.py           # report everything, exit 1 on any failure
+    python scripts/check_drift.py --quiet   # only failures
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import re
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+SKIP_DIRS = {".venv", ".git", "node_modules", "__pycache__", ".mypy_cache", ".aws-sam"}
+
+Failure = tuple[str, str]  # (check name, detail)
+
+
+def _markdown_files() -> list[Path]:
+    return [p for p in REPO_ROOT.rglob("*.md") if not any(part in SKIP_DIRS for part in p.parts)]
+
+
+def _text_files() -> list[Path]:
+    exts = {".md", ".py", ".toml", ".yaml", ".yml", ".example", ".txt", ".json"}
+    return [
+        p
+        for p in REPO_ROOT.rglob("*")
+        if p.is_file() and p.suffix in exts and not any(part in SKIP_DIRS for part in p.parts)
+    ]
+
+
+# --------------------------------------------------------------------------
+def check_versions() -> list[Failure]:
+    """pyproject, api/main.py and the CHANGELOG's newest release must agree."""
+    fails: list[Failure] = []
+    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    canonical = pyproject["project"]["version"]
+
+    api = (REPO_ROOT / "api" / "main.py").read_text(encoding="utf-8")
+    m = re.search(r'version\s*=\s*"([^"]+)"', api)
+    if not m:
+        fails.append(("versions", "could not find app.version in api/main.py"))
+    elif m.group(1) != canonical:
+        fails.append(("versions", f"api/main.py is {m.group(1)}, pyproject.toml is {canonical}"))
+
+    changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    released = re.findall(r"^## \[(\d+\.\d+\.\d+)\]", changelog, re.M)
+    if not released:
+        fails.append(("versions", "CHANGELOG.md has no released version heading"))
+    elif released[0] != canonical:
+        fails.append(("versions", f"CHANGELOG's newest release is {released[0]}, pyproject.toml is {canonical}"))
+    return fails
+
+
+# Dates that are legitimately in the future because they are *deadlines*, not
+# claims about work already done. Listed explicitly with a reason: a bare
+# "ignore future dates in these files" rule would have let the bad changelog
+# date through, since it lived in a file that also contains real deadlines.
+KNOWN_FUTURE_DATES: dict[str, str] = {
+    "2026-08-03": "CockroachDB trial credits expire",
+    "2026-08-18": "hackathon submission deadline",
+    "2026-08-19": "judging period opens",
+    "2026-09-15": "judging period closes",
+    "2026-09-21": "winners announced",
+}
+
+# A line may opt out explicitly when it genuinely describes something scheduled.
+_ALLOW_MARKER = "drift-allow-future"
+
+
+def check_no_future_dates() -> list[Failure]:
+    """A doc must not describe as done something that has not happened yet.
+
+    This is the check that would have caught `## [0.7.0] — 2026-08-06` at the top
+    of the changelog four days before that date existed.
+
+    Future dates are not banned outright — deadlines are legitimately ahead of
+    today. They must be *known*, which forces a new one to be justified rather
+    than waved through, and keeps this check from becoming noise people ignore.
+    """
+    today = dt.date.today()
+    pattern = re.compile(r"\b(20\d{2})-(\d{2})-(\d{2})\b")
+    fails: list[Failure] = []
+    for path in _text_files():
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        rel = path.relative_to(REPO_ROOT).as_posix()
+        if rel == "scripts/check_drift.py":
+            continue  # this file names dates in order to reason about them
+        for lineno, line in enumerate(text.splitlines(), 1):
+            if _ALLOW_MARKER in line:
+                continue
+            for y, mo, d in pattern.findall(line):
+                try:
+                    found = dt.date(int(y), int(mo), int(d))
+                except ValueError:
+                    continue
+                if found <= today:
+                    continue
+                iso = found.isoformat()
+                if iso in KNOWN_FUTURE_DATES:
+                    continue
+                fails.append(
+                    (
+                        "future-dates",
+                        f"{rel}:{lineno} references {iso} (today is {today}). If this is a "
+                        f"deadline, add it to KNOWN_FUTURE_DATES with a reason; if it describes "
+                        f"completed work, the date is wrong.",
+                    )
+                )
+    return fails
+
+
+def _collected_counts() -> tuple[int, int]:
+    """Ask pytest what actually exists rather than trusting a comment."""
+
+    def count(target: str) -> int:
+        proc = subprocess.run(
+            [sys.executable, "-m", "pytest", target, "--collect-only", "-q", "--no-header"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        # `-q --collect-only` prints one `path/to/test_x.py: N` line per file and
+        # does NOT print a "N tests collected" summary, so sum the per-file
+        # counts. Parsing the wrong thing here silently reports 0, which would
+        # disable the check rather than fail it — hence the explicit guard in
+        # the caller.
+        # Anchor to the target directory. A bare `<path>.py: <n>` pattern also
+        # matches pytest's warnings-summary header
+        # (`.../site-packages/fastapi/testclient.py:1`), which silently added a
+        # phantom test and made this check report drift that did not exist —
+        # a false alarm is how a gate earns the right to be ignored.
+        prefix = target.replace("\\", "/").rstrip("/")
+        total = 0
+        for line in proc.stdout.splitlines():
+            stripped = line.strip().replace("\\", "/")
+            if not stripped.startswith(prefix):
+                continue
+            m = re.match(r"^\S+\.py:\s*(\d+)\s*$", stripped)
+            if m:
+                total += int(m.group(1))
+        return total
+
+    return count("tests/unit"), count("tests/integration")
+
+
+def check_test_counts() -> list[Failure]:
+    unit, integration = _collected_counts()
+    if unit == 0:
+        return [("test-counts", "collected 0 unit tests — cannot verify counts")]
+
+    fails: list[Failure] = []
+    claim = re.compile(r"(\d+)\s+unit\s*\+\s*(\d+)\s+integration", re.I)
+    suite = re.compile(r"unit suite \((\d+) tests", re.I)
+    for path in _markdown_files():
+        text = path.read_text(encoding="utf-8", errors="replace")
+        rel = path.relative_to(REPO_ROOT).as_posix()
+        if rel.startswith("CHANGELOG"):
+            continue  # historical entries are allowed to state past counts
+        for lineno, line in enumerate(text.splitlines(), 1):
+            for u, i in claim.findall(line):
+                if (int(u), int(i)) != (unit, integration):
+                    fails.append(
+                        (
+                            "test-counts",
+                            f"{rel}:{lineno} claims {u} unit + {i} integration; actual {unit} + {integration}",
+                        )
+                    )
+            for u in suite.findall(line):
+                if int(u) != unit:
+                    fails.append(("test-counts", f"{rel}:{lineno} claims a {u}-test unit suite; actual {unit}"))
+    return fails
+
+
+def check_adr_count() -> list[Failure]:
+    actual = len(list((REPO_ROOT / "docs" / "adr").glob("[0-9]*.md")))
+    fails: list[Failure] = []
+    pattern = re.compile(r"\b(\w+)\s+(?:ADRs?|Architecture Decision Records)\b", re.I)
+    words = {"nine": 9, "eight": 8, "ten": 10, "seven": 7}
+    for path in _markdown_files():
+        text = path.read_text(encoding="utf-8", errors="replace")
+        rel = path.relative_to(REPO_ROOT).as_posix()
+        if rel.startswith("CHANGELOG"):
+            continue
+        for lineno, line in enumerate(text.splitlines(), 1):
+            for token in pattern.findall(line):
+                n = words.get(token.lower()) or (int(token) if token.isdigit() else None)
+                if n is not None and n != actual:
+                    fails.append(("adr-count", f"{rel}:{lineno} says {token} ADRs; actual {actual}"))
+    return fails
+
+
+def check_links() -> list[Failure]:
+    link = re.compile(r"\[[^\]]*\]\(([^)#][^)]*)\)")
+    fails: list[Failure] = []
+    for path in _markdown_files():
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for lineno, line in enumerate(text.splitlines(), 1):
+            for target in link.findall(line):
+                t = target.split("#")[0].strip()
+                if not t or t.startswith(("http://", "https://", "mailto:")):
+                    continue
+                if not (path.parent / t).exists():
+                    rel = path.relative_to(REPO_ROOT).as_posix()
+                    fails.append(("links", f"{rel}:{lineno} -> {t} does not exist"))
+    return fails
+
+
+def check_generated_files() -> list[Failure]:
+    proc = subprocess.run(
+        [sys.executable, "scripts/build_devpost_readme.py", "--check"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if proc.returncode != 0:
+        return [("generated", "submission/DEVPOST_README.md is stale — run make devpost-readme")]
+    return []
+
+
+def check_lambda_manifest() -> list[Failure]:
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "tests/unit/test_lambda_manifest.py", "-q", "--no-header"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if proc.returncode != 0:
+        return [("lambda-manifest", "infra/requirements-lambda.txt has drifted from requirements.txt")]
+    return []
+
+
+CHECKS = [
+    ("version fields agree", check_versions),
+    ("no future-dated references", check_no_future_dates),
+    ("stated test counts are real", check_test_counts),
+    ("stated ADR count is real", check_adr_count),
+    ("relative links resolve", check_links),
+    ("generated files current", check_generated_files),
+    ("lambda manifest in sync", check_lambda_manifest),
+]
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--quiet", action="store_true", help="only print failures")
+    args = parser.parse_args()
+
+    all_failures: list[Failure] = []
+    if not args.quiet:
+        print("Continuum — documentation drift check\n")
+
+    for label, fn in CHECKS:
+        try:
+            failures = fn()
+        except Exception as exc:  # noqa: BLE001 — a broken check must not pass silently
+            failures = [(label, f"check itself failed: {type(exc).__name__}: {exc}")]
+        all_failures.extend(failures)
+        if not args.quiet:
+            print(f"  [{'FAIL' if failures else 'OK  '}] {label}")
+            for _, detail in failures:
+                print(f"          {detail}")
+
+    if all_failures:
+        print(f"\n{len(all_failures)} drift issue(s). Docs disagree with the repo.")
+        return 1
+    if not args.quiet:
+        print("\nNo drift. Docs agree with the repo.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

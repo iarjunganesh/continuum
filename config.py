@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # The default is eu-central-1 — the same region as the Lambda, so the
     # Bedrock leg is in-region rather than a cross-region hop. It was
     # eu-north-1 while an account-level quota clamp held every other region at
-    # effectively 0; that clamp lifted 2026-08-06 and eu-central-1 now probes
+    # effectively 0; that clamp lifted 2026-08-01 and eu-central-1 now probes
     # open, which removed the only reason for the two to differ (ADR 008
     # addendum 3). Quotas remain dynamic — run `make probe-bedrock` before
     # relying on any region, and override BEDROCK_REGION if this one closes.

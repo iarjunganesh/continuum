@@ -1,4 +1,4 @@
-.PHONY: install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
+.PHONY: check-drift install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark resilience-bench probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -57,10 +57,19 @@ benchmark:
 probe-bedrock:
 	python scripts/probe_bedrock.py
 
-# Orchestrator -> Lambda (docs/DEPLOY.md). --use-container is required on
-# Windows/macOS hosts: psycopg[binary]/pydantic-core need Linux wheels.
-# First deploy is interactive: run the `sam deploy --guided` line from
-# docs/DEPLOY.md once to create samconfig.toml, then use this target.
+# Correctness under adversity — kill storm, exactly-once under contention,
+# concurrent-agent throughput, vector search at scale. Writes docs/RESILIENCE.md
+# and an evidence folder under assets/. Sizes are small by default because this
+# runs against a live cluster; raise with --kills / --agents / --max-vectors.
+resilience-bench:
+	python scripts/resilience_bench.py
+
+# Fails when a doc disagrees with the repo: version fields, future-dated
+# claims, stated test/ADR counts, broken links, stale generated files.
+# CI-gated — run before any commit that touched docs.
+check-drift:
+	python scripts/check_drift.py
+
 preflight-deploy:
 	python scripts/preflight_deploy.py
 

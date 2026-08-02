@@ -64,12 +64,12 @@ Consequences of the addendum:
 
 ---
 
-## Addendum 2 — 2026-08-06: the clamp was LIFTED
+## Addendum 2 — 2026-08-01: the clamp was LIFTED
 
 An AWS Support case opened 2026-07-08 was escalated to an internal eligibility
-review on 2026-07-30 and completed within its stated 3–5 business day window.
-`make probe-bedrock` on 2026-08-06 returned **OK for every candidate region ×
-both models**:
+review on 2026-07-30, which quoted a 3–5 business day turnaround and in practice
+resolved faster than that. `make probe-bedrock` on 2026-08-01 returned **OK for
+every candidate region × both models**:
 
 | Region | Titan Embed V2 | Claude Sonnet 4.5 |
 | --- | --- | --- |

@@ -56,7 +56,7 @@ Parameters:
   #
   # Defaults to eu-central-1 — the function's own region, so the Bedrock leg is
   # in-region. It was eu-north-1 while an account-level quota clamp held every
-  # other region at effectively 0; that clamp lifted 2026-08-06 (ADR 008
+  # other region at effectively 0; that clamp lifted 2026-08-01 (ADR 008
   # addendum 3). Quotas remain dynamic, so run `make probe-bedrock` before the
   # demo and override here if this region has closed.
   BedrockRegion:

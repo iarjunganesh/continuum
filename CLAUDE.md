@@ -7,7 +7,7 @@ Continuum — an agentic incident-response system built for the CockroachDB × A
 
 **Current phase**: core build complete — recovery loop, dual memory model, explicit per-step `SERIALIZABLE` transactions + concurrency-safe exactly-once (ADR 009), best-effort Bedrock correlation, both CockroachDB tools, 100% unit coverage, and real (not stubbed) integration tests against a live cluster — including `tests/integration/test_chaos_kill_e2e.py`, which hard-kills a live orchestrator subprocess mid-step and asserts exactly-once cold recovery. The Hugging Face Space is deployed and live (`docs/DEPLOY.md`). Seeding no longer depends on live Bedrock: `make seed-data-offline` loads deterministic vectors with no AWS call, and `scripts/capture_seed_embeddings.py` + `seed_memory.py --from-fixture` load real Titan vectors captured once where Bedrock is reachable — so the AWS-side Bedrock quota issue (ADR 008) no longer blocks a populated demo. The latency-benchmark harness (`scripts/benchmark.py`, `make benchmark`) and the Lambda deploy runbook (`docs/DEPLOY.md`) are both in place, and `docs/BENCHMARKS.md` is populated with measured latencies against the live cluster.
 
-**The Bedrock account quota clamp (ADR 008) was LIFTED on 2026-08-06** via an AWS Support eligibility review — `make probe-bedrock` returns OK for every candidate region × both models. **Both live Bedrock paths were then verified end to end on 2026-08-01**: `embed()` returns 1024 floats matching the schema, and `_propose_via_bedrock()` parses real Claude output correctly. That code is now proven, not merely unthrottled. Quotas remain *dynamic*, so re-probe immediately before recording rather than trusting a days-old green run — and note `make probe-bedrock` makes its **own** boto3 calls, so it proves account access only; verifying Continuum's own response handling means exercising the agents.
+**The Bedrock account quota clamp (ADR 008) was LIFTED on 2026-08-01** via an AWS Support eligibility review — `make probe-bedrock` returns OK for every candidate region × both models. **Both live Bedrock paths were then verified end to end on 2026-08-01**: `embed()` returns 1024 floats matching the schema, and `_propose_via_bedrock()` parses real Claude output correctly. That code is now proven, not merely unthrottled. Quotas remain *dynamic*, so re-probe immediately before recording rather than trusting a days-old green run — and note `make probe-bedrock` makes its **own** boto3 calls, so it proves account access only; verifying Continuum's own response handling means exercising the agents.
 
 **The orchestrator is deployed and the recovery guarantee is proven on the real runtime** (2026-08-01): stack `continuum` in eu-central-1, `arn:aws:lambda:eu-central-1:504804196134:function:continuum-orchestrator`. Four cold `sam remote invoke` calls drove one incident 0 → 1 → 2 → `resolved`, each reporting `correlation_source`/`reasoning_source` of `bedrock`, so Bedrock and the vector search demonstrably ran inside Lambda under the function's own role. Cold start 1.71 s, 129 MB of 512 MB.
 
@@ -63,7 +63,25 @@ The repo is judged as a whole. Stale docs are read as carelessness, and they com
 version bumped in one file and not another is invisible until someone diffs them. Treat the
 sweep below as part of the change, not as follow-up work.
 
-**Before any commit to `main`, sweep for drift caused by that change:**
+**Run `make check-drift` before any commit that touched docs — it is CI-gated.**
+
+`scripts/check_drift.py` mechanically verifies the things that kept going stale: version fields
+agreeing, no date describing work as done before it happened, stated test and ADR counts matching
+what actually exists, every relative link resolving, generated files current, and the Lambda
+manifest in sync. It exists because asking for a manual sweep demonstrably did not work — a
+release date four days in the future shipped on page one of the changelog, and a stale test count
+survived several sweeps because each one checked whichever places came to mind.
+
+Two rules that keep the gate worth having:
+
+- **A new future date must be justified.** Deadlines are legitimately ahead of today, so they live
+  in `KNOWN_FUTURE_DATES` with a reason. A date that isn't there fails, which forces the question
+  "is this a deadline, or did I just claim something happened that hasn't?"
+- **Never weaken a check to make it pass.** If it reports drift, the doc is wrong, not the checker
+  — unless the checker is provably miscounting, in which case fix it and say so in the commit.
+
+The checks below are what it covers, kept here because knowing *why* each one exists is what stops
+someone deleting it later:
 - **Version fields must agree**: `pyproject.toml` `version`, `api/main.py` `app.version`,
   `CHANGELOG.md` top section. If one moves, all move.
 - **`requirements.txt` ↔ README badges ↔ Space frontmatter**: `gradio` must equal `sdk_version`
@@ -91,8 +109,23 @@ regenerate rather than hand-editing, or the two copies drift and CI catches you 
 | `assets/demo-cards/*-{dark,light}{,-native}.png` | `*.svg` | see `assets/demo-cards/README.md` |
 | `docs/BENCHMARKS.md` | live cluster | `make benchmark` |
 
-Editing `README.md` without running `make devpost-readme` is the most likely way to break the
-build — it is the only gate that fails on a docs-only change.
+**`README.md` and `submission/DEVPOST_README.md` must never be out of sync — treat them as one
+file with two renderings.** The mirror is what gets pasted into Devpost, so a stale one ships
+wrong information to judges while the repo looks correct.
+
+Three layers enforce this, in order of when they catch you:
+
+1. **A `PostToolUse` hook** in `.claude/settings.json` runs `scripts/build_devpost_readme.py`
+   automatically after any `Write`/`Edit` touching `README.md`. It is `async` and silent on
+   success, so the mirror is usually already correct before you think about it.
+2. **`python scripts/build_devpost_readme.py --check`** exits 1 if stale — run it before any
+   commit that touched the README.
+3. **CI** runs that same `--check`. It is the only gate that fails on a docs-only change, so a
+   stale mirror is the most likely way to break a build that "shouldn't" have broken.
+
+Never hand-edit `DEVPOST_README.md`; it is generated, and an edit there is destroyed on the next
+regeneration. Change `README.md` and let the generator do the rest. **Any prose change to the
+README — counts, dates, claims, new sections — is a change to both files.**
 
 **Before tagging a release:**
 1. `make lint && make typecheck && make test && make coverage` — all green, coverage above the gate.
@@ -124,7 +157,8 @@ Commit subjects carry no version numbers — the tag and CHANGELOG carry the ver
 ## Testing Strategy
 - `tests/unit/` — one file per agent/module; all external I/O (psycopg, boto3, mcp SDK) mocked at the import boundary; coverage gate enforced at 90% (`--cov-fail-under=90` in CI)
 - `tests/integration/test_recovery_e2e.py` — drives the resume + exactly-once contract against a live CockroachDB instance (the kill is injected as the durable `executing` state a real `chaos_kill.py` strike leaves; correlation/remediation mocked, memory agent and schema real). `test_forward_step_claim_is_exactly_once` proves the `ON CONFLICT` claim guard on a real cluster. Skips if `COCKROACH_DATABASE_URL` isn't set.
-- `tests/integration/test_chaos_kill_e2e.py` — the literal version: spawns the orchestrator as a real uvicorn subprocess, hard-kills it mid-step with `scripts/chaos_kill.py` (a genuine `SIGKILL`/`TerminateProcess`), and asserts a cold restart resumes the interrupted step exactly once. 3 integration test functions across these 2 files.
+- `tests/integration/test_chaos_kill_e2e.py` — the literal version: spawns the orchestrator as a real uvicorn subprocess, hard-kills it mid-step with `scripts/chaos_kill.py` (a genuine `SIGKILL`/`TerminateProcess`), and asserts a cold restart resumes the interrupted step exactly once.
+- `tests/integration/test_vector_index.py` — asserts via `EXPLAIN` that the correlation query actually uses the C-SPANN index. It did **not** for a long time: joining `incidents` in the same statement as the `<->` ordering made CockroachDB fall back to `spans: FULL SCAN`, so "Distributed Vector Indexing" was claimed but unexercised while results stayed correct. The CTE in `find_similar` is what restores it — don't inline it back. A second test fails deliberately if a future CockroachDB version plans the inlined JOIN through the index, so the workaround can't outlive its cause. 5 integration test functions across these 3 files.
 - `tests/load/k6_smoke.js` — read-path smoke load, **not** run in CI (needs k6 + a live API). Deliberately never exercises `POST /alert`: that drives real state through the single write path, and racing the forward-step claim outside controlled conditions fabricates incidents rather than testing them.
 - CI runs an ephemeral single-node CockroachDB container so the integration suite actually executes on every push, not just locally when a dev happens to have a cluster handy
 - **A green unit suite is necessary but not sufficient for MCP or Bedrock changes.** Both are mocked at the import boundary, so the suite passes against a client that would fail against the real server. Those changes need a live round trip — this is exactly why `mcp` is pinned `<2` despite 2.0.0 being released.

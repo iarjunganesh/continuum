@@ -29,6 +29,13 @@
             "command": "FILE=$(tr \",\" \"\\n\" | grep file_path | grep -oE \"[a-zA-Z0-9._/-]+\\.py\" | head -1); case \"$FILE\" in *.py) ruff check --fix \"$FILE\" 2>/dev/null; true;; esac",
             "statusMessage": "Auto-fixing Python imports...",
             "async": true
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "grep -q '\"file_path\".*README\\.md' <<<\"$(cat)\" && python scripts/build_devpost_readme.py >/dev/null 2>&1; true",
+            "statusMessage": "Regenerating Devpost README mirror...",
+            "async": true
           }
         ]
       }

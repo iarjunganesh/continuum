@@ -65,7 +65,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - README's Pydantic badge corrected from `2.13 models` to `2.12`, and `submission/DEVPOST_README.md` regenerated to match.
 
-## [0.7.0] — 2026-08-06 — judge-facing restructure, dependency hardening, tag history repaired
+## [0.7.0] — 2026-08-01 — judge-facing restructure, dependency hardening, tag history repaired
 
 ### Fixed
 
@@ -99,7 +99,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`CONTRIBUTING.md` substantially expanded** — quality-gate commands, testing conventions, an explicit "things that will get a change rejected" list covering every load-bearing invariant with its ADR, and a warning that a green unit suite is not sufficient for MCP or Bedrock changes since both are mocked at the boundary
 - **README badges regrouped into six labelled rows** (status · CockroachDB core · AWS · agent runtime · quality gates · hosting) with explicit version numbers throughout, and the project-structure tree updated for the new layout
 - **Dependencies upgraded**: FastAPI 0.141.1, uvicorn 0.52.0, boto3 1.43.61, Gradio 6.22.0, Ruff 0.16.1, plus mypy 2.3.0 added. The Gradio bump is mirrored in the README frontmatter `sdk_version`, which is what the Hugging Face Space actually builds against
-- **ADR 008 outcome:** the account-level Bedrock quota clamp was **lifted on 2026-08-06** following an AWS Support eligibility review. `make probe-bedrock` now returns OK for every candidate region and both models, with no config change needed. Two caveats recorded in `CLAUDE.md`: quotas remain dynamic, so re-probe before recording; and the live Bedrock path has never actually executed in this project's history, so that code is unproven rather than proven-good
+- **ADR 008 outcome:** the account-level Bedrock quota clamp was **lifted on 2026-08-01** following an AWS Support eligibility review. `make probe-bedrock` now returns OK for every candidate region and both models, with no config change needed. Two caveats recorded in `CLAUDE.md`: quotas remain dynamic, so re-probe before recording; and the live Bedrock path has never actually executed in this project's history, so that code is unproven rather than proven-good
 - Cross-repo references to unrelated sibling projects removed from `CLAUDE.md`
 
 ## [0.6.0] — 2026-07-08 — Bedrock/Lambda deep audit: fail-fast clients, probed region default, Lambda-driven demo

@@ -64,10 +64,11 @@ reinforces one message:
     the matched precedent/vector result isn't shown in the console)*
 -   [x] MCP interactions visible (if used).
 -   [x] Benchmark numbers captured and presented (`docs/BENCHMARKS.md`).
-    *(populated 2026-07-08 from a real `make benchmark` run against the
-    live cluster: p50/p95/p99/mean for recovery read, vector search, both
-    step commits, and the end-to-end resume path, with the
-    measured-from-workstation caveat stated)*
+    *(regenerated 2026-08-01 from a real `make benchmark` run: the
+    CockroachDB legs, real Titan embed latency, and the same work measured
+    on the **deployed Lambda** rather than predicted. Records which path
+    actually ran — `correlation_source`/`reasoning_source` are counted, not
+    assumed — and how many invocations paid a genuine cold start)*
 
 ## P1 --- Visual Clarity
 
@@ -92,7 +93,7 @@ reinforces one message:
     The README no longer claims screenshots that don't exist. Capture
     after the Lambda deploy so the evidence shows the deployed system.)*
 -   [x] No documentation drift. *(full sweep at v0.7.0: Bedrock-clamp language
-    updated everywhere after the 2026-08-06 lift, all moved-doc paths
+    updated everywhere after the 2026-08-01 lift, all moved-doc paths
     repointed, generated files gated in CI, 0 broken links repo-wide)*
 
 ## P1 --- Scenario Validation

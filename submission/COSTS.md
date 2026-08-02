@@ -47,7 +47,7 @@ two compounding reasons:
    degrade silently by design — correlation to "no precedent", remediation to deterministic
    precedent-replay — so the application ran end to end on fallbacks without spending anything.
 
-The clamp was **lifted on 2026-08-06** following an AWS Support eligibility review. Bedrock spend
+The clamp was **lifted on 2026-08-01** following an AWS Support eligibility review. Bedrock spend
 becomes possible from that point; the guardrails below were put in place beforehand, not after.
 
 > **Honest note:** "$0 spent" is partly a design property and partly an accident of being

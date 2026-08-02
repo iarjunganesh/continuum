@@ -46,6 +46,14 @@ jobs:
       - name: Devpost mirror is current
         run: python scripts/build_devpost_readme.py --check
 
+      # Documentation drift: version fields that disagree, dates describing
+      # work as done before it happened, stated test/ADR counts that no longer
+      # match, broken links, stale generated files. Every one of these has gone
+      # wrong here at least once and was caught by a human reading carefully —
+      # which is neither reliable nor repeatable, hence the gate.
+      - name: Documentation agrees with the repo
+        run: python scripts/check_drift.py
+
       # Ephemeral, insecure, single-node — CI-only, never how a real cluster
       # is run. This is what lets tests/integration exercise the recovery
       # guarantee (ARCHITECTURE.md §3) against a real CockroachDB instance

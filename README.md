@@ -153,7 +153,7 @@ Nine decisions documented (001–009), **all accepted and implemented** — see 
 | [005](docs/adr/005-synthetic-incident-data.md) | Synthetic incident corpus only — no real infra, ever |
 | [006](docs/adr/006-scope-cuts.md) | Explicit scope cuts, documented instead of hidden |
 | [007](docs/adr/007-eu-central-1-region.md) | eu-central-1 deployment region, kept in sync across config/template/ADR |
-| [008](docs/adr/008-bedrock-region-split.md) | Bedrock calls target their own `BEDROCK_REGION` setting rather than reusing `AWS_REGION`, so Bedrock can move without redeploying the Lambda — introduced when a dynamic account-level quota clamp probed as ~0 across all regions and models (lifted 2026-08-06); the default is back to eu-central-1 alongside the Lambda and cluster (addendum 3), and the app degrades to deterministic fallbacks either way |
+| [008](docs/adr/008-bedrock-region-split.md) | Bedrock calls target their own `BEDROCK_REGION` setting rather than reusing `AWS_REGION`, so Bedrock can move without redeploying the Lambda — introduced when a dynamic account-level quota clamp probed as ~0 across all regions and models (lifted 2026-08-01); the default is back to eu-central-1 alongside the Lambda and cluster (addendum 3), and the app degrades to deterministic fallbacks either way |
 | [009](docs/adr/009-step-execution-semantics.md) | Each step runs in two explicit `SERIALIZABLE` transactions with a forward-step claim (`ON CONFLICT DO NOTHING`) for exactly-once; correlation/Bedrock is best-effort, off the recovery critical path |
 
 ---
@@ -191,7 +191,7 @@ Judging-criteria mapping and full submission narrative: [`submission/DEVPOST.md`
 | **Backend** | [![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](https://www.python.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/) [![psycopg](https://img.shields.io/badge/psycopg-3.3-336791?logo=postgresql&logoColor=white)](https://www.psycopg.org/psycopg3/) | Versioned gateway (`/api/v1`) around the orchestrator; psycopg 3 because psycopg2 has no 3.14 wheels |
 | **Demo UI** | [![Gradio](https://img.shields.io/badge/Gradio-6.22-F97316?logo=gradio&logoColor=white)](https://gradio.app/) [![HF Spaces](https://img.shields.io/badge/🤗_Spaces-live-FFD21E)](https://huggingface.co/spaces/iarjunganesh/continuum) | Live incident console with recovery-timeline replay, reading straight from CockroachDB |
 | **Observability** | [![structlog](https://img.shields.io/badge/structlog-JSON-4A90E2)](https://www.structlog.org/) | Structured event logging across every agent — no bare `print` |
-| **Quality** | [![Ruff](https://img.shields.io/badge/Ruff-lint%20%2B%20format-D7FF64?logo=ruff&logoColor=111827)](https://docs.astral.sh/ruff/) [![Mypy](https://img.shields.io/badge/Mypy-type_checked-2A6DB2?logo=python&logoColor=white)](https://mypy-lang.org/) [![pytest](https://img.shields.io/badge/pytest-9.1-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/) | Lint → format → types → 46 unit + 3 integration tests → 100% coverage against a 90% gate → Codecov |
+| **Quality** | [![Ruff](https://img.shields.io/badge/Ruff-lint%20%2B%20format-D7FF64?logo=ruff&logoColor=111827)](https://docs.astral.sh/ruff/) [![Mypy](https://img.shields.io/badge/Mypy-type_checked-2A6DB2?logo=python&logoColor=white)](https://mypy-lang.org/) [![pytest](https://img.shields.io/badge/pytest-9.1-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/) | Lint → format → types → 53 unit + 5 integration tests → 100% coverage against a 90% gate → Codecov |
 
 ---
 
@@ -318,7 +318,7 @@ continuum/
 │   └── load/k6_smoke.js       # read-path smoke load (health + MCP-backed /incidents/open)
 ├── observability/structured_logger.py
 ├── docs/
-│   ├── ARCHITECTURE.md · DEPLOY.md · BENCHMARKS.md · DEMO_READINESS_CHECKLIST.md
+│   ├── ARCHITECTURE.md · DEPLOY.md · BENCHMARKS.md · RESILIENCE.md
 │   └── adr/                   # 9 Architecture Decision Records
 ├── submission/                # judge-facing packet
 │   └── SUBMISSION.md · DEVPOST.md · DEVPOST_README.md · DEMO_SCRIPT.md · COSTS.md
@@ -339,7 +339,7 @@ continuum/
 ```text
 push → ruff lint → ruff format --check → mypy → Devpost mirror freshness
      → ephemeral single-node CockroachDB → schema apply
-     → pytest (46 unit + 3 integration) → coverage (≥90% gate, 100% measured) → Codecov
+     → pytest (53 unit + 5 integration) → coverage (≥90% gate, 100% measured) → Codecov
 push to main → auto-sync to Hugging Face Space (public demo)
 tag v*.*.*   → GitHub Release, notes pulled from CHANGELOG.md
 ```
@@ -354,7 +354,7 @@ Beyond tests: structlog JSON logging across every agent, secrets via environment
 
 ### Load & Resilience
 
-Latency of the CockroachDB memory operations the recovery guarantee depends on — recovery read, per-step transaction commits, vector search, and the full cold-resume path. Reproducible on any cluster with `make benchmark` (no Bedrock needed — it uses deterministic vectors). Full table and methodology: [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
+What a remediation step actually costs, end to end: the CockroachDB legs (recovery read, both transaction commits, C-SPANN vector search, the full cold-resume path), the Bedrock legs (real Titan embedding), and the same work measured **on the deployed Lambda** rather than predicted from a workstation. Every run records which path actually executed — `correlation_source` / `reasoning_source` are counted, not assumed, so a throttled account can't quietly publish cheaper numbers under a Bedrock headline. `make benchmark` (add `--with-bedrock --lambda-n N` for the AWS legs; the default run needs no AWS). Full tables, methodology and caveats: [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
 
 [`tests/load/k6_smoke.js`](tests/load/k6_smoke.js) ramps concurrent users against `/api/v1/health` and the MCP-backed `/api/v1/incidents/open`, so the measurement covers the live MCP round trip rather than just FastAPI. It deliberately does **not** hammer `POST /alert`: that drives real state through the single write path, and exercising the forward-step claim outside controlled conditions would fabricate incidents rather than test them — exactly-once is proven in the integration suite instead.
 
