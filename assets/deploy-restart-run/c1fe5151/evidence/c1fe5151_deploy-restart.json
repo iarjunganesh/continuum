@@ -1,0 +1,51 @@
+{
+  "correlation_id": "resbench-deployrestart-5828790b",
+  "function": "continuum-orchestrator",
+  "region": "eu-central-1",
+  "before": {
+    "code_sha256": "0bpe5L/luQ4nXWF8DK1NRbmTzQr9NstNC/p+DqMrsdw=",
+    "revision_id": "d26b421a-2d3f-4e5a-9c65-191e5beb7ab5",
+    "last_modified": "2026-08-02T10:46:36.000+0000",
+    "version": "$LATEST",
+    "timeout": 60
+  },
+  "interrupt": {
+    "timed_out": true,
+    "timeout_used": 6,
+    "timeout_restored": 60
+  },
+  "durable_after_kill": {
+    "step_index": 0,
+    "status": "executing",
+    "steps": 1
+  },
+  "deploy": {
+    "skipped": false,
+    "seconds": 66.2
+  },
+  "after": {
+    "code_sha256": "ylD4N19lCrFE9jvMdzMMyBqc6lTjjyzWqN6mrhAFDDU=",
+    "revision_id": "7061b7b5-24eb-4b22-9d11-ddaf8a026cb2",
+    "last_modified": "2026-08-02T16:54:12.000+0000",
+    "version": "$LATEST",
+    "timeout": 60
+  },
+  "code_replaced": true,
+  "revision_changed": true,
+  "resume_ms": 10394.4,
+  "recovery_payload": {
+    "incident_id": "f94e9b11-13d7-4afa-b32e-167f9b492685",
+    "step_index": 0,
+    "action": "rollback_recent_deploy",
+    "state": "remediating",
+    "resumed": true,
+    "reexecuted_after_interrupt": true,
+    "correlation_source": "bedrock",
+    "reasoning_source": "bedrock"
+  },
+  "resumed": true,
+  "same_incident": true,
+  "rows_for_step": 1,
+  "duplicated": false,
+  "passed": true
+}

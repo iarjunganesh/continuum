@@ -357,11 +357,25 @@ def rasterise(svg_path: Path, width: int, height: int) -> Path | None:
     return png_path if png_path.exists() else None
 
 
+CHARTABLE_SUITES = ("vector-scale", "agent-throughput", "kill-storm", "lambda-timeout")
+
+
+def _has_chartable_suite(run: Path) -> bool:
+    return any((run / "evidence" / f"{run.name}_{s}.json").exists() for s in CHARTABLE_SUITES)
+
+
 def newest_run() -> Path:
+    """Newest run that actually carries a suite worth charting.
+
+    Not simply the newest folder: a partial run — one suite, or a drill that
+    writes its own single result — would otherwise become the source and
+    silently regenerate nothing, replacing a full set of charts with none.
+    """
     runs = [p for p in RUNS_DIR.iterdir() if p.is_dir()] if RUNS_DIR.exists() else []
-    if not runs:
-        sys.exit(f"no evidence runs under {RUNS_DIR} — run `make resilience-bench` first")
-    return max(runs, key=lambda p: p.stat().st_mtime)
+    usable = [p for p in runs if _has_chartable_suite(p)]
+    if not usable:
+        sys.exit(f"no evidence runs with chartable suites under {RUNS_DIR} — run `make resilience-bench` first")
+    return max(usable, key=lambda p: p.stat().st_mtime)
 
 
 def build(run_dir: Path) -> list[Path]:

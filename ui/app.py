@@ -223,6 +223,9 @@ footer {{ display: none !important; }}
 
 /* Resilience evidence — static, read from the committed run rather than the
    cluster, so this section costs zero Request Units to render. */
+/* The evidence row grows a tile per proven failure mode, so it wraps by width
+   rather than holding the dashboard's fixed four columns. */
+.cx-kpis.wrap {{ grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); }}
 .cx-eviz {{ color: {INK2}; font-size: 13px; line-height: 1.6; margin: 14px 2px 4px; }}
 .cx-figs {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-top: 12px; }}
 .cx-fig {{ margin: 0; border: 1px solid {BORDER}; border-radius: 14px; overflow: hidden; background: {PLANE}; }}
@@ -580,6 +583,10 @@ def ask_via_mcp():
 # stop. If the folder is missing the section degrades to an honest note.
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RUNS_DIR = REPO_ROOT / "assets" / "resilience-run"
+# The deployment-restart drill is its own kind: it runs one suite and needs a
+# real `sam deploy`, so it is captured separately rather than as a partial
+# resilience run that would shadow the full one.
+DEPLOY_RUNS_DIR = REPO_ROOT / "assets" / "deploy-restart-run"
 CHARTS_DIR = REPO_ROOT / "assets" / "charts"
 
 # SVG only, deliberately. The Space sync workflow strips binaries before pushing
@@ -593,8 +600,8 @@ _CHARTS = [
 ]
 
 
-def _newest_run() -> Path | None:
-    runs = [p for p in RUNS_DIR.glob("*/evidence") if p.is_dir()]
+def _newest_run(base: Path = RUNS_DIR) -> Path | None:
+    runs = [p for p in base.glob("*/evidence") if p.is_dir()] if base.exists() else []
     return max(runs, key=lambda p: p.stat().st_mtime).parent if runs else None
 
 
@@ -649,6 +656,21 @@ def _evidence_tiles(data: dict) -> list[str]:
                 f"{lam['timed_out']} killed by AWS, no catchable signal",
             )
         )
+    drill = data.get("deploy-restart")
+    if drill:
+        # Distinct from the timeout suite next to it: that one proves recovery
+        # survives the execution environment vanishing, this one proves it
+        # survives the deployed artifact being replaced mid-incident.
+        ok = drill.get("passed")
+        tiles.append(
+            _stat_tile(
+                "Deploy mid-incident",
+                "resumed" if ok else "FAILED",
+                GOOD if ok else CRITICAL,
+                "code swapped under an open incident · "
+                + ("new build, same step, once" if ok else "see the evidence run"),
+            )
+        )
     once = data.get("exactly-once")
     if once:
         trials = sum(r["trials"] for r in once)
@@ -694,6 +716,9 @@ def load_evidence() -> str:
             "run <code>make resilience-bench</code> to generate one.</div></div>"
         )
     data = _load_evidence(run)
+    drill_run = _newest_run(DEPLOY_RUNS_DIR)
+    if drill_run:
+        data.update(_load_evidence(drill_run))
     tiles = _evidence_tiles(data)
     if not tiles:
         return (
@@ -716,7 +741,7 @@ def load_evidence() -> str:
     note = _evidence_note(data)
     return f"""
     <div class="cx">
-      <div class="cx-kpis">{"".join(tiles)}</div>
+      <div class="cx-kpis wrap">{"".join(tiles)}</div>
       <div class="cx-eviz">{note}</div>
       <div class="cx-figs">{"".join(charts)}</div>
       <div class="cx-when" style="margin-top:10px">Evidence run <code>{_esc(run.name)}</code> ·

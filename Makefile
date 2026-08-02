@@ -1,4 +1,4 @@
-.PHONY: charts voiceover check-drift export-memory restore-memory install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark resilience-bench probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
+.PHONY: charts voiceover check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark resilience-bench probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -63,6 +63,15 @@ probe-bedrock:
 # runs against a live cluster; raise with --kills / --agents / --max-vectors.
 resilience-bench:
 	python scripts/resilience_bench.py
+
+# The last Never-Miss failure mode: replace the deployed CODE under an open
+# incident and prove the resume still lands exactly once on the new build.
+# Needs CLONE_DIR=<clean checkout> (CodeUri: ../ packages the repo root, so the
+# working tree's .venv would blow Lambda's limit) and an admin-ish profile.
+# Asserts CodeSha256 actually changed — a no-op deploy would pass while proving
+# nothing. See docs/DEPLOY.md and `make preflight-deploy`.
+deploy-restart-drill:
+	python scripts/deploy_restart_drill.py --clone-dir $(CLONE_DIR) --profile $(or $(AWS_PROFILE),continuum-admin)
 
 # Snapshot / restore the memory layer as JSONL (data/snapshots/). Insurance
 # against the CockroachDB Basic org being deleted when trial credits lapse —

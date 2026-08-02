@@ -1,0 +1,32 @@
+{
+  "run_id": "c1fe5151",
+  "kind": "deploy-restart",
+  "started_utc": "2026-08-02T16:53:05.825088+00:00",
+  "finished_utc": "2026-08-02T16:54:35.966207+00:00",
+  "code": {
+    "commit": "d25546acaee8336170f17afe7eb30c4b53b0281b",
+    "commit_short": "d25546a",
+    "describe": "v0.8.0-2-gd25546a",
+    "working_tree_dirty": true
+  },
+  "environment": {
+    "python": "3.14.6",
+    "platform": "win32",
+    "cluster": "continuum-28621.j77.aws-eu-central-1.cockroachlabs.cloud/defaultdb",
+    "aws_region": "eu-central-1",
+    "bedrock_region": "eu-central-1",
+    "embedding_model": "amazon.titan-embed-text-v2:0",
+    "reasoning_model": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "lambda_function": "continuum-orchestrator",
+    "step_execution_seconds": 5.0,
+    "max_remediation_steps": 3
+  },
+  "command": "deploy_restart_drill.py --clone-dir C:\\Users\\arjunganesh\\AppData\\Local\\Temp\\claude\\c--ws-continuum\\e6ca85e5-486b-47ac-95c1-761f50fc7ffe\\scratchpad\\continuum-clean --profile continuum-admin",
+  "files": [
+    "c1fe5151_deploy-restart.json"
+  ],
+  "screenshots": [],
+  "results": {
+    "deploy_restart_passed": true
+  }
+}
