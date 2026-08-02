@@ -38,7 +38,7 @@ Kill the agent by every plausible mechanism; prove it resumes exactly once.
 | Injected durable interrupt (large N) | ✅ | **50/50 resumed, 0 duplicated, 0 lost, 0 wrong-step** |
 | **Lambda timeout — AWS performs the kill** | ✅ | **3/3 killed by AWS, 3/3 resumed, 0 duplicated.** The function's own `Timeout` is lowered below the step window, so Lambda terminates the invocation with no catchable signal. Nobody can argue this one was staged |
 | Container / execution-environment restart | ⚠️ | Largely subsumed: a Lambda timeout *is* the execution environment being taken away mid-step. A separate container harness would re-prove the same contract |
-| Deployment restart mid-incident | ❌ | `sam deploy` while an incident is in flight. Lowest marginal value of the three — the same durable `executing` state is what recovery reads either way |
+| **Deployment restart mid-incident** | ✅ | **Code swapped under an open incident, step resumed exactly once on the new build.** An incident is driven into a durable `executing` row on the deployed function, a real `sam build` + `sam deploy` replaces the artifact (`CodeSha256` asserted changed — a no-op deploy would otherwise pass while proving nothing), and the cold invocation afterwards resumes that step on a build that did not exist when it began. `make deploy-restart-drill`; evidence `assets/deploy-restart-run/c1fe5151/` |
 
 Metrics captured per run: resume latency (p50/p95/p99), duplicated actions, lost
 steps, resumed-at-wrong-step. Correctness counts are absolute — any non-zero
@@ -107,8 +107,8 @@ cold-Lambda recovery rather than a local process.
 | --- | --- | --- |
 | Recovery timeline visualisation | ✅ | Built: the Gradio drill-down replays `remediation_steps`, and the interrupted step pulses with *"the process died here"* |
 | AWS architecture diagram | ✅ | Two, deliberately separate: components, and the two-cold-invocation recovery sequence |
-| Vector memory demo | ⚠️ | The pipeline runs and `reasoning_source` is rendered per step, but the **matched precedent and its distance are not shown** — the retrieval's *result* stays invisible |
-| Benchmark dashboard | ❌ | The console shows incident KPIs, not benchmark metrics. Static charts would satisfy this |
+| Vector memory demo | ✅ | The precedent the step was actually reasoned from is persisted into `remediation_steps.detail` (id, L2 distance, summary, rank, candidates considered) and rendered in the timeline. It describes the match the proposal *cited*, not the nearest one — those differ, and showing the wrong one would misrepresent the retrieval |
+| Benchmark dashboard | ✅ | "Proven under failure" panel in the console: correctness tiles + the generated charts, read from the newest committed evidence run. Static and load-time, so it costs zero Request Units and can't restate a durable result as whatever today's run produced |
 | Transaction boundaries visible in UI | ❌ | Real, logged, durable — but not a distinct console element |
 | Space first-paint / CTA | ❌ | Deliberate trade, not an oversight: `CONTINUUM_UI_LOAD_ON_OPEN=0` after a Request-Unit burn audit found the auto-refresh timer costing ~50 RU per refresh. Revisit only if cluster budget allows |
 | Judge-experience dry run | ❌ | Subjective and unverifiable from repo state; needs one walkthrough with someone who has not seen the project |
@@ -155,9 +155,13 @@ Recorded so the same items don't get re-litigated:
 
 - **CockroachDB trial credits expire 2026-08-03.** Without a payment method the
   cluster is throttled from that date and the whole organisation is deleted
-  after a 30-day grace period — landing mid-judging. `scripts/export_memory.py`
-  snapshots the demo data as insurance; the cluster itself still needs
-  resolving. See [`submission/COSTS.md`](../submission/COSTS.md).
+  after a 30-day grace period — landing mid-judging. The data half is now
+  covered: `make export-memory` snapshots it and `make restore-memory
+  SNAPSHOT=…` puts it back, proven by a round trip against a live cluster
+  ([`tests/integration/test_snapshot_roundtrip.py`](../tests/integration/test_snapshot_roundtrip.py))
+  rather than assumed — the export previously pointed at a restore command that
+  did not exist. The cluster itself still needs resolving.
+  See [`submission/COSTS.md`](../submission/COSTS.md).
 - **Bedrock quotas are dynamic and account-level** (ADR 008). Re-probe before
   recording; a days-old green run proves nothing.
 - **A green unit suite is not sufficient** for MCP or Bedrock changes — both are

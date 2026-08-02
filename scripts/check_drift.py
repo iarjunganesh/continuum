@@ -18,6 +18,8 @@ went stale at least once:
   5. Every relative markdown link resolves
   6. Generated files are current (the Devpost mirror)
   7. The Lambda manifest has not drifted from requirements.txt
+  8. README's Project Structure names every real path, and every enumerated
+     directory names all of its children
 
 Exit code 0 only when everything agrees, so CI can gate on it.
 
@@ -262,6 +264,84 @@ def check_lambda_manifest() -> list[Failure]:
     return []
 
 
+# Directories the README's tree lists child-by-child. Adding a file to one of
+# these and not to the tree is drift — which is how the tree ended up missing
+# ten scripts, two asset families and the whole data/ directory at once. Dirs
+# the tree deliberately collapses (tests/unit, docs/adr) are NOT listed here:
+# the tree describes those by their job, and enumerating 8 test files would be
+# noise that goes stale on every new test.
+TREE_ENUMERATED_DIRS = ("agents", "scripts", "infra", "prompts", "assets", "data", ".github/workflows")
+# Build outputs, caches and package plumbing — real files, but not structure a
+# reader needs. Dunder names are skipped wholesale.
+TREE_IGNORED_CHILDREN = {"__pycache__", "seed_embeddings.json"}
+
+
+def _readme_tree() -> str:
+    """The fenced block under ## Project Structure, comments stripped."""
+    text = (REPO_ROOT / "README.md").read_text(encoding="utf-8", errors="replace")
+    # Anchored on the heading, not on "continuum/" — that string also appears in
+    # every GitHub badge URL on page one, and matching the first one silently
+    # scanned the badge block instead of the tree.
+    heading = text.index("## Project Structure")
+    start = text.index("continuum/", heading)
+    end = text.index("```", start)
+    return text[start:end]
+
+
+def _tree_tokens(tree: str) -> list[str]:
+    tokens: list[str] = []
+    for line in tree.splitlines():
+        body = line.split("#", 1)[0]  # drop the annotation
+        body = re.sub(r"^[│├└─\s]+", "", body).strip()
+        if not body:
+            continue
+        # A line may name several siblings: "A.md · B.md · C.md"
+        for token in body.split("·"):
+            token = token.strip().rstrip("/")
+            if token and not token.startswith("continuum"):
+                tokens.append(token)
+    return tokens
+
+
+def check_project_tree() -> list[Failure]:
+    """The README's Project Structure must describe the repo that exists.
+
+    Two directions, because they fail differently: a token naming nothing is a
+    move or delete nobody swept for, and a child missing from the tree is work
+    that shipped without the map being updated. The second is the one that
+    actually happened, and only a reader comparing the tree against `ls` would
+    ever have caught it.
+    """
+    fails: list[Failure] = []
+    tree = _readme_tree()
+
+    real = [p for p in REPO_ROOT.rglob("*") if not any(part in SKIP_DIRS for part in p.parts)]
+    names = {p.name for p in real}
+    suffixes = {p.relative_to(REPO_ROOT).as_posix() for p in real}
+    for token in _tree_tokens(tree):
+        # Tokens are written relative to wherever they sit in the tree, so a
+        # nested entry like `load/k6_smoke.js` resolves as a path suffix rather
+        # than from the repo root.
+        if (REPO_ROOT / token).exists() or token in names:
+            continue
+        if any(s == token or s.endswith("/" + token) for s in suffixes):
+            continue
+        fails.append(("project-tree", f"README's tree names {token}, which does not exist"))
+
+    for dirname in TREE_ENUMERATED_DIRS:
+        directory = REPO_ROOT / dirname
+        if not directory.is_dir():
+            fails.append(("project-tree", f"{dirname}/ is listed as enumerated but does not exist"))
+            continue
+        for child in sorted(directory.iterdir()):
+            name = child.name
+            if name.startswith((".", "__")) or name in TREE_IGNORED_CHILDREN:
+                continue
+            if name not in tree:
+                fails.append(("project-tree", f"{dirname}/{name} is missing from README's Project Structure"))
+    return fails
+
+
 CHECKS = [
     ("version fields agree", check_versions),
     ("no future-dated references", check_no_future_dates),
@@ -270,6 +350,7 @@ CHECKS = [
     ("relative links resolve", check_links),
     ("generated files current", check_generated_files),
     ("lambda manifest in sync", check_lambda_manifest),
+    ("README project tree matches the repo", check_project_tree),
 ]
 
 

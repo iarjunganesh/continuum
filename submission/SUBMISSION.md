@@ -79,8 +79,8 @@ box here is the honest state, not an oversight.
       uses environment expansion
 - [ ] Demo app accessible without login
 - [ ] Video watched start to finish, verified under 3:00 on the **exported file**
-- [x] All CI gates green: ruff lint, ruff format, mypy, Devpost mirror freshness, 53 unit +
-      5 integration tests, 100% coverage against a 90% gate
+- [x] All CI gates green: ruff lint, ruff format, mypy, Devpost mirror freshness, 57 unit +
+      9 integration tests, 100% coverage against a 90% gate
 - [x] No broken links repo-wide (markdown links and HTML `src`/`srcset`/`href`)
 - [x] No placeholder artifacts shipping as finished — pending items are marked pending explicitly
 
@@ -88,7 +88,7 @@ box here is the honest state, not an oversight.
 
 ## Known Gaps — stated plainly
 
-These are real and unresolved as of `v0.7.1`. Listing them here is deliberate: a judge who finds
+These are real and unresolved as of `v0.9.0`. Listing them here is deliberate: a judge who finds
 them unlisted reads the whole checklist as unreliable. This table is the **single** place open
 gaps are tracked — `docs/DEMO_READINESS_CHECKLIST.md` previously duplicated it and was removed
 once its findings were either closed with evidence or folded in here, because two gap lists
@@ -103,7 +103,7 @@ drift and the stale one is always the one a judge reads.
 | **HF Space can't self-trigger an incident** | A first-time judge sees state but can't create any | Read-only by design (single write path); an incident-start CTA is not currently in scope |
 | **Space panels are blank on first paint** | A first-time visitor sees an empty console until they click Refresh | Deliberate: `CONTINUUM_UI_LOAD_ON_OPEN` defaults to `0` and auto-refresh is off after a Request-Unit burn audit found the timer costing ~50 RU per refresh. Educational empty-state copy is in place; the trade is cluster cost against first-paint polish |
 | **Transaction boundaries not surfaced in the UI** | The `SERIALIZABLE` checkpoint pair is load-bearing (ADR 009) but only visible in logs and the database | Real and structlog-logged on every step; not rendered as a distinct console element |
-| **Matched precedent not shown in the console** | The vector search's *result* — which past incident was matched — is invisible in the UI | Match count is logged and `reasoning_source` is now rendered per step, but the matched incident and its distance are not |
+| ~~**Matched precedent not shown in the console**~~ — **resolved 2026-08-02** | The vector search's *result* — which past incident was matched — was invisible in the UI | Each step now persists the precedent it was reasoned from into `remediation_steps.detail` (incident id, L2 distance, summary, rank, candidates considered) and the timeline renders it. It shows the match the proposal **cited**, not merely the nearest one — a unit test pins that distinction |
 | **No judge-experience dry run** | The "understands it in 60 seconds" claim is untested against a fresh viewer | Subjective and unverifiable from repo state; needs one real walkthrough with someone who has not seen the project |
 
 ## Feedback for Cockroach Labs *(optional submission item — draft)*

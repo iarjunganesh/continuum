@@ -81,6 +81,7 @@ a judge to discover. See ADR 008 and its addendum for the account-level quota hi
 | [`demo-video/`](demo-video/) | Final cut, captions, per-beat takes, and static flash-cut frames |
 | [`demo-voiceover/`](demo-voiceover/) | **Generated** — Amazon Polly narration, one clip per beat (`make voiceover`) |
 | [`resilience-run/`](resilience-run/) | Correctness-under-adversity evidence — kill storms, Lambda timeouts, exactly-once, vector scale |
+| [`deploy-restart-run/`](deploy-restart-run/) | The deployment-restart drill (`make deploy-restart-drill`) — a real `sam deploy` replacing the code under an open incident, and the resume that lands exactly once on the new build. Its own family, not a `resilience-run/`: it produces a single suite, and a one-suite folder dropped in there would become the newest run for `make charts` and the console panel, both of which would then find none of the suites they render |
 | `logo.svg` | Project mark, used in the README header |
 
 Charts and voiceover are **generated, never hand-edited** — regenerate from source rather than

@@ -104,6 +104,21 @@ AWS_PROFILE=continuum-deploy sam deploy \
   --parameter-overrides CockroachDatabaseUrl="$COCKROACH_DATABASE_URL"
 ```
 
+> **`AWS_PROFILE` alone will not switch identity here.** `.env` exports static
+> `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` for the Bedrock-only user, and boto3 ranks
+> static environment keys **above** the named profile — so the profile is silently ignored and
+> the failure surfaces as an IAM `AccessDenied` on CloudFormation (or on `lambda:InvokeFunction`),
+> which reads like a permissions problem on the admin user rather than a credential-precedence
+> one. Clear them for the deploy shell first:
+>
+> ```bash
+> unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY   # PowerShell: Remove-Item env:AWS_ACCESS_KEY_ID, env:AWS_SECRET_ACCESS_KEY
+> export AWS_PROFILE=continuum-admin
+> ```
+>
+> `make preflight-deploy` prints the identity it actually resolved — check it says the admin
+> user, not `continuum-bedrock`.
+
 `samconfig.toml` is **checked in**, so the deploy is reproducible rather than depending on whoever ran `sam deploy --guided` first. It carries the stack name, region, capabilities and container-build flag — but **deliberately not `CockroachDatabaseUrl`**, which is a live cluster credential and is passed from the environment by the `deploy` target instead.
 
 To override the Bedrock region when a probe shows the default has closed:

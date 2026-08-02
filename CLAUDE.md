@@ -11,7 +11,9 @@ Continuum — an agentic incident-response system built for the CockroachDB × A
 
 **The orchestrator is deployed and the recovery guarantee is proven on the real runtime** (2026-08-01): stack `continuum` in eu-central-1, `arn:aws:lambda:eu-central-1:504804196134:function:continuum-orchestrator`. Four cold `sam remote invoke` calls drove one incident 0 → 1 → 2 → `resolved`, each reporting `correlation_source`/`reasoning_source` of `bedrock`, so Bedrock and the vector search demonstrably ran inside Lambda under the function's own role. Cold start 1.71 s, 129 MB of 512 MB.
 
-Deploy notes that cost time and will again: build from a **clean `git clone`**, never the working tree — `CodeUri: ../` packages the repo root, and a local `.venv`/`.mypy_cache` blows Lambda's 250 MB limit. `sam build` reads `infra/requirements-lambda.txt` (via `manifest` in `samconfig.toml`), *not* the root `requirements.txt`, which would ship Gradio and the dev toolchain into the function; `tests/unit/test_lambda_manifest.py` guards the two files against drift. Deploy with `--profile continuum-admin`; the default `continuum-bedrock` identity is Bedrock-invoke only and gets `AccessDenied` on CloudFormation by design. Run `make preflight-deploy` first — it checks all of this.
+**Every failure mode in the Never-Miss table is now closed** (2026-08-02): the last one, *deployment restart mid-incident*, is proven by `make deploy-restart-drill` — an incident held in a durable `executing` row while a real `sam build` + `sam deploy` swaps the function's code, then resumed exactly once on the new build (evidence `assets/deploy-restart-run/c1fe5151/`). The drill asserts `CodeSha256` actually moved; a no-op deploy would otherwise pass while proving nothing.
+
+Deploy notes that cost time and will again: build from a **clean `git clone`**, never the working tree — `CodeUri: ../` packages the repo root, and a local `.venv`/`.mypy_cache` blows Lambda's 250 MB limit. `sam build` reads `infra/requirements-lambda.txt` (via `manifest` in `samconfig.toml`), *not* the root `requirements.txt`, which would ship Gradio and the dev toolchain into the function; `tests/unit/test_lambda_manifest.py` guards the two files against drift. Deploy with `--profile continuum-admin`; the default `continuum-bedrock` identity is Bedrock-invoke only and gets `AccessDenied` on CloudFormation by design. **Setting `AWS_PROFILE` is not enough**: `.env` exports static `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` for that Bedrock-only user, and boto3 ranks static keys above the profile — so the profile is silently ignored and the failure arrives as an IAM `AccessDenied`, not a config error. Unset both in the shell before deploying or invoking. Run `make preflight-deploy` first — it checks all of this.
 
 Remaining before submission: capture the judge-facing evidence runs into `assets/chaos-run/` (see `assets/README.md`), record the demo video (`submission/DEMO_SCRIPT.md`), and fill in the `submission/SUBMISSION.md` checklist end to end.
 
@@ -27,6 +29,9 @@ make demo               # one remediation tick, in-process
 make chaos-demo         # the kill-and-recover sequence — see submission/DEMO_SCRIPT.md
 make probe-bedrock      # is live Bedrock open today? quotas are dynamic — run before recording
 make benchmark          # latency benchmarks → docs/BENCHMARKS.md
+make export-memory      # snapshot incidents/steps/embeddings → data/snapshots/*.jsonl
+make restore-memory SNAPSHOT=<path>   # put a snapshot back (idempotent, ON CONFLICT DO NOTHING)
+make deploy-restart-drill CLONE_DIR=<clean checkout>  # redeploy under an open incident, prove the resume
 make deploy             # sam build --use-container + sam deploy (docs/DEPLOY.md)
 make lint               # ruff check . AND ruff format --check .  (both are CI-gated)
 make format             # ruff format .  — rewrites
@@ -67,8 +72,8 @@ sweep below as part of the change, not as follow-up work.
 
 `scripts/check_drift.py` mechanically verifies the things that kept going stale: version fields
 agreeing, no date describing work as done before it happened, stated test and ADR counts matching
-what actually exists, every relative link resolving, generated files current, and the Lambda
-manifest in sync. It exists because asking for a manual sweep demonstrably did not work — a
+what actually exists, every relative link resolving, generated files current, the Lambda
+manifest in sync, and the README's Project Structure naming every real path. It exists because asking for a manual sweep demonstrably did not work — a
 release date four days in the future shipped on page one of the changelog, and a stale test count
 survived several sweeps because each one checked whichever places came to mind.
 
@@ -98,6 +103,26 @@ someone deleting it later:
 - **Never let a placeholder ship as if finished.** `TBD`, "captured before submission", and
   tables describing artifacts that don't exist are worse than an honest "not yet" — a judge
   finds them first. Mark pending things pending, explicitly.
+- **The README's Project Structure must describe the repo that exists.** Every path it names must
+  resolve, and every child of an enumerated directory (`agents/`, `scripts/`, `infra/`,
+  `prompts/`, `assets/`, `data/`, `.github/workflows/`) must appear in the tree. Adding a script
+  or an asset family is a change to the tree, in the same commit. This is checked mechanically
+  because it failed silently for a long time: the tree was missing ten scripts, two asset
+  families and the whole `data/` directory before anyone compared it to `ls`.
+
+**The README is judged as one document, and it is the one most likely to go stale.** Sweep it
+**twice** on any change that touches behaviour, structure, counts, or claims:
+
+1. **Before committing to `main`** — walk the README top to bottom, section by section, not just
+   the part you edited. The badge row (release version, dependency floors), What Is This, How It
+   Works, the tool/service lists, Quick Start against the `Makefile`, Project Structure,
+   Production & Quality, Load & Resilience. Then `make check-drift` and `make devpost-readme`.
+2. **Before tagging** — again, because the release badge and the version fields only become wrong
+   *at* the tag, and a tag is the thing judges land on. Confirm the release badge names the
+   version you are about to tag.
+
+`submission/DEVPOST_README.md` is a rendering of the same file, so both sweeps cover it by
+regenerating — never by editing it.
 
 **Generated files — edit the source, never the output.** Each of these has exactly one definition;
 regenerate rather than hand-editing, or the two copies drift and CI catches you late:
@@ -133,15 +158,17 @@ README — counts, dates, claims, new sections — is a change to both files.**
 **Before tagging a release:**
 1. `make lint && make typecheck && make test && make coverage` — all green, coverage above the gate.
    (`make lint` covers both `ruff check` and `ruff format --check`; CI gates them separately.)
-2. `make devpost-readme` — the mirror must be current, or CI's `--check` step fails.
-3. `CHANGELOG.md` has a section for the exact version being tagged; `release.yml` extracts release
+2. `make check-drift`, then the README sweep above — top to bottom, including the release badge,
+   which names the version and is only wrong *at* the tag.
+3. `make devpost-readme` — the mirror must be current, or CI's `--check` step fails.
+4. `CHANGELOG.md` has a section for the exact version being tagged; `release.yml` extracts release
    notes from it by regex, so the heading format `## [X.Y.Z]` is load-bearing.
-4. **Tag the commit that is actually on `main`.** Tags were previously created and then orphaned
+5. **Tag the commit that is actually on `main`.** Tags were previously created and then orphaned
    by a rebase/amend that rewrote the commits underneath them — `git describe --tags` failed
    because no tag was an ancestor of `HEAD`. After tagging, verify:
    `git describe --tags` resolves, and `git log --oneline --decorate -5` shows the tag.
-5. Push commits *and* tags: `git push origin main --follow-tags`.
-6. Never rebase or amend a commit that a tag points at. If history must be rewritten, re-point the
+6. Push commits *and* tags: `git push origin main --follow-tags`.
+7. Never rebase or amend a commit that a tag points at. If history must be rewritten, re-point the
    affected tags in the same operation and force-push them deliberately.
 
 Commit subjects carry no version numbers — the tag and CHANGELOG carry the version.
@@ -161,7 +188,9 @@ Commit subjects carry no version numbers — the tag and CHANGELOG carry the ver
 - `tests/unit/` — one file per agent/module; all external I/O (psycopg, boto3, mcp SDK) mocked at the import boundary; coverage gate enforced at 90% (`--cov-fail-under=90` in CI)
 - `tests/integration/test_recovery_e2e.py` — drives the resume + exactly-once contract against a live CockroachDB instance (the kill is injected as the durable `executing` state a real `chaos_kill.py` strike leaves; correlation/remediation mocked, memory agent and schema real). `test_forward_step_claim_is_exactly_once` proves the `ON CONFLICT` claim guard on a real cluster. Skips if `COCKROACH_DATABASE_URL` isn't set.
 - `tests/integration/test_chaos_kill_e2e.py` — the literal version: spawns the orchestrator as a real uvicorn subprocess, hard-kills it mid-step with `scripts/chaos_kill.py` (a genuine `SIGKILL`/`TerminateProcess`), and asserts a cold restart resumes the interrupted step exactly once.
-- `tests/integration/test_vector_index.py` — asserts via `EXPLAIN` that the correlation query actually uses the C-SPANN index. It did **not** for a long time: joining `incidents` in the same statement as the `<->` ordering made CockroachDB fall back to `spans: FULL SCAN`, so "Distributed Vector Indexing" was claimed but unexercised while results stayed correct. The CTE in `find_similar` is what restores it — don't inline it back. A second test fails deliberately if a future CockroachDB version plans the inlined JOIN through the index, so the workaround can't outlive its cause. 5 integration test functions across these 3 files.
+- `tests/integration/test_vector_index.py` — asserts via `EXPLAIN` that the correlation query actually uses the C-SPANN index. It did **not** for a long time: joining `incidents` in the same statement as the `<->` ordering made CockroachDB fall back to `spans: FULL SCAN`, so "Distributed Vector Indexing" was claimed but unexercised while results stayed correct. The CTE in `find_similar` is what restores it — don't inline it back. A second test fails deliberately if a future CockroachDB version plans the inlined JOIN through the index, so the workaround can't outlive its cause.
+- `tests/integration/test_snapshot_roundtrip.py` — exports, wipes and restores the memory layer against the real schema: rows and JSONB `detail` survive, a restored embedding still answers a `<->` search at distance ≈0, and the restore is idempotent. It exists because the export's own `_meta.note` advertised a restore command that did not exist, so the backup had never been restored. One test asserts that note still names a real command.
+- 9 integration test functions across these 4 files.
 - `tests/load/k6_smoke.js` — read-path smoke load, **not** run in CI (needs k6 + a live API). Deliberately never exercises `POST /alert`: that drives real state through the single write path, and racing the forward-step claim outside controlled conditions fabricates incidents rather than testing them.
 - CI runs an ephemeral single-node CockroachDB container so the integration suite actually executes on every push, not just locally when a dev happens to have a cluster handy
 - **A green unit suite is necessary but not sufficient for MCP or Bedrock changes.** Both are mocked at the import boundary, so the suite passes against a client that would fail against the real server. Those changes need a live round trip — this is exactly why `mcp` is pinned `<2` despite 2.0.0 being released.

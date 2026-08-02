@@ -3,6 +3,30 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.0] — 2026-08-02 — the last failure mode closed, and the retrieval made visible
+
+### Verified
+
+- **Recovery survives the deployed code being replaced under an open incident** — the last ❌ row in the Never-Miss table. Every other suite kills the *process*; this one swaps the *artifact*. An incident is driven into a durable `executing` row on the deployed function (AWS itself performs the kill, via a `Timeout` lowered below the step window), a real `sam build` + `sam deploy` replaces the code, and the cold invocation afterwards resumes that exact step, exactly once, **on a build that did not exist when the step began**. The durable row is the only thing bridging the two versions.
+
+  It is not a restatement of the Lambda-timeout suite: that proves recovery survives the execution environment vanishing, this proves it survives the deployed artifact changing — which is the failure an on-call engineer actually causes, by shipping a fix while an incident is open. First run, evidence `assets/deploy-restart-run/c1fe5151/`: step 0 held `executing` across a 66 s deploy that moved the code hash, and the resume landed with exactly one row for it, `correlation_source` and `reasoning_source` both `bedrock`.
+
+  The drill compares `CodeSha256` and `RevisionId` across the deploy and **fails if neither moved** — a no-op deploy would otherwise produce an identical-looking pass and prove nothing, which is precisely the class of unearned green this project keeps finding.
+
+- **The memory snapshot is restorable, proven by a round trip against a live cluster.** `scripts/export_memory.py` shipped as insurance against the trial credits lapsing, and its own `_meta.note` told the reader to restore with `seed_memory.py --from-snapshot` — **a command that does not exist**. The backup had never been restored, so the insurance was untested. `tests/integration/test_snapshot_roundtrip.py` now exports, wipes, restores and asserts on the real schema: rows and JSONB `detail` come back identical, a restored embedding still answers a `<->` search at distance ≈0, restoring twice is idempotent, and the `_meta` note names a command that actually resolves.
+
+### Added
+
+- **`scripts/restore_memory.py` / `make restore-memory SNAPSHOT=…`** — restores the exact durable rows from a snapshot, through `ON CONFLICT DO NOTHING` so a partial restore can be re-run. Chunked at 100 rows with retry-and-backoff on `SerializationFailure`, for the same reason the resilience benchmark needed it: bulk vector inserts contend on C-SPANN partition metadata.
+- **The precedent a step was reasoned from is persisted and shown.** `remediation_steps.detail` now carries the matched incident's id, L2 distance, summary, rank, and how many candidates were considered, and the Gradio timeline renders it beneath the action. The vector search was doing real work that left no trace: `reasoning_source: bedrock` said *Claude decided this*, never *this is what it recalled*. It describes the match the proposal **cited**, not simply the nearest one — those differ, and a unit test pins that distinction, because showing the top hit as "the precedent" would misrepresent the retrieval whenever the model chose a different one.
+- **"Proven under failure" panel in the console** — the correctness tiles (kill storm, real `SIGKILL`, AWS Lambda timeout, deploy mid-incident, exactly-once) and the generated charts, read from the newest committed evidence run. Static and load-time: these are results of past forced failures, so re-deriving them live would spend Request Units to recompute numbers that are already durable, and would quietly turn a stated result into whatever today's run happened to produce. Nothing in the panel is hardcoded — every figure is computed from the run's JSON.
+- **`make export-memory`, `make restore-memory`, `make deploy-restart-drill`** — the three new operations get Makefile targets, which is where this repo documents how to run anything.
+- **An eighth drift check: the README's Project Structure must describe the repo that exists.** Every path the tree names has to resolve, and every child of an enumerated directory (`agents/`, `scripts/`, `infra/`, `prompts/`, `assets/`, `data/`, `.github/workflows/`) has to appear in it. It went in because the tree had quietly fallen ten scripts, two asset families and the entire `data/` directory behind the repo — invisible to every other check, and to every sweep, because nothing compared it against `ls`. The tree is now accurate and adding a file without mapping it fails the build.
+
+### Changed
+
+- **The console follows the viewer's theme instead of forcing dark.** It previously rewrote the URL to `?__theme=dark` and reloaded, which was fine for the recorded demo and wrong for the public Space: a visitor browsing in light mode got hard-coded dark panels bleeding into Gradio's own light chrome. Every colour is now a CSS custom property with a light and a dark set, and the charts — baked images that cannot pick up a token swap — inline both renders with one hidden. Theme is taken from Gradio's own `dark` class rather than `prefers-color-scheme`, so an explicit `?__theme=` override is honoured; the media query remains as the pre-hydration fallback.
+
 ## [0.8.0] — 2026-08-02 — AWS made real, the vector index made real, and correctness proven under failure
 
 ### Verified
