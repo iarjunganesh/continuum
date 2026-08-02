@@ -20,6 +20,7 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 import gradio as gr
 import psycopg
@@ -219,6 +220,14 @@ footer {{ display: none !important; }}
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }}
 .cx-prec-s {{ color: {INK2}; font-size: 12.5px; line-height: 1.5; margin-top: 5px; font-style: italic; }}
 .cx-when {{ color: {MUTED}; font-size: 12px; margin-top: 5px; }}
+
+/* Resilience evidence — static, read from the committed run rather than the
+   cluster, so this section costs zero Request Units to render. */
+.cx-eviz {{ color: {INK2}; font-size: 13px; line-height: 1.6; margin: 14px 2px 4px; }}
+.cx-figs {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-top: 12px; }}
+.cx-fig {{ margin: 0; border: 1px solid {BORDER}; border-radius: 14px; overflow: hidden; background: {PLANE}; }}
+.cx-fig svg {{ display: block; width: 100%; height: auto; }}
+.cx-figcap {{ color: {MUTED}; font-size: 12px; padding: 9px 14px 12px; border-top: 1px solid {BORDER}; }}
 
 .cx-empty {{ border: 1px dashed {BORDER}; border-radius: 14px; padding: 34px; text-align: center;
   color: {INK2}; background: {SURF1}; }}
@@ -557,6 +566,165 @@ def ask_via_mcp():
     return json.dumps(result.rows, indent=2, default=str)
 
 
+# ── Resilience evidence ───────────────────────────────────────────────────────
+# The console answers "what is happening right now"; this section answers "how
+# often is it wrong when things go badly", which is the actual claim. Read from
+# the newest committed evidence run rather than the cluster: these are results
+# of past forced failures, so re-deriving them live would cost Request Units to
+# recompute numbers that are already durable — and would quietly turn a stated
+# result into whatever today's run happened to produce.
+#
+# Every figure below is computed from the run's JSON. Nothing is hardcoded: a
+# number typed into this file would be a fifth place for the benchmarks to drift
+# out of sync with themselves, which is exactly what check_drift.py exists to
+# stop. If the folder is missing the section degrades to an honest note.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+RUNS_DIR = REPO_ROOT / "assets" / "resilience-run"
+CHARTS_DIR = REPO_ROOT / "assets" / "charts"
+
+# SVG only, deliberately. The Space sync workflow strips binaries before pushing
+# to the Hub (Xet/LFS is required for them over plain git), so a PNG here would
+# render as a broken image on the public demo while looking fine locally.
+_CHARTS = [
+    ("chart-kill-storm-dark.svg", "Fifty kills, fifty resumes"),
+    ("chart-lambda-timeout-dark.svg", "AWS performs the kill"),
+    ("chart-throughput-dark.svg", "Concurrency absorbed, not rejected"),
+    ("chart-vector-scale-dark.svg", "C-SPANN against a forced full scan"),
+]
+
+
+def _newest_run() -> Path | None:
+    runs = [p for p in RUNS_DIR.glob("*/evidence") if p.is_dir()]
+    return max(runs, key=lambda p: p.stat().st_mtime).parent if runs else None
+
+
+def _load_evidence(run: Path) -> dict:
+    """Load a run's suite JSONs, keyed by suite name. Missing files are skipped
+    so a partial run still renders what it does have."""
+    out = {}
+    for path in (run / "evidence").glob("*.json"):
+        suite = path.stem.split("_", 1)[-1]
+        try:
+            out[suite] = json.loads(path.read_text(encoding="utf-8"))
+        except OSError, json.JSONDecodeError:
+            continue
+    return out
+
+
+def _evidence_tiles(data: dict) -> list[str]:
+    """Headline correctness figures.
+
+    Correctness counts are absolute, not percentiles: any non-zero duplicate or
+    lost step is a defect, so they are shown as raw counts. A "99.9% exactly
+    once" would be a failure wearing a percentage.
+    """
+    tiles = []
+    storm = data.get("kill-storm")
+    if storm:
+        tiles.append(
+            _stat_tile(
+                "Kill storm",
+                f"{storm['resumed']}/{storm['n']}",
+                GOOD,
+                f"{storm['duplicated']} duplicated · {storm['lost']} lost · {storm['wrong_step']} wrong step",
+            )
+        )
+    sigkill = data.get("real-sigkill")
+    if sigkill:
+        tiles.append(
+            _stat_tile(
+                "Real SIGKILL",
+                f"{sigkill['survived']}/{sigkill['n']}",
+                GOOD,
+                f"genuine process kills · {sigkill['duplicated']} duplicated",
+            )
+        )
+    lam = data.get("lambda-timeout")
+    if lam:
+        tiles.append(
+            _stat_tile(
+                "AWS Lambda timeout",
+                f"{lam['resumed']}/{lam['n']}",
+                PURPLE,
+                f"{lam['timed_out']} killed by AWS, no catchable signal",
+            )
+        )
+    once = data.get("exactly-once")
+    if once:
+        trials = sum(r["trials"] for r in once)
+        violations = sum(r["violations"] for r in once)
+        peak = max(r["concurrency"] for r in once)
+        tiles.append(
+            _stat_tile(
+                "Exactly-once",
+                f"{violations} violations",
+                GOOD if violations == 0 else CRITICAL,
+                f"{trials} trials, up to {peak}-way contention",
+            )
+        )
+    return tiles
+
+
+def _evidence_note(data: dict) -> str:
+    """One line of context drawn from the numbers themselves."""
+    bits = []
+    tp = data.get("agent-throughput")
+    if tp:
+        best = max(tp, key=lambda r: r["throughput"])
+        bits.append(
+            f"{best['agents']} concurrent agents sustained {best['throughput']:.1f} completed/s "
+            f"with {sum(r['failures'] for r in tp)} failures"
+        )
+    vs = data.get("vector-scale")
+    if vs:
+        biggest = max(vs, key=lambda r: r["vectors"])
+        speedup = biggest["brute_warm_p50"] / biggest["ann_warm_p50"]
+        bits.append(
+            f"C-SPANN {speedup:.1f}× faster than a full scan at {biggest['vectors']:,} vectors "
+            f"({biggest['ann_warm_p50']:.0f} ms vs {biggest['brute_warm_p50']:.0f} ms, warm)"
+        )
+    return " · ".join(bits)
+
+
+def load_evidence() -> str:
+    run = _newest_run()
+    if run is None:
+        return (
+            '<div class="cx"><div class="cx-empty">No evidence run committed yet — '
+            "run <code>make resilience-bench</code> to generate one.</div></div>"
+        )
+    data = _load_evidence(run)
+    tiles = _evidence_tiles(data)
+    if not tiles:
+        return (
+            f'<div class="cx"><div class="cx-empty">Evidence run {_esc(run.name)} has no readable suites.</div></div>'
+        )
+
+    charts = []
+    for filename, caption in _CHARTS:
+        path = CHARTS_DIR / filename
+        if not path.exists():
+            continue
+        # Inlined rather than <img src=...>: Gradio serves only allowed paths
+        # and the Space's file routing differs from local, so an inline <svg>
+        # is the one form that renders identically in both.
+        charts.append(
+            f'<figure class="cx-fig">{path.read_text(encoding="utf-8")}'
+            f'<figcaption class="cx-figcap">{_esc(caption)}</figcaption></figure>'
+        )
+
+    note = _evidence_note(data)
+    return f"""
+    <div class="cx">
+      <div class="cx-kpis">{"".join(tiles)}</div>
+      <div class="cx-eviz">{note}</div>
+      <div class="cx-figs">{"".join(charts)}</div>
+      <div class="cx-when" style="margin-top:10px">Evidence run <code>{_esc(run.name)}</code> ·
+        committed under <code>assets/resilience-run/</code> with the git commit that produced it ·
+        charts regenerated by <code>make charts</code>, never screenshotted</div>
+    </div>"""
+
+
 # ── Force dark so the recorded demo always reads as an ops console ────────────
 _FORCE_DARK = """
 () => {
@@ -616,6 +784,11 @@ with gr.Blocks(title="Continuum — Live Incident Memory", analytics_enabled=Fal
     gr.HTML('<div class="cx"><div class="cx-h">Recovery timeline · replay a remediation log</div></div>')
     incident_dd = gr.Dropdown(label="Incident", choices=[], interactive=True, filterable=True)
     timeline = gr.HTML(load_timeline(None))
+
+    # Static and load-time: these are results of past forced failures, so there
+    # is nothing to refresh and no Request Unit to spend.
+    gr.HTML('<div class="cx"><div class="cx-h">Proven under failure · committed evidence, not claims</div></div>')
+    gr.HTML(load_evidence())
 
     gr.HTML('<div class="cx"><div class="cx-h">Same state, over the Managed MCP Server (read-only)</div></div>')
     with gr.Row():
