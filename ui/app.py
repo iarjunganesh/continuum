@@ -42,13 +42,62 @@ REFRESH_SECONDS = max(0.0, float(os.getenv("CONTINUUM_UI_REFRESH_SECONDS", "0"))
 LOAD_ON_OPEN = os.getenv("CONTINUUM_UI_LOAD_ON_OPEN", "0") == "1"
 REFRESH_LABEL = "manual refresh only" if REFRESH_SECONDS <= 0 else f"auto-refreshing every {REFRESH_SECONDS:g}s"
 
-# ── Palette (dark ops surface; validated status colors from the dataviz skill).
+# ── Palette (validated status colors from the dataviz skill).
 # Status color never carries meaning alone — every chip ships an icon + label.
-INK, INK2, MUTED = "#ffffff", "#c3c2b7", "#898781"
-PLANE, SURF1, SURF2 = "#0d0d0d", "#161619", "#1e1e22"
-BORDER = "rgba(255,255,255,0.10)"
-GOOD, WARNING, SERIOUS, CRITICAL = "#0ca30c", "#fab219", "#ec835a", "#d03b3b"
-NEUTRAL, PURPLE = "#3987e5", "#8b6dff"  # NEUTRAL = processing phase; PURPLE = brand
+#
+# Every colour is a CSS custom property rather than a literal, so the same
+# rendered markup reads correctly in both themes: the panels are built once and
+# the tokens are swapped underneath them. The dark surface is the ops-console
+# look the demo is recorded against; the light one exists because the Hugging
+# Face Space follows the viewer's theme, and a viewer in light mode previously
+# got dark panels bleeding into a white page.
+#
+# Status hues are NOT shared between themes. #fab219 and #ec835a carry enough
+# contrast on a near-black plane and nowhere near enough on white, so the light
+# set darkens them to keep the same meaning legible rather than reusing a value
+# that happens to have the right name.
+_DARK_TOKENS = {
+    "ink": "#ffffff",
+    "ink2": "#c3c2b7",
+    "muted": "#898781",
+    "plane": "#0d0d0d",
+    "surf1": "#161619",
+    "surf2": "#1e1e22",
+    "border": "rgba(255,255,255,0.10)",
+    "good": "#0ca30c",
+    "warning": "#fab219",
+    "serious": "#ec835a",
+    "critical": "#d03b3b",
+    "neutral": "#3987e5",
+    "purple": "#8b6dff",
+}
+_LIGHT_TOKENS = {
+    "ink": "#141413",
+    "ink2": "#3d3d3a",
+    "muted": "#63625c",
+    "plane": "#ffffff",
+    "surf1": "#faf9f5",
+    "surf2": "#f0efea",
+    "border": "rgba(0,0,0,0.13)",
+    "good": "#0a7d0a",
+    "warning": "#8a5a00",
+    "serious": "#b4501f",
+    "critical": "#bc2f2f",
+    "neutral": "#1f6fd0",
+    "purple": "#6933ff",
+}
+
+
+def _tokens(values: dict) -> str:
+    return " ".join(f"--cx-{k}: {v};" for k, v in values.items())
+
+
+INK, INK2, MUTED = "var(--cx-ink)", "var(--cx-ink2)", "var(--cx-muted)"
+PLANE, SURF1, SURF2 = "var(--cx-plane)", "var(--cx-surf1)", "var(--cx-surf2)"
+BORDER = "var(--cx-border)"
+GOOD, WARNING = "var(--cx-good)", "var(--cx-warning)"
+SERIOUS, CRITICAL = "var(--cx-serious)", "var(--cx-critical)"
+NEUTRAL, PURPLE = "var(--cx-neutral)", "var(--cx-purple)"  # NEUTRAL = processing phase; PURPLE = brand
 
 # Incident lifecycle → (color, glyph, label)
 STATE_META = {
@@ -84,8 +133,25 @@ STEP_META = {
 }
 
 CSS = f"""
+/* Theme tokens. Light is the default declaration; dark wins in two ways, in
+   this order:
+     1. the media query, for the moment before the sync script runs (and if it
+        never runs — an older Gradio that won't accept `js=`), and
+     2. the data-cx attribute the sync script mirrors off Gradio's own `dark`
+        class, which is the authority once it exists: a viewer who overrides
+        the theme with ?__theme=light on a dark OS must get light panels, and
+        prefers-color-scheme alone would give them dark ones.
+   Scoped to :root so the tokens are also in scope for the <style> block's own
+   ancestors, not only inside .gradio-container. */
+:root {{ {_tokens(_LIGHT_TOKENS)} }}
+@media (prefers-color-scheme: dark) {{
+  :root:not([data-cx]) {{ {_tokens(_DARK_TOKENS)} }}
+}}
+:root[data-cx="dark"] {{ {_tokens(_DARK_TOKENS)} }}
+:root[data-cx="light"] {{ {_tokens(_LIGHT_TOKENS)} }}
+
 /* Override Gradio's theme tokens so native widgets (button, dropdown, code box)
-   render dark on any Gradio version — belt to force-dark's suspenders. */
+   follow the same palette on any Gradio version. */
 .gradio-container {{
   background: {PLANE} !important; max-width: 1180px !important;
   --body-background-fill: {PLANE}; --background-fill-primary: {SURF1};
@@ -230,6 +296,18 @@ footer {{ display: none !important; }}
 .cx-figs {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-top: 12px; }}
 .cx-fig {{ margin: 0; border: 1px solid {BORDER}; border-radius: 14px; overflow: hidden; background: {PLANE}; }}
 .cx-fig svg {{ display: block; width: 100%; height: auto; }}
+/* Charts are pre-rendered images, so they can't read the tokens above — both
+   renders are inlined and one is hidden. Same cascade as the tokens: media
+   query first, attribute wins once the sync script has run. */
+.cx-theme-dark {{ display: none; }}
+@media (prefers-color-scheme: dark) {{
+  :root:not([data-cx]) .cx-theme-dark {{ display: block; }}
+  :root:not([data-cx]) .cx-theme-light {{ display: none; }}
+}}
+:root[data-cx="dark"] .cx-theme-dark {{ display: block; }}
+:root[data-cx="dark"] .cx-theme-light {{ display: none; }}
+:root[data-cx="light"] .cx-theme-dark {{ display: none; }}
+:root[data-cx="light"] .cx-theme-light {{ display: block; }}
 .cx-figcap {{ color: {MUTED}; font-size: 12px; padding: 9px 14px 12px; border-top: 1px solid {BORDER}; }}
 
 .cx-empty {{ border: 1px dashed {BORDER}; border-radius: 14px; padding: 34px; text-align: center;
@@ -592,11 +670,13 @@ CHARTS_DIR = REPO_ROOT / "assets" / "charts"
 # SVG only, deliberately. The Space sync workflow strips binaries before pushing
 # to the Hub (Xet/LFS is required for them over plain git), so a PNG here would
 # render as a broken image on the public demo while looking fine locally.
+# Named by stem: `make charts` emits a dark and a light render of each, and both
+# are inlined so the figures follow the viewer's theme like everything else.
 _CHARTS = [
-    ("chart-kill-storm-dark.svg", "Fifty kills, fifty resumes"),
-    ("chart-lambda-timeout-dark.svg", "AWS performs the kill"),
-    ("chart-throughput-dark.svg", "Concurrency absorbed, not rejected"),
-    ("chart-vector-scale-dark.svg", "C-SPANN against a forced full scan"),
+    ("chart-kill-storm", "Fifty kills, fifty resumes"),
+    ("chart-lambda-timeout", "AWS performs the kill"),
+    ("chart-throughput", "Concurrency absorbed, not rejected"),
+    ("chart-vector-scale", "C-SPANN against a forced full scan"),
 ]
 
 
@@ -726,16 +806,20 @@ def load_evidence() -> str:
         )
 
     charts = []
-    for filename, caption in _CHARTS:
-        path = CHARTS_DIR / filename
-        if not path.exists():
+    for stem, caption in _CHARTS:
+        renders = {t: CHARTS_DIR / f"{stem}-{t}.svg" for t in ("dark", "light")}
+        if not all(p.exists() for p in renders.values()):
             continue
         # Inlined rather than <img src=...>: Gradio serves only allowed paths
         # and the Space's file routing differs from local, so an inline <svg>
-        # is the one form that renders identically in both.
+        # is the one form that renders identically in both. Both themes are
+        # inlined and CSS hides one — a chart is a baked-in image and cannot
+        # pick up the token swap the rest of the console gets for free.
+        panes = "".join(
+            f'<div class="cx-theme-{theme}">{path.read_text(encoding="utf-8")}</div>' for theme, path in renders.items()
+        )
         charts.append(
-            f'<figure class="cx-fig">{path.read_text(encoding="utf-8")}'
-            f'<figcaption class="cx-figcap">{_esc(caption)}</figcaption></figure>'
+            f'<figure class="cx-fig">{panes}<figcaption class="cx-figcap">{_esc(caption)}</figcaption></figure>'
         )
 
     note = _evidence_note(data)
@@ -750,14 +834,29 @@ def load_evidence() -> str:
     </div>"""
 
 
-# ── Force dark so the recorded demo always reads as an ops console ────────────
-_FORCE_DARK = """
+# ── Follow the viewer's theme ────────────────────────────────────────────────
+# This used to force ?__theme=dark with a page reload, which made the console
+# unreadable for anyone browsing the Space in light mode: Gradio rendered its
+# own chrome light around panels that were still hard-coded dark.
+#
+# Instead, mirror Gradio's own `dark` class onto a data-cx attribute the CSS
+# above keys off. Reading the class rather than the media query is what makes
+# an explicit ?__theme= override work — Gradio honours it, prefers-color-scheme
+# doesn't know about it. The observer is needed because Gradio can toggle the
+# class after first paint (theme switch, late hydration).
+# Record dark by passing ?__theme=dark, exactly as before, minus the reload.
+_THEME_SYNC = """
 () => {
-  const u = new URL(window.location);
-  if (u.searchParams.get('__theme') !== 'dark') {
-    u.searchParams.set('__theme', 'dark');
-    window.location.replace(u.href);
-  }
+  const root = document.documentElement;
+  const apply = () => {
+    const dark = root.classList.contains('dark') || document.body.classList.contains('dark');
+    root.setAttribute('data-cx', dark ? 'dark' : 'light');
+  };
+  apply();
+  // attributeFilter is class-only, so writing data-cx here can't re-trigger us.
+  const obs = new MutationObserver(apply);
+  obs.observe(root, {attributes: true, attributeFilter: ['class']});
+  obs.observe(document.body, {attributes: true, attributeFilter: ['class']});
 }
 """
 
@@ -801,7 +900,7 @@ with gr.Blocks(title="Continuum — Live Incident Memory", analytics_enabled=Fal
 
     with gr.Row():
         refresh_btn = gr.Button("↻ Refresh now", variant="primary", scale=0)
-        gr.HTML(f'<div class="cx" style="color:#898781;font-size:12px;align-self:center">{_esc(REFRESH_LABEL)}</div>')
+        gr.HTML(f'<div class="cx" style="color:{MUTED};font-size:12px;align-self:center">{_esc(REFRESH_LABEL)}</div>')
 
     gr.HTML('<div class="cx"><div class="cx-h">Incident memory · live from CockroachDB</div></div>')
     cards = gr.HTML()
@@ -838,8 +937,9 @@ with gr.Blocks(title="Continuum — Live Incident Memory", analytics_enabled=Fal
 if __name__ == "__main__":
     # theme + js live on launch() in Gradio 6.x but on Blocks() in 5.x — pass
     # them only if this launch() accepts them, so the app never crashes on a
-    # version mismatch. The <style> block + token overrides above already carry
-    # the dark look; theme/js are enhancements (accent hue + force-dark).
+    # version mismatch. The <style> block above already carries both palettes
+    # and falls back to prefers-color-scheme, so a launch() that rejects `js`
+    # still themes correctly — it just can't see an explicit ?__theme override.
     import inspect
 
     _accepted = inspect.signature(demo.launch).parameters
@@ -847,5 +947,5 @@ if __name__ == "__main__":
     if "theme" in _accepted:
         _kwargs["theme"] = theme
     if "js" in _accepted:
-        _kwargs["js"] = _FORCE_DARK
+        _kwargs["js"] = _THEME_SYNC
     demo.launch(**_kwargs)
