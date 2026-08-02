@@ -43,6 +43,35 @@ _INCOMPLETE = ("proposed", "executing")
 CORRELATION_BEDROCK = "bedrock"
 CORRELATION_UNAVAILABLE = "unavailable"
 
+# How much of a precedent's summary to persist alongside the step. Enough to
+# recognise the incident without turning the step log into a second copy of the
+# incidents table — the id is there for anyone who wants the full row.
+PRECEDENT_SUMMARY_CHARS = 160
+
+
+def _precedent_detail(matches, proposed) -> Dict[str, Any]:
+    """The retrieved precedent, in the form the step's durable record keeps.
+
+    `based_on` alone was a bare UUID: it recorded *that* semantic memory
+    retrieved something, but neither the UI nor a judge reading rows back could
+    see *what* was recalled or how close it was. The distance is the part that
+    makes the vector search legible as a vector search rather than a lookup —
+    without it, C-SPANN's whole contribution is an opaque id.
+
+    Returns {} when nothing was retrieved, so absence stays meaningful: no
+    precedent and a precedent-we-forgot-to-record must not look the same.
+    """
+    if not matches or proposed.based_on_incident_id is None:
+        return {}
+    match = next((m for m in matches if m.incident_id == proposed.based_on_incident_id), matches[0])
+    return {
+        "precedent_distance": round(match.distance, 6),
+        "precedent_summary": match.summary[:PRECEDENT_SUMMARY_CHARS],
+        "precedent_state": match.state,
+        "precedent_rank": matches.index(match),
+        "precedents_considered": len(matches),
+    }
+
 
 def handle_alert(alert: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -133,6 +162,7 @@ def handle_alert(alert: Dict[str, Any]) -> Dict[str, Any]:
             # database after the fact is self-describing.
             "reasoning_source": proposed.source,
             "correlation_source": correlation_source,
+            **_precedent_detail(matches, proposed),
         },
         resuming=interrupted,
     )

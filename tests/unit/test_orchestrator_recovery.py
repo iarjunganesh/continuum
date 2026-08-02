@@ -11,9 +11,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from agents.correlation_agent import CorrelationMatch
 from agents.orchestrator import (
     CORRELATION_BEDROCK,
     CORRELATION_UNAVAILABLE,
+    PRECEDENT_SUMMARY_CHARS,
     handle_alert,
     lambda_handler,
 )
@@ -289,6 +291,103 @@ def test_duplicate_claim_result_still_reports_sources(mock_memory, mock_correlat
     assert result["skipped_duplicate"] is True
     assert result["correlation_source"] == CORRELATION_BEDROCK
     assert result["reasoning_source"] == SOURCE_BEDROCK
+
+
+def _match(incident_id="prec-1", distance=0.1234, summary="Connection pool saturation on checkout-api"):
+    """A real CorrelationMatch — same reasoning as _proposed(): a MagicMock
+    would happily return a MagicMock for `.distance`, which round() rejects
+    only at runtime and json.dumps rejects only against a live cluster."""
+    return CorrelationMatch(incident_id=incident_id, summary=summary, state="resolved", distance=distance)
+
+
+@patch("agents.orchestrator.remediation")
+@patch("agents.orchestrator.correlation")
+@patch("agents.orchestrator.memory")
+def test_retrieved_precedent_is_persisted_with_the_step(mock_memory, mock_correlation, mock_remediation):
+    """`based_on` alone was a bare UUID — it recorded that memory retrieved
+    something, not what was recalled or how close it was. The distance is what
+    makes the vector search legible as a vector search when read back."""
+    mock_memory.get_open_incident.return_value = None
+    mock_memory.open_incident.return_value = "new-id"
+    mock_correlation.embed.return_value = [0.0] * 8
+    mock_correlation.find_similar.return_value = [_match(), _match("prec-2", 0.9)]
+    proposed = ProposedAction(action="a", rationale="r", based_on_incident_id="prec-1", source=SOURCE_BEDROCK)
+    mock_remediation.propose_next_step.return_value = proposed
+
+    handle_alert(ALERT)
+
+    detail = mock_memory.checkpoint_step_start.call_args.kwargs["detail"]
+    assert detail["precedent_distance"] == pytest.approx(0.1234)
+    assert detail["precedent_summary"] == "Connection pool saturation on checkout-api"
+    assert detail["precedent_state"] == "resolved"
+    assert detail["precedents_considered"] == 2
+    assert detail["precedent_rank"] == 0
+    json.dumps(detail)
+
+
+@patch("agents.orchestrator.remediation")
+@patch("agents.orchestrator.correlation")
+@patch("agents.orchestrator.memory")
+def test_precedent_detail_describes_the_match_actually_reasoned_from(mock_memory, mock_correlation, mock_remediation):
+    """Claude may cite a precedent that isn't the nearest one. Recording
+    matches[0] regardless would attach the wrong summary and distance to the
+    step — evidence that reads as precise while being wrong."""
+    mock_memory.get_open_incident.return_value = None
+    mock_memory.open_incident.return_value = "new-id"
+    mock_correlation.embed.return_value = [0.0] * 8
+    mock_correlation.find_similar.return_value = [
+        _match("near", 0.05, "the nearest"),
+        _match("cited", 0.42, "the cited one"),
+    ]
+    mock_remediation.propose_next_step.return_value = ProposedAction(
+        action="a", rationale="r", based_on_incident_id="cited", source=SOURCE_BEDROCK
+    )
+
+    handle_alert(ALERT)
+
+    detail = mock_memory.checkpoint_step_start.call_args.kwargs["detail"]
+    assert detail["precedent_summary"] == "the cited one"
+    assert detail["precedent_distance"] == pytest.approx(0.42)
+    assert detail["precedent_rank"] == 1
+
+
+@patch("agents.orchestrator.remediation")
+@patch("agents.orchestrator.correlation")
+@patch("agents.orchestrator.memory")
+def test_no_precedent_writes_no_precedent_fields(mock_memory, mock_correlation, mock_remediation):
+    """Absence has to stay meaningful: a step with no precedent and a step whose
+    precedent we forgot to record must not look identical."""
+    mock_memory.get_open_incident.return_value = None
+    mock_memory.open_incident.return_value = "new-id"
+    mock_correlation.embed.return_value = [0.0] * 8
+    mock_correlation.find_similar.return_value = []
+    mock_remediation.propose_next_step.return_value = _proposed()
+
+    handle_alert(ALERT)
+
+    detail = mock_memory.checkpoint_step_start.call_args.kwargs["detail"]
+    assert "precedent_distance" not in detail
+    assert "precedent_summary" not in detail
+
+
+@patch("agents.orchestrator.remediation")
+@patch("agents.orchestrator.correlation")
+@patch("agents.orchestrator.memory")
+def test_precedent_summary_is_truncated(mock_memory, mock_correlation, mock_remediation):
+    """The step log records enough to recognise the incident, not a second copy
+    of the incidents table."""
+    mock_memory.get_open_incident.return_value = None
+    mock_memory.open_incident.return_value = "new-id"
+    mock_correlation.embed.return_value = [0.0] * 8
+    mock_correlation.find_similar.return_value = [_match(summary="x" * 500)]
+    mock_remediation.propose_next_step.return_value = ProposedAction(
+        action="a", rationale="r", based_on_incident_id="prec-1", source=SOURCE_BEDROCK
+    )
+
+    handle_alert(ALERT)
+
+    detail = mock_memory.checkpoint_step_start.call_args.kwargs["detail"]
+    assert len(detail["precedent_summary"]) == PRECEDENT_SUMMARY_CHARS
 
 
 @patch("agents.orchestrator.remediation")

@@ -206,6 +206,18 @@ footer {{ display: none !important; }}
   font-size: 12.5px; font-weight: 600; color: {SERIOUS};
   border: 1px dashed rgba(236,131,90,0.6); border-radius: 8px; padding: 5px 10px;
   background: rgba(236,131,90,0.10); }}
+/* Recalled precedent — what the vector search actually returned for a step.
+   Purple-tinted to read as "this came from semantic memory", distinct from the
+   orange interruption flag which reads as "this is where it died". */
+.cx-prec {{ margin-top: 9px; border-left: 2px solid rgba(139,109,255,0.55); border-radius: 0 8px 8px 0;
+  padding: 8px 12px; background: rgba(139,109,255,0.08); }}
+.cx-prec-h {{ display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  font-size: 11.5px; font-weight: 700; color: {PURPLE}; text-transform: uppercase; letter-spacing: 0.04em; }}
+.cx-dist {{ font-variant-numeric: tabular-nums; color: {INK2}; font-weight: 600;
+  text-transform: none; letter-spacing: 0; }}
+.cx-pid {{ color: {MUTED}; font-weight: 500; text-transform: none; letter-spacing: 0;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }}
+.cx-prec-s {{ color: {INK2}; font-size: 12.5px; line-height: 1.5; margin-top: 5px; font-style: italic; }}
 .cx-when {{ color: {MUTED}; font-size: 12px; margin-top: 5px; }}
 
 .cx-empty {{ border: 1px dashed {BORDER}; border-radius: 14px; padding: 34px; text-align: center;
@@ -243,6 +255,40 @@ def _source_chip(source: str | None) -> str:
     if not source or source not in SOURCE_META:
         return ""
     return _chip(*SOURCE_META[source])
+
+
+def _precedent_block(step: dict) -> str:
+    """Render what semantic memory actually recalled for this step.
+
+    The pipeline always ran, but its *result* used to be invisible: the UI
+    showed that Bedrock had reasoned, never which past incident it reasoned
+    from. Showing the matched summary and its vector distance is what turns
+    "Distributed Vector Indexing" from a claim in the README into something a
+    judge can watch happen. Steps with no precedent — or written before these
+    fields existed — render nothing rather than an empty shell.
+    """
+    summary = step.get("precedent_summary")
+    if not summary:
+        return ""
+    distance = step.get("precedent_distance")
+    considered = step.get("precedents_considered")
+    pid = step.get("precedent_id") or ""
+    bits = []
+    if distance is not None:
+        # L2 distance from the C-SPANN search (`<->`, not `<=>` cosine — the
+        # schema and correlation_agent both use L2, so it is unbounded above
+        # rather than 0–2). Smaller is closer; shown to 4 dp because the range
+        # between a strong and a weak match lives in the lower decimals.
+        bits.append(f'<span class="cx-dist">distance {_esc(f"{float(distance):.4f}")}</span>')
+    if pid:
+        bits.append(f'<span class="cx-pid">incident {_esc(pid[:8])}</span>')
+    if considered:
+        bits.append(f'<span class="cx-pid">{_esc(considered)} candidates ranked</span>')
+    return f"""
+        <div class="cx-prec">
+          <div class="cx-prec-h">◆ recalled from memory {"".join(bits)}</div>
+          <div class="cx-prec-s">“{_esc(summary)}”</div>
+        </div>"""
 
 
 def _mini_stepper(steps: list[dict]) -> str:
@@ -412,7 +458,11 @@ def load_timeline(incident_id: str | None):
             cur.execute(
                 """
                 SELECT step_index, action, status, proposed_by, created_at,
-                       detail ->> 'reasoning_source' AS reasoning_source
+                       detail ->> 'reasoning_source'   AS reasoning_source,
+                       detail ->> 'based_on'           AS precedent_id,
+                       detail ->> 'precedent_summary'  AS precedent_summary,
+                       detail ->> 'precedent_distance' AS precedent_distance,
+                       detail ->> 'precedents_considered' AS precedents_considered
                 FROM remediation_steps WHERE incident_id = %s ORDER BY step_index
             """,
                 (incident_id,),
@@ -459,6 +509,7 @@ def load_timeline(incident_id: str | None):
               {_source_chip(s.get("reasoning_source"))}
             </div>
             {flag}
+            {_precedent_block(s)}
             <div class="cx-when">{_ago(s.get("created_at"))} · {_esc(s.get("proposed_by"))}</div>
           </div>
         </div>""")

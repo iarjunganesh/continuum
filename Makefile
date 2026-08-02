@@ -1,4 +1,4 @@
-.PHONY: charts voiceover check-drift install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark resilience-bench probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
+.PHONY: charts voiceover check-drift export-memory restore-memory install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark resilience-bench probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -63,6 +63,16 @@ probe-bedrock:
 # runs against a live cluster; raise with --kills / --agents / --max-vectors.
 resilience-bench:
 	python scripts/resilience_bench.py
+
+# Snapshot / restore the memory layer as JSONL (data/snapshots/). Insurance
+# against the CockroachDB Basic org being deleted when trial credits lapse —
+# the dataset is small, so a plain export removes that as an existential risk.
+# restore-memory needs SNAPSHOT=<path>; both skip benchmark fixtures by design.
+export-memory:
+	python scripts/export_memory.py
+
+restore-memory:
+	python scripts/restore_memory.py --file $(SNAPSHOT)
 
 # Render the newest evidence run to theme-aware SVG charts (assets/charts/).
 # Generated, never screenshotted — a screenshot of a number is stale the moment

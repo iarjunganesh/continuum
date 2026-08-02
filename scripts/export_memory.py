@@ -7,7 +7,9 @@ deleted after a grace period, unrestorably (see submission/COSTS.md). The
 dataset is small enough that a plain export removes that as an existential risk:
 re-seed a fresh cluster from this file and the demo is back.
 
-Round-trips with scripts/seed_memory.py's schema expectations. Embeddings are
+Restored by scripts/restore_memory.py, which is verified against an ephemeral
+single-node cluster by tests/integration/test_snapshot_roundtrip.py — an export
+whose restore path has never run is a file, not insurance. Embeddings are
 exported as plain float lists so the snapshot stays readable and diffable, and
 so restoring never needs Bedrock.
 
@@ -60,7 +62,7 @@ def export(out_path: Path) -> dict[str, int]:
                 {
                     "_meta": {
                         "exported_at": dt.datetime.now(dt.timezone.utc).isoformat(),
-                        "note": "Continuum memory snapshot. Restore with scripts/seed_memory.py --from-snapshot.",
+                        "note": "Continuum memory snapshot. Restore with scripts/restore_memory.py --file <this file>.",
                     }
                 }
             )
