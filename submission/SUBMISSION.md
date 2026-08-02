@@ -79,7 +79,7 @@ box here is the honest state, not an oversight.
       uses environment expansion
 - [ ] Demo app accessible without login
 - [ ] Video watched start to finish, verified under 3:00 on the **exported file**
-- [x] All CI gates green: ruff lint, ruff format, mypy, Devpost mirror freshness, 57 unit +
+- [x] All CI gates green: ruff lint, ruff format, mypy, Devpost mirror freshness, 64 unit +
       9 integration tests, 100% coverage against a 90% gate
 - [x] No broken links repo-wide (markdown links and HTML `src`/`srcset`/`href`)
 - [x] No placeholder artifacts shipping as finished — pending items are marked pending explicitly

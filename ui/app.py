@@ -680,9 +680,27 @@ _CHARTS = [
 ]
 
 
+def _run_started(run: Path) -> str:
+    """When the run actually executed, from its own manifest.
+
+    NOT the folder's mtime. git does not preserve mtimes, so after a fresh
+    clone every run is "modified" at checkout time in whatever order the files
+    landed — which made the Space pick a different run than the working tree
+    did, from the same commit. The manifest timestamp is data; the mtime is an
+    artifact of how the files got onto the disk.
+    """
+    try:
+        manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
+        return str(manifest.get("started_utc") or "")
+    except OSError, json.JSONDecodeError:
+        return ""
+
+
 def _newest_run(base: Path = RUNS_DIR) -> Path | None:
-    runs = [p for p in base.glob("*/evidence") if p.is_dir()] if base.exists() else []
-    return max(runs, key=lambda p: p.stat().st_mtime).parent if runs else None
+    runs = [p.parent for p in base.glob("*/evidence") if p.is_dir()] if base.exists() else []
+    # Folder name breaks ties so the choice is total and reproducible even if
+    # two runs carry the same timestamp or a manifest is unreadable.
+    return max(runs, key=lambda p: (_run_started(p), p.name)) if runs else None
 
 
 def _load_evidence(run: Path) -> dict:
@@ -698,6 +716,19 @@ def _load_evidence(run: Path) -> dict:
     return out
 
 
+def _has(suite, *fields: str) -> bool:
+    """Does this suite carry the fields the tile below reads?
+
+    Committed evidence spans schema changes — the vector-scale rows gained
+    warm/cold percentiles partway through, and an older run simply lacks them.
+    A run that predates a field is not corrupt, so the panel skips that figure
+    rather than failing. It used to index straight in, which raised KeyError at
+    *import* time and took the whole Space down instead of one tile.
+    """
+    rows = suite if isinstance(suite, list) else [suite]
+    return bool(rows) and all(isinstance(r, dict) and all(f in r for f in fields) for r in rows)
+
+
 def _evidence_tiles(data: dict) -> list[str]:
     """Headline correctness figures.
 
@@ -707,7 +738,7 @@ def _evidence_tiles(data: dict) -> list[str]:
     """
     tiles = []
     storm = data.get("kill-storm")
-    if storm:
+    if _has(storm, "resumed", "n", "duplicated", "lost", "wrong_step"):
         tiles.append(
             _stat_tile(
                 "Kill storm",
@@ -717,7 +748,7 @@ def _evidence_tiles(data: dict) -> list[str]:
             )
         )
     sigkill = data.get("real-sigkill")
-    if sigkill:
+    if _has(sigkill, "survived", "n", "duplicated"):
         tiles.append(
             _stat_tile(
                 "Real SIGKILL",
@@ -727,7 +758,7 @@ def _evidence_tiles(data: dict) -> list[str]:
             )
         )
     lam = data.get("lambda-timeout")
-    if lam:
+    if _has(lam, "resumed", "n", "timed_out"):
         tiles.append(
             _stat_tile(
                 "AWS Lambda timeout",
@@ -737,7 +768,7 @@ def _evidence_tiles(data: dict) -> list[str]:
             )
         )
     drill = data.get("deploy-restart")
-    if drill:
+    if _has(drill, "passed"):
         # Distinct from the timeout suite next to it: that one proves recovery
         # survives the execution environment vanishing, this one proves it
         # survives the deployed artifact being replaced mid-incident.
@@ -752,7 +783,7 @@ def _evidence_tiles(data: dict) -> list[str]:
             )
         )
     once = data.get("exactly-once")
-    if once:
+    if _has(once, "trials", "violations", "concurrency"):
         trials = sum(r["trials"] for r in once)
         violations = sum(r["violations"] for r in once)
         peak = max(r["concurrency"] for r in once)
@@ -771,14 +802,14 @@ def _evidence_note(data: dict) -> str:
     """One line of context drawn from the numbers themselves."""
     bits = []
     tp = data.get("agent-throughput")
-    if tp:
+    if _has(tp, "throughput", "agents", "failures"):
         best = max(tp, key=lambda r: r["throughput"])
         bits.append(
             f"{best['agents']} concurrent agents sustained {best['throughput']:.1f} completed/s "
             f"with {sum(r['failures'] for r in tp)} failures"
         )
     vs = data.get("vector-scale")
-    if vs:
+    if _has(vs, "vectors", "brute_warm_p50", "ann_warm_p50"):
         biggest = max(vs, key=lambda r: r["vectors"])
         speedup = biggest["brute_warm_p50"] / biggest["ann_warm_p50"]
         bits.append(
@@ -789,6 +820,24 @@ def _evidence_note(data: dict) -> str:
 
 
 def load_evidence() -> str:
+    """Render the committed-evidence panel, or say why it couldn't.
+
+    Wrapped, because this is the one panel evaluated at *import* time — it
+    reads files, not the cluster, so it runs while the Blocks are being built.
+    An exception here does not blank a panel, it stops the app from starting,
+    which is exactly what a schema difference in one committed run did to the
+    Space. One section failing must never cost the console its live state.
+    """
+    try:
+        return _render_evidence()
+    except Exception as exc:  # noqa: BLE001 — a broken panel must not kill the app
+        return (
+            '<div class="cx"><div class="cx-empty">Evidence panel unavailable — '
+            f"{_esc(type(exc).__name__)}. The live panels above are unaffected.</div></div>"
+        )
+
+
+def _render_evidence() -> str:
     run = _newest_run()
     if run is None:
         return (

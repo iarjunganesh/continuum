@@ -375,7 +375,18 @@ def newest_run() -> Path:
     usable = [p for p in runs if _has_chartable_suite(p)]
     if not usable:
         sys.exit(f"no evidence runs with chartable suites under {RUNS_DIR} — run `make resilience-bench` first")
-    return max(usable, key=lambda p: p.stat().st_mtime)
+    # Ordered by when the run executed, per its manifest — not by mtime. git
+    # does not preserve mtimes, so on a fresh clone "newest folder" is whatever
+    # order checkout happened to write, and CI would chart a different run than
+    # the machine that generated them. Name breaks ties, so it is total.
+    return max(usable, key=lambda p: (_started_utc(p), p.name))
+
+
+def _started_utc(run: Path) -> str:
+    try:
+        return str(json.loads((run / "manifest.json").read_text(encoding="utf-8")).get("started_utc") or "")
+    except OSError, json.JSONDecodeError:
+        return ""
 
 
 def build(run_dir: Path) -> list[Path]:
