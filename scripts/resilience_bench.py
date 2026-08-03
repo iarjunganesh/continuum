@@ -53,6 +53,12 @@ from observability.structured_logger import get_logger  # noqa: E402
 
 log = get_logger(__name__)
 
+# Ceilings for a run pointed at a CockroachDB Cloud cluster. Chosen so the
+# documented default run passes and the two runs that exhausted the allowance on
+# 2026-08-03 (~2,000 incidents apiece) do not. Override with --allow-cloud-burn.
+CLOUD_INCIDENT_BUDGET = 400
+CLOUD_VECTOR_BUDGET = 10_000
+
 SERVICE = "resilience-bench"
 REGION = "eu-central-1"
 VECTOR_SERVICE = "vector-scale-bench"
@@ -907,6 +913,58 @@ baseline the index has to beat.
     print(doc)
 
 
+def _is_cloud(url: str) -> bool:
+    """True if the target is a CockroachDB Cloud cluster rather than a local one.
+
+    Local hosts are free; a Cloud cluster spends a finite Request Unit allowance
+    that the demo Space and the deployed Lambda also draw on."""
+    return "cockroachlabs.cloud" in (url or "")
+
+
+def _guard(p: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    """Two lessons from runs that went wrong, enforced rather than remembered.
+
+    1. A run whose report is published must leave a run folder behind it. A
+       full-size pass once rewrote docs/RESILIENCE.md with `--no-evidence` set:
+       the numbers were real but nothing in the repo could substantiate them,
+       and they contradicted the charts, which build from the newest persisted
+       run. The page had to be reverted to a smaller, evidenced result.
+    2. A large run against the Cloud cluster is the expensive thing here, not
+       the workload it measures. On 2026-08-03 the benchmark suites exhausted
+       the cluster's monthly Request Unit allowance, which disabled the cluster
+       and took the public demo down with it.
+    """
+    if args.no_evidence and Path(args.out) == Path("docs/RESILIENCE.md"):
+        p.error(
+            "--no-evidence would publish docs/RESILIENCE.md with no run folder behind it. "
+            "Point --out somewhere throwaway, or drop --no-evidence."
+        )
+
+    planned = (
+        args.kills
+        + args.real_kills
+        + args.lambda_timeouts
+        + sum(int(x) for x in args.concurrency.split(",") if x.strip()) * args.conc_trials
+        + sum(int(x) for x in args.agents.split(",") if x.strip())
+    )
+    if _is_cloud(settings.cockroach_database_url) and not args.allow_cloud_burn:
+        if planned > CLOUD_INCIDENT_BUDGET or args.max_vectors > CLOUD_VECTOR_BUDGET:
+            p.error(
+                f"this run would create ~{planned} incidents and seed up to {args.max_vectors:,} "
+                f"vectors against a CockroachDB Cloud cluster, above the "
+                f"{CLOUD_INCIDENT_BUDGET}/{CLOUD_VECTOR_BUDGET:,} guard. That cluster also serves "
+                "the public demo and the deployed Lambda, and its Request Unit allowance is finite "
+                "— exhausting it disables the cluster. Run against a local one "
+                "(`make local-cluster`) or pass --allow-cloud-burn if you mean it."
+            )
+        log.warning(
+            "benchmarking_against_cloud_cluster",
+            planned_incidents=planned,
+            max_vectors=args.max_vectors,
+            note="spends the shared Request Unit allowance; prefer make local-cluster",
+        )
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--kills", type=int, default=50, help="injected-interrupt kill storm size")
@@ -929,7 +987,14 @@ def main() -> None:
         action="store_true",
         help="skip writing a run folder under assets/ (use for throwaway/smoke runs)",
     )
+    p.add_argument(
+        "--allow-cloud-burn",
+        action="store_true",
+        help="permit a large run against a CockroachDB Cloud cluster, spending its shared "
+        "Request Unit allowance. Prefer `make local-cluster` — see _guard()",
+    )
     args = p.parse_args()
+    _guard(p, args)
 
     sizes = [s for s in (100, 1000, 5000, 10000, 25000, 50000) if s <= args.max_vectors]
     concurrencies = [int(x) for x in args.concurrency.split(",") if x.strip()]

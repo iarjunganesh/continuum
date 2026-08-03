@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.2] — 2026-08-03 — benchmarks off the cluster the demo runs on
+
+### Added
+
+- **`scripts/local_cluster.py` / `make local-cluster`** — a single-node CockroachDB in Docker, the same image CI uses, with vector indexing enabled and `infra/schema.sql` applied. Benchmarks, chaos captures and the integration suite belong here rather than on the Cloud cluster the public Space and the deployed Lambda share. Verified by restoring the 2026-08-02 snapshot into it (43 incidents, 126 steps, 40 embeddings) and running all 9 integration tests green against it, C-SPANN `EXPLAIN` assertion included. Latency published as CockroachDB Cloud numbers still has to come from the Cloud cluster, and the module says so.
+
+### Changed
+
+- **The resilience bench now refuses the two runs that hurt.** A run that would create more than 400 incidents or seed more than 10,000 vectors against a `*.cockroachlabs.cloud` host stops unless `--allow-cloud-burn` is passed — the documented default run is well under it, and the two runs that exhausted the allowance on 2026-08-03 (~2,000 incidents apiece) are not. And `--no-evidence` combined with the default `--out` is now an error, because that combination is what published a full-size result with no run folder behind it. Both were things to remember; now neither is.
 ## [0.9.1] — 2026-08-03 — the kill-and-recover run, captured
 
 ### Verified

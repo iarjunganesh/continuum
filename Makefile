@@ -1,4 +1,4 @@
-.PHONY: charts voiceover obs-assets check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo chaos-capture benchmark resilience-bench probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
+.PHONY: charts voiceover obs-assets check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo chaos-capture benchmark resilience-bench local-cluster local-cluster-down local-cluster-status probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -77,6 +77,21 @@ probe-bedrock:
 # runs against a live cluster; raise with --kills / --agents / --max-vectors.
 resilience-bench:
 	python scripts/resilience_bench.py
+
+# A local single-node CockroachDB — the same container CI uses, schema applied
+# and vector indexing on. Benchmarks and chaos runs belong here, not on the
+# Cloud cluster the demo Space and the deployed Lambda share: a bench run
+# exhausted that cluster's Request Unit allowance on 2026-08-03 and disabled it.
+# Correctness counts hold anywhere; published *latency* still belongs to the
+# real cluster (see the module docstring).
+local-cluster:
+	python scripts/local_cluster.py up
+
+local-cluster-down:
+	python scripts/local_cluster.py down
+
+local-cluster-status:
+	python scripts/local_cluster.py status
 
 # The last Never-Miss failure mode: replace the deployed CODE under an open
 # incident and prove the resume still lands exactly once on the new build.

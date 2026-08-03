@@ -40,7 +40,7 @@
 
 [![CI](https://github.com/iarjunganesh/continuum/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iarjunganesh/continuum/actions/workflows/ci.yml)
 [![Codecov](https://codecov.io/gh/iarjunganesh/continuum/graph/badge.svg)](https://codecov.io/gh/iarjunganesh/continuum)
-[![Release](https://img.shields.io/badge/release-v0.9.1-2ea44f?logo=github&logoColor=white)](https://github.com/iarjunganesh/continuum/releases/latest)
+[![Release](https://img.shields.io/badge/release-v0.9.2-2ea44f?logo=github&logoColor=white)](https://github.com/iarjunganesh/continuum/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/iarjunganesh/continuum/tree/main/LICENSE/)
 ![Watch Video](https://img.shields.io/badge/%E2%96%B6_Watch-3--min_demo-FF0000?logo=youtube&logoColor=white)
 
@@ -327,6 +327,7 @@ continuum/
 │   ├── export_memory.py       # snapshot the memory layer to data/snapshots/*.jsonl
 │   ├── restore_memory.py      # put a snapshot back — idempotent, retries on contention
 │   ├── migrate_and_seed.ps1   # Windows path for migrate + seed, no make required
+│   ├── local_cluster.py       # single-node CockroachDB in Docker — where benchmarks belong
 │   │                          # — the demo beat —
 │   ├── chaos_kill.py          # cross-platform hard kill (psutil)
 │   ├── chaos_capture.py       # the same kill, recorded → assets/chaos-run/ evidence
