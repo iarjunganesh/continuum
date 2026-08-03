@@ -58,12 +58,17 @@ class EvidenceRun:
     """One immutable evidence folder. Create at the start of a run, write into
     it as results arrive."""
 
-    def __init__(self, kind: str, root: Path | None = None):
+    def __init__(self, kind: str, root: Path | None = None, label: str | None = None):
         self.kind = kind
+        self.label = label
         self.short_id = uuid.uuid4().hex[:8]
         self.started = dt.datetime.now(dt.timezone.utc)
         base = root or REPO_ROOT / "assets" / f"{kind}-run"
-        self.dir = base / self.short_id
+        # `label` distinguishes runs of the same kind that prove the same contract
+        # in different execution environments — chaos-run/local-<id> vs
+        # chaos-run/lambda-<id>, per assets/README.md. Files stay prefixed with the
+        # short id alone, so they remain attributable if copied out of the folder.
+        self.dir = base / (f"{label}-{self.short_id}" if label else self.short_id)
         self.evidence = self.dir / "evidence"
         self.screenshots = self.dir / "screenshots"
         for d in (self.evidence, self.screenshots):
@@ -94,6 +99,7 @@ class EvidenceRun:
         self._manifest = {
             "run_id": self.short_id,
             "kind": self.kind,
+            **({"label": self.label} if self.label else {}),
             "started_utc": self.started.isoformat(),
             "finished_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
             "code": {
@@ -137,7 +143,7 @@ class EvidenceRun:
         return f"<EvidenceRun {self.kind}/{self.short_id} at {self.dir.relative_to(REPO_ROOT)}>"
 
 
-def new_run(kind: str) -> EvidenceRun:
+def new_run(kind: str, label: str | None = None) -> EvidenceRun:
     if not os.getenv("CONTINUUM_EVIDENCE", "1") == "1":
         raise RuntimeError("evidence capture disabled via CONTINUUM_EVIDENCE=0")
-    return EvidenceRun(kind)
+    return EvidenceRun(kind, label=label)

@@ -1,0 +1,28 @@
+{"correlation_id": "chaos-26c7bb39", "event": "new_incident", "timestamp": "2026-08-02T22:24:57.275890Z", "level": "info"}
+{"incident_id": "9a38a012-bbf0-4096-96f2-ce507d3d5bd7", "correlation_id": "chaos-26c7bb39", "event": "incident_opened", "timestamp": "2026-08-02T22:24:57.614251Z", "level": "info"}
+{"incident_id": "9a38a012-bbf0-4096-96f2-ce507d3d5bd7", "state": "correlating", "event": "incident_state_changed", "timestamp": "2026-08-02T22:24:57.946977Z", "level": "info"}
+{"model": "amazon.titan-embed-text-v2:0", "dimensions": 1024, "event": "alert_embedded", "timestamp": "2026-08-02T22:24:58.323137Z", "level": "info"}
+{"service": "checkout-api", "matches_found": 5, "event": "correlation_query", "timestamp": "2026-08-02T22:24:58.650255Z", "level": "info"}
+{"based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a", "step_index": 0, "action": "rollback_recent_deploy", "source": "bedrock", "event": "remediation_proposed", "timestamp": "2026-08-02T22:25:01.323905Z", "level": "info"}
+{"incident_id": "9a38a012-bbf0-4096-96f2-ce507d3d5bd7", "step_index": 0, "resuming": false, "claimed": true, "event": "step_checkpoint_start", "timestamp": "2026-08-02T22:25:01.684562Z", "level": "info"}
+{"correlation_id": "chaos-26c7bb39", "state": "remediating", "last_step_index": 0, "last_step_status": "executing", "event": "recovered_incident_state", "timestamp": "2026-08-02T22:25:06.124702Z", "level": "info"}
+{"correlation_id": "chaos-26c7bb39", "state": "remediating", "step_index": 0, "interrupted": true, "event": "resuming_incident", "timestamp": "2026-08-02T22:25:06.155057Z", "level": "info"}
+{"model": "amazon.titan-embed-text-v2:0", "dimensions": 1024, "event": "alert_embedded", "timestamp": "2026-08-02T22:25:06.521906Z", "level": "info"}
+{"service": "checkout-api", "matches_found": 5, "event": "correlation_query", "timestamp": "2026-08-02T22:25:06.858370Z", "level": "info"}
+{"based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a", "step_index": 0, "action": "rollback_recent_deploy", "source": "bedrock", "event": "remediation_proposed", "timestamp": "2026-08-02T22:25:09.196864Z", "level": "info"}
+{"incident_id": "9a38a012-bbf0-4096-96f2-ce507d3d5bd7", "step_index": 0, "resuming": true, "claimed": true, "event": "step_checkpoint_start", "timestamp": "2026-08-02T22:25:09.585778Z", "level": "info"}
+{"incident_id": "9a38a012-bbf0-4096-96f2-ce507d3d5bd7", "step_index": 0, "resolved": false, "event": "step_checkpoint_done", "timestamp": "2026-08-02T22:25:10.435561Z", "level": "info"}
+{"correlation_id": "chaos-26c7bb39", "state": "remediating", "last_step_index": 0, "last_step_status": "executed", "event": "recovered_incident_state", "timestamp": "2026-08-02T22:25:10.745988Z", "level": "info"}
+{"correlation_id": "chaos-26c7bb39", "state": "remediating", "step_index": 1, "interrupted": false, "event": "resuming_incident", "timestamp": "2026-08-02T22:25:10.778761Z", "level": "info"}
+{"model": "amazon.titan-embed-text-v2:0", "dimensions": 1024, "event": "alert_embedded", "timestamp": "2026-08-02T22:25:10.903092Z", "level": "info"}
+{"service": "checkout-api", "matches_found": 5, "event": "correlation_query", "timestamp": "2026-08-02T22:25:11.240689Z", "level": "info"}
+{"based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a", "step_index": 1, "action": "increase_connection_pool_size", "source": "bedrock", "event": "remediation_proposed", "timestamp": "2026-08-02T22:25:13.300500Z", "level": "info"}
+{"incident_id": "9a38a012-bbf0-4096-96f2-ce507d3d5bd7", "step_index": 1, "resuming": false, "claimed": true, "event": "step_checkpoint_start", "timestamp": "2026-08-02T22:25:13.682011Z", "level": "info"}
+{"incident_id": "9a38a012-bbf0-4096-96f2-ce507d3d5bd7", "step_index": 1, "resolved": false, "event": "step_checkpoint_done", "timestamp": "2026-08-02T22:25:14.529698Z", "level": "info"}
+{"correlation_id": "chaos-26c7bb39", "state": "remediating", "last_step_index": 1, "last_step_status": "executed", "event": "recovered_incident_state", "timestamp": "2026-08-02T22:25:14.847643Z", "level": "info"}
+{"correlation_id": "chaos-26c7bb39", "state": "remediating", "step_index": 2, "interrupted": false, "event": "resuming_incident", "timestamp": "2026-08-02T22:25:14.875915Z", "level": "info"}
+{"model": "amazon.titan-embed-text-v2:0", "dimensions": 1024, "event": "alert_embedded", "timestamp": "2026-08-02T22:25:15.066456Z", "level": "info"}
+{"service": "checkout-api", "matches_found": 5, "event": "correlation_query", "timestamp": "2026-08-02T22:25:15.420572Z", "level": "info"}
+{"based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a", "step_index": 2, "action": "increase_connection_pool_size", "source": "bedrock", "event": "remediation_proposed", "timestamp": "2026-08-02T22:25:17.781361Z", "level": "info"}
+{"incident_id": "9a38a012-bbf0-4096-96f2-ce507d3d5bd7", "step_index": 2, "resuming": false, "claimed": true, "event": "step_checkpoint_start", "timestamp": "2026-08-02T22:25:18.166602Z", "level": "info"}
+{"incident_id": "9a38a012-bbf0-4096-96f2-ce507d3d5bd7", "step_index": 2, "resolved": true, "event": "step_checkpoint_done", "timestamp": "2026-08-02T22:25:19.071721Z", "level": "info"}

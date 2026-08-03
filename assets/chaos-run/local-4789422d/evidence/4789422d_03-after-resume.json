@@ -1,0 +1,79 @@
+{
+  "phase": "03-after-resume",
+  "note": "incident resolved; every step executed exactly once",
+  "captured_utc": "2026-08-02T22:25:19Z",
+  "incident": {
+    "incident_id": "9a38a012-bbf0-4096-96f2-ce507d3d5bd7",
+    "correlation_id": "chaos-26c7bb39",
+    "service": "checkout-api",
+    "region": "eu-central-1",
+    "severity": "high",
+    "state": "resolved",
+    "summary": "Elevated p99 latency on checkout-api, connection pool saturated after deploy",
+    "opened_at": "2026-08-02 22:24:57.155868+00:00",
+    "updated_at": "2026-08-02 22:25:18.572662+00:00",
+    "resolved_at": "2026-08-02 22:25:18.572662+00:00"
+  },
+  "remediation_steps": [
+    {
+      "step_index": 0,
+      "action": "rollback_recent_deploy",
+      "proposed_by": "remediation_agent",
+      "status": "executed",
+      "detail": {
+        "based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a",
+        "correlation_source": "bedrock",
+        "precedent_distance": 1.398624,
+        "precedent_rank": 0,
+        "precedent_state": "resolved",
+        "precedent_summary": "Elevated p99 latency on checkout-api in us-east-1, likely connection pool exhaustion",
+        "precedents_considered": 5,
+        "rationale": "The alert explicitly mentions elevated latency and connection pool saturation occurred after a deploy, and the closest correlated incident involved connection pool exhaustion on the same service.",
+        "reasoning_source": "bedrock",
+        "reexecuted_after_interrupt": true
+      },
+      "created_at": "2026-08-02 22:25:01.192343+00:00"
+    },
+    {
+      "step_index": 1,
+      "action": "increase_connection_pool_size",
+      "proposed_by": "remediation_agent",
+      "status": "executed",
+      "detail": {
+        "based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a",
+        "correlation_source": "bedrock",
+        "precedent_distance": 1.398624,
+        "precedent_rank": 0,
+        "precedent_state": "resolved",
+        "precedent_summary": "Elevated p99 latency on checkout-api in us-east-1, likely connection pool exhaustion",
+        "precedents_considered": 5,
+        "rationale": "The closest correlated incident (7ad8682a) with connection pool exhaustion suggests scaling the pool to handle elevated load after the deployment.",
+        "reasoning_source": "bedrock",
+        "reexecuted_after_interrupt": false
+      },
+      "created_at": "2026-08-02 22:25:13.182997+00:00"
+    },
+    {
+      "step_index": 2,
+      "action": "increase_connection_pool_size",
+      "proposed_by": "remediation_agent",
+      "status": "executed",
+      "detail": {
+        "based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a",
+        "correlation_source": "bedrock",
+        "precedent_distance": 1.398624,
+        "precedent_rank": 0,
+        "precedent_state": "resolved",
+        "precedent_summary": "Elevated p99 latency on checkout-api in us-east-1, likely connection pool exhaustion",
+        "precedents_considered": 5,
+        "rationale": "The closest correlated incident (7ad8682a) with nearly identical symptoms of p99 latency and connection pool exhaustion suggests increasing pool size as the proven remediation step.",
+        "reasoning_source": "bedrock",
+        "reexecuted_after_interrupt": false
+      },
+      "created_at": "2026-08-02 22:25:17.676925+00:00"
+    }
+  ],
+  "step_status_counts": {
+    "executed": 3
+  }
+}

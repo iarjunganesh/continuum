@@ -3,7 +3,8 @@
 > **Target 2:50–2:55** (hard cap **3:00**, disqualifying if over) · **public** on YouTube · 1920×1080 / 30 fps ·
 > no copyrighted music · synthetic data only (ADR 005).
 > **Status: not yet shot.** Narration is generated and committed; charts, cards and diagrams are
-> generated and committed; the stills and the one live take are outstanding.
+> generated and committed; `s03` is already captured under `assets/provider-evidence/`. The
+> remaining eight stills and the one live take are outstanding.
 
 The whole video exists to land one sentence:
 
@@ -316,17 +317,51 @@ result hard to predict.
 
 Save everything to `assets/demo-video/statics/`.
 
+**Some of these are already captured** — see *Already captured: provider evidence* below before
+shooting anything. `s03` is done; `s09` is one screenshot away.
+
 | Still | Beat | Type | Viewport | What to capture | Move |
 | --- | --- | --- | --- | --- | --- |
 | `s01-readme-top` | 2 | A | 1280 | README from the banner through "The Problem" | pan down |
 | `s02-console-idle` | 3 | A | 1920 | Gradio console, incidents listed, nothing in flight | static |
-| `s03-space-url` | 3 | B | — | The Space with its live URL in frame | static |
+| ~~`s03-space-url`~~ ✅ | 3 | B | — | **Already captured** — use `assets/provider-evidence/1080p/01.space-console-executing-banner.png` (1920×1080, live URL in frame) | static |
 | `s04-timeline-executing` | 5 | A | 1920 | Recovery timeline, a step mid-flight, `correlation_source: bedrock` visible | slow push-in |
 | `s05-explain-plan` | 11 | A | 1280 | `EXPLAIN` showing `vector search … prefix spans` | static |
 | `s06-mcp-panel` | 12 | A | 1920 | Gradio "Ask via MCP" with a live answer — **fallback if Recording #2 is skipped** | static |
 | `s07-ci-badges` | 13 | A | 1280 | README badge rows — CI green, coverage, versions | static |
 | `s08-adr-list` | 13 | A | 1280 | The nine-row ADR table | pan down |
-| `s09-lambda-console` | 10 | B | — | AWS console: `continuum-orchestrator`, no provisioned concurrency | static |
+| `s09-lambda-console` | 10 | B | — | AWS console: `continuum-orchestrator`, no provisioned concurrency. **Capture steps: `assets/provider-evidence/README.md` shot `12`** | static |
+
+### Already captured: provider evidence
+
+`assets/provider-evidence/` holds console captures taken from **Cockroach Labs' and Hugging Face's
+own UIs** — screens this project cannot fake. They were captured as repo evidence first, so most
+have no beat and belong in the README and on Devpost rather than in a 3-minute video. Three of them
+do earn screen time, and one closes a still outright.
+
+`make obs-assets` renders the OBS-ready set into `assets/provider-evidence/1080p/`. **Use that
+folder on the timeline, not the parent** — everything in it is exactly 1920×1080, and nothing in it
+was downscaled: short captures are padded, and anything taller than a frame became a pan video
+instead of a shrunken still.
+
+| Asset (`1080p/`) | Use | Why it earns the time |
+| --- | --- | --- |
+| `01.space-console-executing-banner.png` | **Beat 3** — replaces `s03-space-url` | The live Space URL and a step sitting in `executing`, in one 1080p frame. Nothing to shoot |
+| `03.crdb-cluster-overview-eu-central-1.png` | **Beat 13**, after `s07-ci-badges` | `Plan Basic · Cloud AWS · Region Frankfurt (eu-central-1) PRIMARY`, in Cockroach Labs' own UI. The "CockroachDB deployed on AWS" requirement, corroborated by a screen we don't control. Hold static, it's exactly 1920×1080 |
+| `06.crdb-sql-activity-fingerprints.png` | **Beat 13** alternative | Real statement fingerprints — `INSERT INTO incidents`, `remediation_steps`, `incident_embeddings` with execution counts. The single write path visible as actual traffic |
+| `00.space-console-full-page.pan.mp4` | **Beat 3** alternative to `s02-console-idle` | A 24.8 s pan down the whole console at native scale. Trim to the 16 s the beat has; it moves, so it can replace a static still if beat 3 feels flat. **Note it shows a step in flight**, so it reads as beat 3 *or* beat 5, not as "idle" |
+| `05.crdb-metrics-full-page.pan.mp4` | optional B-roll | 7 s pan over the Metrics dashboard. No beat needs it — use only if a gap opens in the cut |
+| `02`, `04`, `07`, `08` | **not in the video** | Trial state, month-scale traffic, job history, the MCP service account. Repo and Devpost evidence; none of them advances the one sentence this video exists to land |
+
+**The Bedrock and Lambda console captures are still to take**, and they matter more than the ones
+above: `assets/provider-evidence/README.md` has exact click-paths as shots `09`–`14`. Shot `12`
+*is* `s09-lambda-console` for beat 10. Shot `10` — CloudWatch `AWS/Bedrock` invocation counts per
+model — has no beat but is the only artifact that proves, from AWS's side, that the live Bedrock
+path ran rather than the silent fallback; capture it right after a run, because the graph is
+time-windowed.
+
+**Do not put any of these inside beats 6–8.** They are stills and pans of pages, and those three
+beats are one continuous take for a reason.
 
 **Generated stills — do not screenshot these.** They come from `scripts/build_charts.py` and
 regenerate with the evidence, so they cannot drift. Use the **`.png`** variants on the timeline; the
@@ -501,7 +536,9 @@ These matter more than polish. A judge who catches one overstatement discounts e
   still, that's fine and honest — a still of a real answer is as truthful as filming one. What's not
   allowed is a still where the *change* is the claim.
 - **Never show anything resembling real infrastructure.** All services are fictional (ADR 005).
-- **Don't claim multi-region.** Not implemented, explicitly out of scope — `docs/ROADMAP.md`.
+- **Don't claim multi-region.** Not implemented, explicitly out of scope — CockroachDB Basic needs
+  three regions to survive a region failure and regions cannot be removed once added, so it was a
+  one-way door with a recurring cost. See `submission/SUBMISSION.md` § Scope.
 - **Don't record option 2 and call it option 1** (see *Which recovery to record*).
 - **Re-verify beat 13's numbers on shoot day** — coverage percentage, ADR count, test count — against
   what `make coverage` and `ls docs/adr/` actually report, not from memory of an earlier run.
@@ -546,7 +583,10 @@ These matter more than polish. A judge who catches one overstatement discounts e
 - [ ] The interrupted step reads **`executing`** in the take — verified before cutting
 - [ ] Recovery recorded as **`--via-lambda`**, and narrated as such
 - [ ] Recording #2 shot, or beat 12 consciously falls back to the `s06` still
-- [ ] All 9 stills captured at the right type and viewport into `assets/demo-video/statics/`
+- [ ] The remaining **8** stills captured at the right type and viewport into
+      `assets/demo-video/statics/` — `s03` is already satisfied by
+      `assets/provider-evidence/1080p/01.space-console-executing-banner.png`
+- [ ] `make obs-assets` run, so anything used from `assets/provider-evidence/` is the 1080p variant
 - [ ] One theme held throughout — UI, cards, diagram, charts
 
 **Cut & publish**
@@ -563,7 +603,8 @@ These matter more than polish. A judge who catches one overstatement discounts e
 
 ## Related
 
-- `docs/ROADMAP.md` — what's evidence-backed and what's still open
+- `submission/SUBMISSION.md` — what's evidence-backed, plus the open gaps stated plainly
+- `assets/provider-evidence/README.md` — console captures, and how to take the AWS ones
 - `docs/RESILIENCE.md` — the numbers quoted in beats 9–11
 - `docs/BENCHMARKS.md` — latency methodology and caveats
 - `assets/README.md` — evidence index and capture conventions

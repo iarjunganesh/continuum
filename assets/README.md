@@ -8,9 +8,11 @@ That claim is only credible if you can see a remediation step frozen in `executi
 while no process is alive to own it, and then see a cold invocation pick up *that exact step*. This
 directory is where that proof lives.
 
-> **Status — capture pending.** The directory structure and capture plan below are in place; the
-> runs themselves are captured after the Lambda deploy so the evidence shows the deployed system,
-> not a local-only one. Nothing here is claimed as complete until the tables list real files.
+> **Status — local run captured, Lambda run pending.** `chaos-run/local-<id>/` holds a real
+> captured run: a live orchestrator hard-killed mid-step, the frozen `executing` row, and the cold
+> resume, all read back out of CockroachDB by `make chaos-capture`. The `lambda-<id>` run — the
+> same contract across *invocations* rather than process restarts — is not captured yet.
+> Screenshots for both are still to be taken; the folders list exactly what exists.
 
 ---
 
@@ -22,8 +24,14 @@ lives in the process.
 
 | Run | Folder | Environment | What it proves |
 | --- | --- | --- | --- |
-| **Local kill** | `chaos-run/local-<short-id>/` | `make chaos-demo` / `scripts/chaos_demo.ps1` against the live cluster | A real `SIGKILL`/`TerminateProcess` mid-step leaves `executing` durable; cold restart resumes exactly once |
-| **Lambda cold** | `chaos-run/lambda-<short-id>/` | deployed `continuum-orchestrator`, no provisioned concurrency (ADR 002) | The same resume happens across *invocations*, not just across process restarts — statelessness is real, not simulated |
+| **Local kill** ✅ | `chaos-run/local-<short-id>/` | `make chaos-capture` against the live cluster | A real `SIGKILL`/`TerminateProcess` mid-step leaves `executing` durable; cold restart resumes exactly once |
+| **Lambda cold** ❌ | `chaos-run/lambda-<short-id>/` | deployed `continuum-orchestrator`, no provisioned concurrency (ADR 002) | The same resume happens across *invocations*, not just across process restarts — statelessness is real, not simulated |
+
+`make chaos-capture` performs the kill *and* records it. That split matters: `make chaos-demo`
+drives the sequence but writes nothing down, so evidence for it had to be assembled by hand
+afterwards — which is how an artifact ends up disagreeing with the run that produced it. The
+capture asserts its own claims (kill landed mid-window, step resumed at the same index, no step
+executed twice) and marks the folder `FAIL` rather than emitting evidence for something weaker.
 
 Each folder carries:
 
@@ -81,6 +89,7 @@ a judge to discover. See ADR 008 and its addendum for the account-level quota hi
 | [`demo-video/`](demo-video/) | Final cut, captions, per-beat takes, and static flash-cut frames |
 | [`demo-voiceover/`](demo-voiceover/) | **Generated** — Amazon Polly narration, one clip per beat (`make voiceover`) |
 | [`resilience-run/`](resilience-run/) | Correctness-under-adversity evidence — kill storms, Lambda timeouts, exactly-once, vector scale |
+| [`provider-evidence/`](provider-evidence/) | The CockroachDB Cloud and Hugging Face consoles reporting the same facts the application reports about itself — plan, region, live write traffic, the running Space. Platform provenance, not per-run proof; see that folder's README for what each frame does and does not establish |
 | [`deploy-restart-run/`](deploy-restart-run/) | The deployment-restart drill (`make deploy-restart-drill`) — a real `sam deploy` replacing the code under an open incident, and the resume that lands exactly once on the new build. Its own family, not a `resilience-run/`: it produces a single suite, and a one-suite folder dropped in there would become the newest run for `make charts` and the console panel, both of which would then find none of the suites they render |
 | `logo.svg` | Project mark, used in the README header |
 

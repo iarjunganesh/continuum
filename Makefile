@@ -1,4 +1,4 @@
-.PHONY: charts voiceover check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo benchmark resilience-bench probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
+.PHONY: charts voiceover obs-assets check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo chaos-capture benchmark resilience-bench probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -47,6 +47,20 @@ chaos-demo:
 	sleep 3; \
 	python scripts/demo_run.py --tick --via-api --resume-check; \
 	python scripts/chaos_kill.py --port 8000
+
+# The same kill as chaos-demo, but RECORDED: snapshots CockroachDB before the
+# kill, while the step is frozen with no live process, and after the cold resume,
+# into assets/chaos-run/local-<id>/. Fails loudly rather than emitting weak
+# evidence if the kill misses the execution window or a step runs twice. Leaves
+# the incident in the cluster on purpose so the console screenshots can show it.
+chaos-capture:
+	python scripts/chaos_capture.py
+
+# OBS-ready 1920x1080 sources from assets/provider-evidence/. Never downscales a
+# still: short captures are padded, and anything taller than 1080 becomes a pan
+# video instead, so evidence text stays legible. Needs ffmpeg.
+obs-assets:
+	python scripts/build_obs_assets.py
 
 # Latency benchmarks against $COCKROACH_DATABASE_URL — writes docs/BENCHMARKS.md.
 benchmark:

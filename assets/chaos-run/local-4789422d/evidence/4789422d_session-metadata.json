@@ -1,0 +1,23 @@
+{
+  "correlation_id": "chaos-26c7bb39",
+  "mode": "local-process-kill",
+  "bedrock_reachable_at_capture": true,
+  "killed_pid": 40760,
+  "killed_port": 54385,
+  "interrupted_step_index": 0,
+  "resume_response": {
+    "incident_id": "9a38a012-bbf0-4096-96f2-ce507d3d5bd7",
+    "step_index": 0,
+    "action": "rollback_recent_deploy",
+    "state": "remediating",
+    "resumed": true,
+    "reexecuted_after_interrupt": true,
+    "correlation_source": "bedrock",
+    "reasoning_source": "bedrock"
+  },
+  "final_state": "resolved",
+  "steps_executed": 3,
+  "duplicated_step_indices": [],
+  "exactly_once": true,
+  "outcome": "PASS"
+}

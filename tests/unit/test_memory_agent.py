@@ -156,6 +156,26 @@ class TestCheckpointStepStart:
         first_sql = cur.execute.call_args_list[0][0][0]
         assert first_sql.strip().startswith("UPDATE remediation_steps SET status = 'executing'")
 
+    def test_resume_merges_detail_instead_of_discarding_it(self, memory, conn_cur):
+        """The resuming invocation's detail must reach the durable row.
+
+        This path used to set `status` alone, so the orchestrator's
+        `reexecuted_after_interrupt: true` never landed and the row kept the
+        killed invocation's `false`. Evidence captured from the database then
+        asserted the opposite of what happened, on the one fact the whole
+        recovery claim rests on. Merge (`||`), so the original reasoning
+        survives alongside the resume's.
+        """
+        _, cur = conn_cur
+
+        memory.checkpoint_step_start(
+            uuid4(), 1, "restart_pool", detail={"reexecuted_after_interrupt": True}, resuming=True
+        )
+
+        sql, params = cur.execute.call_args_list[0][0]
+        assert "detail = COALESCE(detail, '{}'::jsonb) || %s::jsonb" in sql, "resume must merge detail, not drop it"
+        assert params[0].obj == {"reexecuted_after_interrupt": True}
+
 
 class TestCheckpointStepDone:
     def test_marks_executed_with_status_guard(self, memory, conn_cur):

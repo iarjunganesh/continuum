@@ -1,0 +1,60 @@
+{
+  "run_id": "4789422d",
+  "kind": "chaos",
+  "label": "local",
+  "started_utc": "2026-08-02T22:24:46.203059+00:00",
+  "finished_utc": "2026-08-02T22:25:19.529667+00:00",
+  "code": {
+    "commit": "b3ffa2750dc525223e4a1f6f65cdae29180ba5d0",
+    "commit_short": "b3ffa27",
+    "describe": "v0.9.0-1-gb3ffa27",
+    "working_tree_dirty": true
+  },
+  "environment": {
+    "python": "3.14.6",
+    "platform": "win32",
+    "cluster": "continuum-28621.j77.aws-eu-central-1.cockroachlabs.cloud/defaultdb",
+    "aws_region": "eu-central-1",
+    "bedrock_region": "eu-central-1",
+    "embedding_model": "amazon.titan-embed-text-v2:0",
+    "reasoning_model": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "lambda_function": "continuum-orchestrator",
+    "step_execution_seconds": 5.0,
+    "max_remediation_steps": 3
+  },
+  "command": "chaos_capture.py",
+  "files": [
+    "4789422d_01-before-kill.json",
+    "4789422d_02-frozen.json",
+    "4789422d_03-after-resume.json",
+    "4789422d_NOTES.md",
+    "4789422d_bedrock-probe.txt",
+    "4789422d_orchestrator-log.jsonl",
+    "4789422d_remediation-steps.json",
+    "4789422d_session-metadata.json"
+  ],
+  "screenshots": [],
+  "results": {
+    "correlation_id": "chaos-26c7bb39",
+    "mode": "local-process-kill",
+    "bedrock_reachable_at_capture": true,
+    "killed_pid": 40760,
+    "killed_port": 54385,
+    "interrupted_step_index": 0,
+    "resume_response": {
+      "incident_id": "9a38a012-bbf0-4096-96f2-ce507d3d5bd7",
+      "step_index": 0,
+      "action": "rollback_recent_deploy",
+      "state": "remediating",
+      "resumed": true,
+      "reexecuted_after_interrupt": true,
+      "correlation_source": "bedrock",
+      "reasoning_source": "bedrock"
+    },
+    "final_state": "resolved",
+    "steps_executed": 3,
+    "duplicated_step_indices": [],
+    "exactly_once": true,
+    "outcome": "PASS"
+  }
+}

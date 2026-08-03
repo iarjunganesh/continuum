@@ -12,7 +12,7 @@ Every component sits on a free tier that is a real product tier, not a trial.
 
 | Component | Tier | Cost | Notes |
 | --- | --- | --- | --- |
-| **CockroachDB Cloud** | Basic (free allowance) | $0 | The memory layer. Request Units, not instance-hours — an idle agent costs nothing |
+| **CockroachDB Cloud** | Basic (free allowance) | $0 | The memory layer. Request Units, not instance-hours — an idle agent costs nothing. The allowance is finite, and *this project exhausted it* on 2026-08-03 — see below |
 | **AWS Lambda** | free tier (1M req/mo) | $0 | No provisioned concurrency, deliberately (ADR 002). Cold starts are the *feature* |
 | **Amazon Bedrock** | on-demand, pay per token | ~$0 | Titan embeddings + Claude reasoning; usage is per-incident and tiny (see below) |
 | **Hugging Face Spaces** | free CPU tier | $0 | The public Gradio demo. No card required, no sleep-on-idle billing |
@@ -36,24 +36,35 @@ One incident, happy path, with live Bedrock:
 one call per step rather than a conversational loop, and correlation is a single round trip that
 filters and ranks in one query instead of fetching candidates and re-ranking client-side.
 
-## Actual spend to date: $0
+## Actual spend to date
 
-As of this writing the AWS account has consumed **none** of its $120 in promotional credits, for
-two compounding reasons:
+**AWS: still effectively $0** against $120 in promotional credits — but for a weaker reason than it
+looks. Until 2026-08-01 nothing billable *could* run: no Lambda was deployed, and an account-level
+dynamic quota clamp (ADR 008 + addendum) held Bedrock on-demand inference at effectively zero
+across every region and model tested. Both Bedrock paths degrade silently by design — correlation
+to "no precedent", remediation to deterministic precedent-replay — so the application ran end to
+end on fallbacks without spending anything.
 
-1. **Nothing billable has run.** No Lambda was deployed, so there were no invocations.
-2. **Bedrock never executed.** An account-level dynamic quota clamp (ADR 008 + addendum) held
-   on-demand inference at effectively zero across every region and model tested. Both Bedrock paths
-   degrade silently by design — correlation to "no precedent", remediation to deterministic
-   precedent-replay — so the application ran end to end on fallbacks without spending anything.
+The clamp was **lifted on 2026-08-01** and both paths have run live since, locally and from the
+deployed function. Spend from that point is real but small: three-digit invocation counts against
+per-incident costs of about a cent.
 
-The clamp was **lifted on 2026-08-01** following an AWS Support eligibility review. Bedrock spend
-becomes possible from that point; the guardrails below were put in place beforehand, not after.
+> **Honest note:** the per-incident numbers above are modelled from published token pricing and
+> measured token counts, not read off an invoice. Treat them as an order of magnitude.
 
-> **Honest note:** "$0 spent" is partly a design property and partly an accident of being
-> throttled. The per-incident numbers above are modelled from published token pricing and measured
-> token counts, not from an invoice. They will be reconciled against real usage once the live
-> Bedrock path has run.
+**CockroachDB: the free allowance was the constraint that actually bound.** On **2026-08-03** the
+cluster exhausted its 400 million Request Units and disabled itself — every connection refused with
+`max connections = 0`. Nothing about the agent's steady state caused it: three `SERIALIZABLE`
+transaction pairs and one vector search per incident is negligible. It was consumed by
+*development* against the production cluster — resilience benchmark suites at N=50 and N=200, each
+sample a full incident with real writes, plus the seeding and re-seeding those runs required, plus
+the auto-refresh timer audited earlier at ~50 RU per refresh.
+
+That is a genuine production-readiness lesson, and a cheaper one to learn here than on an on-call
+rotation: **the load-testing harness is the cost risk, not the workload it measures.** A production
+deployment of this design would run benchmarks against a separate cluster, so a bench run cannot
+take the incident-response system offline. This one did not, and the demo went down with it — see
+the first row of Known Gaps in [`SUBMISSION.md`](SUBMISSION.md).
 
 ## Cost guardrails
 
@@ -64,9 +75,12 @@ Configured on the AWS account before any spend was possible, alerting to the pro
 | **Monthly budget** | $100 (credits included) | Email at 50% / 80% / forecast-100%. At 100% *actual*, an IAM deny-all policy attaches to the Bedrock-invoking user — a hard stop, not a notification |
 | **Credit burn tracker** | $120 (credits excluded, i.e. gross usage) | Email at 50% / 80% / 100%. Tracks how fast the promotional credits are being consumed, independent of net billing |
 
-The deny-all action is scoped to the Bedrock-invoking IAM user only. **It does not cover a Lambda
-execution role** — once the orchestrator is deployed, that role is outside the kill switch and
-should be added.
+The deny-all action is scoped to the Bedrock-invoking IAM user only. **It does not cover the Lambda
+execution role**, and since the orchestrator was deployed on 2026-08-01 that role has been invoking
+Bedrock outside the kill switch. Stated rather than quietly closed: the gap is small in practice —
+the function is invoked manually, has no trigger, and bounds its own Bedrock calls at three per
+incident via the exactly-once claim — but "the budget kill switch does not cover the thing that
+actually spends" is exactly the sort of note that gets deleted instead of fixed.
 
 ### Least privilege
 
@@ -85,10 +99,11 @@ This is why an accidental loop can waste tokens but cannot provision anything ex
   repeatedly would multiply Bedrock calls. The exactly-once forward-step claim
   (`INSERT … ON CONFLICT DO NOTHING`, ADR 009) is a correctness guarantee that doubles as a cost
   ceiling.
-- **One measured burn incident:** the Gradio dashboard's auto-refresh timer consumed roughly 50
-  Request Units per refresh against the free allowance. It was changed to manual-refresh by
-  default and the fix was verified against the live cluster. Polling UIs are the cost risk in this
-  architecture, not the agent.
+- **Two measured burn incidents, neither of them the agent.** The Gradio dashboard's auto-refresh
+  timer consumed roughly 50 Request Units per refresh; it was changed to manual-refresh by default
+  and the fix verified against the live cluster. Then the resilience benchmark suites finished the
+  allowance off on 2026-08-03. Polling UIs and load harnesses are the cost risk in this
+  architecture — the incident path itself is the cheapest thing running.
 
 ## Scaling estimate
 

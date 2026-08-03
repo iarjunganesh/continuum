@@ -31,7 +31,7 @@ license: mit
 
 [![CI](https://github.com/iarjunganesh/continuum/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iarjunganesh/continuum/actions/workflows/ci.yml)
 [![Codecov](https://codecov.io/gh/iarjunganesh/continuum/graph/badge.svg)](https://codecov.io/gh/iarjunganesh/continuum)
-[![Release](https://img.shields.io/badge/release-v0.9.0-2ea44f?logo=github&logoColor=white)](https://github.com/iarjunganesh/continuum/releases/latest)
+[![Release](https://img.shields.io/badge/release-v0.9.1-2ea44f?logo=github&logoColor=white)](https://github.com/iarjunganesh/continuum/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Watch Video](https://img.shields.io/badge/%E2%96%B6_Watch-3--min_demo-FF0000?logo=youtube&logoColor=white)
 
@@ -191,7 +191,7 @@ Judging-criteria mapping and full submission narrative: [`submission/DEVPOST.md`
 | **Backend** | [![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](https://www.python.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/) [![psycopg](https://img.shields.io/badge/psycopg-3.3-336791?logo=postgresql&logoColor=white)](https://www.psycopg.org/psycopg3/) | Versioned gateway (`/api/v1`) around the orchestrator; psycopg 3 because psycopg2 has no 3.14 wheels |
 | **Demo UI** | [![Gradio](https://img.shields.io/badge/Gradio-6.22-F97316?logo=gradio&logoColor=white)](https://gradio.app/) [![HF Spaces](https://img.shields.io/badge/🤗_Spaces-live-FFD21E)](https://huggingface.co/spaces/iarjunganesh/continuum) | Live incident console with recovery-timeline replay, the recalled precedent per step, and the committed failure evidence — reading straight from CockroachDB, in the viewer's own light or dark theme |
 | **Observability** | [![structlog](https://img.shields.io/badge/structlog-JSON-4A90E2)](https://www.structlog.org/) | Structured event logging across every agent — no bare `print` |
-| **Quality** | [![Ruff](https://img.shields.io/badge/Ruff-lint%20%2B%20format-D7FF64?logo=ruff&logoColor=111827)](https://docs.astral.sh/ruff/) [![Mypy](https://img.shields.io/badge/Mypy-type_checked-2A6DB2?logo=python&logoColor=white)](https://mypy-lang.org/) [![pytest](https://img.shields.io/badge/pytest-9.1-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/) | Lint → format → types → 64 unit + 9 integration tests → 100% coverage against a 90% gate → Codecov |
+| **Quality** | [![Ruff](https://img.shields.io/badge/Ruff-lint%20%2B%20format-D7FF64?logo=ruff&logoColor=111827)](https://docs.astral.sh/ruff/) [![Mypy](https://img.shields.io/badge/Mypy-type_checked-2A6DB2?logo=python&logoColor=white)](https://mypy-lang.org/) [![pytest](https://img.shields.io/badge/pytest-9.1-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/) | Lint → format → types → 65 unit + 9 integration tests → 100% coverage against a 90% gate → Codecov |
 
 ---
 
@@ -320,6 +320,7 @@ continuum/
 │   ├── migrate_and_seed.ps1   # Windows path for migrate + seed, no make required
 │   │                          # — the demo beat —
 │   ├── chaos_kill.py          # cross-platform hard kill (psutil)
+│   ├── chaos_capture.py       # the same kill, recorded → assets/chaos-run/ evidence
 │   ├── chaos_demo.ps1         # Windows kill-and-recover sequence
 │   ├── demo_run.py            # drives one remediation step per --tick
 │   ├── generate_demo_voiceover.py        # Polly narration + caption track (owns the words)
@@ -329,6 +330,7 @@ continuum/
 │   ├── deploy_restart_drill.py           # redeploy under an open incident, prove the resume
 │   ├── evidence.py            # run-scoped evidence folders + provenance manifest
 │   ├── build_charts.py        # theme-aware charts from the newest evidence run
+│   ├── build_obs_assets.py    # 1080p OBS sources from provider-evidence (pans, never downscales)
 │   │                          # — release gates —
 │   ├── check_drift.py         # docs vs repo: versions, counts, links, generated files
 │   ├── build_devpost_readme.py           # regenerates the Devpost paste mirror from README.md
@@ -342,7 +344,7 @@ continuum/
 │   ├── synthetic/             # generated incident corpus + alert stream (synthetic, always)
 │   └── snapshots/             # memory exports — insurance against the cluster lapsing
 ├── docs/
-│   ├── ARCHITECTURE.md · DEPLOY.md · BENCHMARKS.md · RESILIENCE.md · ROADMAP.md
+│   ├── ARCHITECTURE.md · DEPLOY.md · BENCHMARKS.md · RESILIENCE.md
 │   └── adr/                   # 9 Architecture Decision Records
 ├── submission/                # judge-facing packet
 │   └── SUBMISSION.md · DEVPOST.md · DEVPOST_README.md · DEMO_SCRIPT.md · COSTS.md
@@ -350,6 +352,7 @@ continuum/
 │   ├── architecture/          # mermaid source + brand-themed SVG/PNG renders
 │   ├── charts/                # generated benchmark charts (make charts) — never screenshots
 │   ├── chaos-run/             # captured kill-and-recover runs (evidence/ + screenshots/)
+│   ├── provider-evidence/     # the same facts in Cockroach Labs' and Hugging Face's own consoles
 │   ├── resilience-run/        # kill storms, Lambda timeouts, exactly-once, vector scale
 │   ├── deploy-restart-run/    # the code swapped under an open incident, and the resume
 │   ├── demo-cards/            # banner + sign-off cards (SVG source, 16:9 video PNGs)
@@ -374,14 +377,14 @@ continuum/
 ```text
 push → ruff lint → ruff format --check → mypy → Devpost mirror freshness
      → ephemeral single-node CockroachDB → schema apply
-     → pytest (64 unit + 9 integration) → coverage (≥90% gate, 100% measured) → Codecov
+     → pytest (65 unit + 9 integration) → coverage (≥90% gate, 100% measured) → Codecov
 push to main → auto-sync to Hugging Face Space (public demo)
 tag v*.*.*   → GitHub Release, notes pulled from CHANGELOG.md
 ```
 
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`.github/workflows/release.yml`](.github/workflows/release.yml), and [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
-The unit suite (64 tests, one file per agent/module, 100% measured coverage against a 90% CI gate) pins the properties the demo depends on: recovery read happens before any write, each step commits inside an explicit `SERIALIZABLE` transaction, interrupted steps are re-executed (never skipped, never duplicated), a forward step is claimed exactly once under concurrent invocations, and incidents resolve atomically with the final step.
+The unit suite (65 tests, one file per agent/module, 100% measured coverage against a 90% CI gate) pins the properties the demo depends on: recovery read happens before any write, each step commits inside an explicit `SERIALIZABLE` transaction, interrupted steps are re-executed (never skipped, never duplicated), a forward step is claimed exactly once under concurrent invocations, and incidents resolve atomically with the final step.
 
 [`tests/integration/test_recovery_e2e.py`](tests/integration/test_recovery_e2e.py) drives that same resume-and-exactly-once contract against the real schema on a real CockroachDB instance CI spins up — not just against mocks — and [`tests/integration/test_chaos_kill_e2e.py`](tests/integration/test_chaos_kill_e2e.py) goes one step further: it spawns the orchestrator as a real subprocess and hard-kills it mid-step with [`scripts/chaos_kill.py`](scripts/chaos_kill.py) (a real `SIGKILL`/`TerminateProcess`, no graceful shutdown), then asserts a cold restart resumes the interrupted step exactly once from CockroachDB. The same script drives the literal process-kill beat live in the demo.
 

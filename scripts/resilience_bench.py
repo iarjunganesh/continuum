@@ -834,6 +834,13 @@ Cold resume latency: p50 **{_pctl(storm["resume_ms"], 50):.0f} ms**,
 p95 **{_pctl(storm["resume_ms"], 95):.0f} ms**,
 p99 **{_pctl(storm["resume_ms"], 99):.0f} ms** (n={len(storm["resume_ms"])}).
 
+**Each of those figures includes a fixed {settings.step_execution_seconds:.1f} s simulated
+execution window** — the `sleep` a real kill strikes inside — so the recovery work itself is
+p50 ≈ **{max(0.0, _pctl(storm["resume_ms"], 50) - settings.step_execution_seconds * 1000):.0f} ms**.
+Stated because the window is a run parameter, not a property of the system: a run at a different
+window produces a different-looking latency for identical recovery behaviour, and comparing the two
+without this line would read as a speed-up that never happened.
+
 *Duplicated actions* is the one that matters operationally: re-running a remediation
 step can be worse than never running it. It is counted by reading the durable row
 back, not inferred from the return value.

@@ -135,9 +135,19 @@ class MemoryAgent:
         """
         with self._conn() as conn, conn.transaction(), conn.cursor() as cur:
             if resuming:
+                # Merge, don't replace. The row already carries the killed
+                # invocation's reasoning; the resuming invocation's detail adds
+                # `reexecuted_after_interrupt: true` and how *this* pass reasoned.
+                # Overwriting would lose the original decision; dropping the new
+                # detail (as this did) leaves the durable row asserting the step
+                # was NOT re-executed after an interrupt — precisely the fact the
+                # recovery claim rests on, and the one judge-facing evidence reads
+                # back out of the database.
                 cur.execute(
-                    "UPDATE remediation_steps SET status = 'executing' WHERE incident_id = %s AND step_index = %s",
-                    (incident_id, step_index),
+                    "UPDATE remediation_steps SET status = 'executing', "
+                    "detail = COALESCE(detail, '{}'::jsonb) || %s::jsonb "
+                    "WHERE incident_id = %s AND step_index = %s",
+                    (Json(detail or {}), incident_id, step_index),
                 )
                 claimed = True
             else:

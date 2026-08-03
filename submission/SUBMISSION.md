@@ -52,6 +52,9 @@ box here is the honest state, not an oversight.
 - [ ] **Functional demo app URL**
   - [x] Deployed to Hugging Face Spaces (`docs/DEPLOY.md`) — free, cardless, auto-synced on push
   - [x] Space secrets `COCKROACH_DATABASE_URL` + `COCKROACH_MCP_CLUSTER_ID` set; Space builds
+  - [ ] **Blocked as of 2026-08-03:** the cluster behind it is disabled on its Request Unit limit,
+        so the Space builds and serves but shows its "Waiting on CockroachDB" state instead of
+        incidents. See the first row of Known Gaps — this is the highest-priority open item
   - [ ] URL confirmed publicly accessible in a private/incognito window before submitting
   - [ ] Populated with seeded synthetic incidents. Not blocked by anything: `make seed-data-offline`
         seeds incidents + remediation history + deterministic vectors with **zero AWS calls**. Real
@@ -70,7 +73,8 @@ box here is the honest state, not an oversight.
 - [x] **Explicit list: which AWS services used + how** — README § AWS Services Used
 - [x] *Optional:* **architecture diagram** — two, in fact: components and the recovery sequence,
       both brand-themed renders in `assets/architecture/`
-- [ ] *Optional:* feedback on CockroachDB AI tools/features
+- [ ] *Optional:* feedback on CockroachDB AI tools/features — **drafted** at the end of this file;
+      unchecked until it is pasted into the Devpost form, because writing it here does not submit it
 
 ## Pre-Submission Sanity Checks
 
@@ -79,7 +83,7 @@ box here is the honest state, not an oversight.
       uses environment expansion
 - [ ] Demo app accessible without login
 - [ ] Video watched start to finish, verified under 3:00 on the **exported file**
-- [x] All CI gates green: ruff lint, ruff format, mypy, Devpost mirror freshness, 64 unit +
+- [x] All CI gates green: ruff lint, ruff format, mypy, Devpost mirror freshness, 65 unit +
       9 integration tests, 100% coverage against a 90% gate
 - [x] No broken links repo-wide (markdown links and HTML `src`/`srcset`/`href`)
 - [x] No placeholder artifacts shipping as finished — pending items are marked pending explicitly
@@ -88,7 +92,7 @@ box here is the honest state, not an oversight.
 
 ## Known Gaps — stated plainly
 
-These are real and unresolved as of `v0.9.0`. Listing them here is deliberate: a judge who finds
+These are real and unresolved as of `v0.9.1`. Listing them here is deliberate: a judge who finds
 them unlisted reads the whole checklist as unreliable. This table is the **single** place open
 gaps are tracked — `docs/DEMO_READINESS_CHECKLIST.md` previously duplicated it and was removed
 once its findings were either closed with evidence or folded in here, because two gap lists
@@ -96,15 +100,35 @@ drift and the stale one is always the one a judge reads.
 
 | Gap | Impact | Status |
 | --- | --- | --- |
+| **The CockroachDB cluster is disabled — Request Unit allowance exhausted, 2026-08-03** | This is no longer a forecast: the cluster now refuses every connection with *"reached its Request Unit limit for the month"*, `max connections = 0`. The deployed Lambda, the integration suite and the public Space all read that cluster, so the demo URL currently renders its degraded empty state instead of incidents — the one submission material a judge is guaranteed to open | The data half was covered before it happened and is proven, not assumed: `data/snapshots/memory-20260802-2215.jsonl` was exported as insurance and `make restore-memory SNAPSHOT=…` is round-tripped against a real cluster by `tests/integration/test_snapshot_roundtrip.py`. The compute half needs an account decision — raise the limit on the existing cluster (keeps the cluster id shown in `assets/provider-evidence/`) or stand up a fresh Basic cluster and `make migrate && make restore-memory`, then rotate the connection string in `.env`, the Space secrets and the Lambda environment. See [`COSTS.md`](COSTS.md) |
 | ~~**Lambda never deployed**~~ — **resolved 2026-08-01** | The "deployed on AWS" requirement was not satisfiable by inspection | Deployed to `continuum` / eu-central-1. Two packaging bugs surfaced and were fixed on the way: `CodeUri: ../` pulled the root `requirements.txt` into the function (387 MB vs a 250 MB limit — now `infra/requirements-lambda.txt`), and a stray `template` key in `samconfig.toml` would have deployed the *unbuilt* template |
 | ~~**Live Bedrock path never executed**~~ — **resolved 2026-08-01** | Titan/Claude response handling was unproven; every run to date had used silent fallbacks | Both paths verified end to end: `embed()` returns 1024 floats matching `VECTOR(1024)`, `_propose_via_bedrock()` parsed real Claude output 3/3. Every step now records `reasoning_source` / `correlation_source` so the mode is visible rather than inferred |
 | **No demo video** | A required submission material | Scripted in `DEMO_SCRIPT.md`, unrecorded |
-| **No captured evidence runs** | `assets/chaos-run/` is scaffolding — capture plan and shot list only | No longer gated: the function is deployed, so the capture can show the real cold-Lambda recovery |
+| ~~**No captured evidence runs**~~ — **partly resolved 2026-08-03** | `assets/chaos-run/` was scaffolding — capture plan and shot list only | `make chaos-capture` now performs the kill *and* records it. `assets/chaos-run/local-4789422d/` holds a real run: a live orchestrator hard-killed mid-step, the frozen `executing` row read back out of CockroachDB with no process alive to own it, and the cold resume of that exact step, with `correlation_source`/`reasoning_source` both `bedrock`. **Still open:** the console screenshots for that run, and an equivalent capture driven by cold Lambda invocations rather than a local process |
+| **Lambda-side recovery has no `chaos-run` folder of its own** | The captured run is a local process kill | Recovery on the deployed function is nonetheless evidenced three independent ways: the deploy-restart drill (`assets/deploy-restart-run/c1fe5151/`), the Lambda-timeout suite where **AWS** performs the kill, and the cold-invocation latencies in `docs/BENCHMARKS.md`. A fourth capture would re-prove the same contract, so it is deprioritised rather than forgotten |
+| **Container / process-restart not proven separately** | One row of the failure-mode matrix has no dedicated harness | Deliberately subsumed: a Lambda timeout *is* the execution environment being taken away mid-step, under stricter conditions than a container restart — AWS delivers the kill, with no catchable signal. Stated rather than quietly folded away |
+| **Bedrock quotas are dynamic and account-level** | Both Bedrock paths degrade *silently* by design, so a throttled account produces a demo that looks fine while never calling Bedrock | `make probe-bedrock` before any recording, and every step persists `reasoning_source` / `correlation_source` so the mode is visible in the durable row rather than inferred. ADR 008 has the history |
 | **HF Space can't self-trigger an incident** | A first-time judge sees state but can't create any | Read-only by design (single write path); an incident-start CTA is not currently in scope |
 | **Space panels are blank on first paint** | A first-time visitor sees an empty console until they click Refresh | Deliberate: `CONTINUUM_UI_LOAD_ON_OPEN` defaults to `0` and auto-refresh is off after a Request-Unit burn audit found the timer costing ~50 RU per refresh. Educational empty-state copy is in place; the trade is cluster cost against first-paint polish |
 | **Transaction boundaries not surfaced in the UI** | The `SERIALIZABLE` checkpoint pair is load-bearing (ADR 009) but only visible in logs and the database | Real and structlog-logged on every step; not rendered as a distinct console element |
 | ~~**Matched precedent not shown in the console**~~ — **resolved 2026-08-02** | The vector search's *result* — which past incident was matched — was invisible in the UI | Each step now persists the precedent it was reasoned from into `remediation_steps.detail` (incident id, L2 distance, summary, rank, candidates considered) and the timeline renders it. It shows the match the proposal **cited**, not merely the nearest one — a unit test pins that distinction |
 | **No judge-experience dry run** | The "understands it in 60 seconds" claim is untested against a fresh viewer | Subjective and unverifiable from repo state; needs one real walkthrough with someone who has not seen the project |
+
+## Scope — things deliberately not built
+
+Not oversights. Each was considered, costed, and declined for a stated reason, which is worth more
+to a reader than a longer feature list would be.
+
+- **Multi-region / regional failover.** Tempting for the "distributed database" story, but
+  CockroachDB Basic needs **three** regions to survive a region failure, regions **cannot be removed
+  once added**, and the trial credits are expiring. A one-way door with a recurring cost, days from
+  a deadline. The recovery guarantee this project makes does not depend on it.
+- **A third CockroachDB tool.** ADR 004: two tools that are load-bearing in the running app outscore
+  three used decoratively, and the judging criteria contain no tool-count line.
+- **An incident-start button in the Space.** Every write goes through one module (ADR 001); adding a
+  UI write path to make the demo interactive would weaken the property the demo exists to prove.
+- **Live observability (Grafana / CloudWatch dashboards).** structlog JSON and the CockroachDB
+  console already show the state that matters. A dashboard would be a screenshot, not a capability.
 
 ## Feedback for Cockroach Labs *(optional submission item — draft)*
 
