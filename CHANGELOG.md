@@ -3,6 +3,29 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.3] — 2026-08-06 — the outage diagnosed correctly, and the cluster back up
+
+### Fixed
+
+- **The cause recorded for the 2026-08-03 outage was wrong, and it had propagated into five files.** `submission/COSTS.md`, `submission/SUBMISSION.md`, `assets/provider-evidence/README.md`, the `Makefile` and `scripts/resilience_bench.py` all stated that the resilience benchmark suites exhausted the cluster's 400M Request Unit allowance. They did not. The console, captured live before the cutoff and sitting in `assets/provider-evidence/` the whole time, reads **$399 of $400 credits remaining and 3.42 million of 400 million Request Units used** — 0.86%. What lapsed was a **30-day free trial**, time-boxed from cluster creation on 4 Jul and printed in the console in advance. The platform returns the same *"reached its Request Unit limit for the month"* error either way, and that error text was taken as the diagnosis without the billing page ever being opened.
+- **`submission/COSTS.md` drew a production-readiness moral from the event that never happened** — *"the load-testing harness is the cost risk, not the workload it measures"* — in a document that elsewhere flags its own figures as modelled rather than invoiced. Replaced with the two lessons the evidence actually supports: free-tier capacity has a meter **and** a clock and only the meter appears in your metrics, and a plausible cause is not a diagnosed one. The corrected section names the misdiagnosis rather than quietly editing it away.
+
+- **`submission/DEVPOST.md` claimed 57 unit tests in two places; the suite has 65** — and `make check-drift` passed anyway, because its test-count check matched only *"N unit + M integration"* and *"unit suite (N tests"*, never the bare *"N unit tests"* phrasing those two lines used. The gate that exists specifically to stop stale counts had a hole shaped exactly like the claim that went stale. Count corrected, and `scripts/check_drift.py` taught the third pattern rather than the doc being quietly fixed underneath a check that would miss it again.
+
+### Verified
+
+- **The cluster is back, with no data lost.** Resolved by adding a payment method to the existing organization — the cheap fix, and the right one once the cause was correct: service resumed on the **same cluster id** `assets/provider-evidence/` shows, and the org moved from a one-off trial credit to Basic's recurring **$15/month allowance (50M RU + 10 GiB)** against a measured 3.42M RU and 19.51 MiB. Checked live: 360 ms connect, CockroachDB v26.2.1, 40 embeddings intact, and `EXPLAIN` still planning **`• vector search`** with `prefix spans` on the C-SPANN index — the CTE workaround from 0.8.0 survived the outage.
+- **Resource limits capped at 100M RU / 10 GiB** — a $25.00 gross ceiling that nets to ≈$10 after the free credit. Set at 2× the free allowance rather than exactly at it, deliberately: reaching an RU limit *disables* the cluster rather than billing through it, so a cap that trips during judging costs far more than $10 does. At 100M the 50%-of-limit alert fires exactly when the free tier is exceeded.
+
+### Added
+
+- **`docs/CLUSTER_OPS.md`** — how to run things against the Cloud cluster without taking the demo down. The budget model and why normal operation sits at ~7% of it; a safe-on-Cloud vs must-go-local table covering every cluster-touching `make` target; Hugging Face Space discipline (the auto-refresh timer at ~36K RU/hour *per open tab*, secrets needing a restart, the judges-only Additional Info field); a pre-demo checklist; the residue-purge procedure; and an *if the cluster is disabled* section that leads with **read the billing page before assuming overuse**. It exists because the operating knowledge that would have prevented both outages was spread across a cost document, a Makefile comment and one person's memory.
+- **Three constraints in `CLAUDE.md`**: the Cloud cluster serves the demo and nothing else; never set `CONTINUUM_UI_REFRESH_SECONDS` on the Space; a disabled cluster is not proof of overuse.
+
+### Changed
+
+- **The framing of the 0.9.2 bench guard.** It was justified by an exhaustion event that did not occur, and the honest reading is that it was built for a fire that never happened. It is kept, and its comment rewritten to the reason that survives scrutiny: an N=200 run left **667 incidents on the demo cluster, 431 frozen in `remediating`** when the trial lapsed mid-run. The scarce resource on that cluster is demo cleanliness, not Request Units — which matters, because a rule defended by a cost argument gets relaxed the moment someone notices Request Units are cheap. The post-upgrade allowance is also 8× narrower than the trial's, so the ceiling now guards something real.
+
 ## [0.9.2] — 2026-08-03 — benchmarks off the cluster the demo runs on
 
 ### Added
