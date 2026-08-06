@@ -1,4 +1,4 @@
-.PHONY: charts voiceover obs-assets check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo chaos-capture benchmark resilience-bench local-cluster local-cluster-down local-cluster-status probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
+.PHONY: chaos-capture-pause charts voiceover obs-assets check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo chaos-capture benchmark resilience-bench local-cluster local-cluster-down local-cluster-status probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -55,6 +55,13 @@ chaos-demo:
 # the incident in the cluster on purpose so the console screenshots can show it.
 chaos-capture:
 	python scripts/chaos_capture.py
+
+# The same capture, but it HOLDS at the frozen phase until you press ENTER. Use
+# this for any run you intend to screenshot or film: the `executing` row with no
+# live process exists only inside that pause. Once the run resolves the console
+# shows `resolved`, and that state cannot be staged again after the fact.
+chaos-capture-pause:
+	python scripts/chaos_capture.py --pause
 
 # OBS-ready 1920x1080 sources from assets/provider-evidence/. Never downscales a
 # still: short captures are padded, and anything taller than 1080 becomes a pan

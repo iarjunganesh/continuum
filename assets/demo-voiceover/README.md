@@ -28,6 +28,7 @@ default and reads as stock TTS to anyone who has watched an AWS tutorial.
 
 ```bash
 make voiceover                                          # all clips + captions
+python scripts/generate_demo_voiceover.py                # the same, without make (Windows)
 python scripts/generate_demo_voiceover.py --clip kill    # one clip after a wording change
 python scripts/generate_demo_voiceover.py --table        # re-measure, re-emit the table
 python scripts/generate_demo_voiceover.py --audition     # one line in every candidate voice

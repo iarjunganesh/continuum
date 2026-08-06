@@ -45,6 +45,8 @@ CockroachDB tools and **at least one** AWS service.
 | --- | --- |
 | Bedrock | ✅ Titan Text Embeddings V2 + Claude Sonnet 4.5 |
 | Lambda | ✅ orchestrator execution, no provisioned concurrency |
+| SAM · IAM | ✅ infrastructure as code; Bedrock-invoke-only credentials |
+| Polly | ✅ demo narration + caption timings (`scripts/generate_demo_voiceover.py`) — production tooling, not the running app |
 | ECS/EKS · S3 · SageMaker · others | ❌ not used |
 
 ### Required submission materials
@@ -83,6 +85,12 @@ answers each.
 ---
 
 ## Elevator Pitch
+
+**Devpost's tagline field is short — paste this one:**
+
+> **Kill the agent mid-incident. It resumes the exact step it died on.**
+
+Longer version, for the description field and anywhere with room:
 
 > An autonomous incident-response agent that resumes the exact step it was killed on: kill the process mid-remediation, and the next cold invocation picks up the interrupted step from CockroachDB — not from scratch, and never a duplicate. Its memory lives in the database, not the process.
 

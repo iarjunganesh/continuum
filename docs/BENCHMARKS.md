@@ -3,7 +3,14 @@
 What a remediation step actually costs, measured — not modelled. Reproduce with
 `make benchmark`; numbers vary with cluster tier, region and client distance.
 
-**Run:** 2026-08-01 18:48 UTC · **Vector search:** real Amazon Titan Text Embeddings V2 vectors
+**Run:** 2026-08-01 · **Code:** `27eb11c`, plus the Lambda deployment landed in `8f5dc46` ·
+**Vector search:** real Amazon Titan Text Embeddings V2 vectors
+
+<sub>The commit is recorded because a benchmark outlives the code it measured — the same
+discipline as [`RESILIENCE.md`](RESILIENCE.md), which carries a per-commit staleness audit. §3 was
+measured at 18:48 UTC; §2 was added after the function was deployed later the same evening, so the
+two sections are not the same instant. **Read the staleness note under §3 before quoting the
+vector-search row.**</sub>
 
 ## 1. What this measures, and why
 
@@ -67,11 +74,32 @@ remediation window `chaos_kill.py` strikes in — **subtract it to read the real
   the public internet. Read the *relative* cost between operations as the durable signal,
   and §2 for what the same work costs in-region.
 
+> **Staleness note — the `vector search` row measured a full scan, not the index.** This run
+> predates [`ebd0986`](../agents/correlation_agent.py) (2026-08-02 12:03), the fix that restored
+> the C-SPANN plan by isolating the ANN search in a CTE. At the time, `find_similar` joined
+> `incidents` in the same statement as the `<->` ordering, which made CockroachDB fall back to
+> `spans: FULL SCAN` — the bug written up in the README and pinned by
+> `tests/integration/test_vector_index.py`. **The 379 ms is still an honest measurement of that
+> call**, and at this corpus size the label is the only thing that was wrong: over ~40 seed
+> vectors an ANN index and a full scan are indistinguishable, and the number is dominated by the
+> ~340 ms TLS floor either way. It is left in place, corrected rather than quietly re-run, because
+> deleting it would hide the timeline. **For post-fix vector behaviour, and for the only
+> measurement where index-vs-scan is actually visible, use
+> [`RESILIENCE.md` Suite C](RESILIENCE.md#c-vector-search-at-scale)** — 100 → 10,000 vectors,
+> C-SPANN against a forced `@primary` full scan on the same rows.
+
 ## Caveats worth stating plainly
 
 - CockroachDB Basic (Serverless) scales to zero; a cluster that has been idle pays a
   routing cost on the first call that a provisioned cluster would not.
 - Percentiles over 30 samples are indicative, not production SLO evidence.
+- **§2 is n=5 (n=4 for cold start) — smaller than §3, and it is the section headed "the number
+  that counts".** Each sample is a real invocation of the deployed function against the live
+  cluster, so the sample size is a deliberate cost ceiling, not an oversight. Treat a p99 over
+  5 samples as the slowest of five, because that is exactly what it is. The conclusion §2 draws
+  is deliberately the one that survives a small n: that resume and new-incident costs are
+  **indistinguishable**, a null result the spread supports. Do not read the individual
+  percentiles as an SLO.
 - Bedrock quotas are dynamic and account-level (ADR 008). A throttled account degrades
   to deterministic fallbacks, which would make these numbers *faster* and less
   meaningful — the `reasoning_source` / `correlation_source` markers on every step are

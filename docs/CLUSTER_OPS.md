@@ -77,10 +77,28 @@ These are what the demo is made of. Their cost is negligible — the whole incid
 | `make resilience-bench` | Each sample is a full incident with real writes. The N=200 run left **665 incidents and 1,353 steps** on the demo cluster, 431 of them frozen mid-run |
 | `make benchmark` | Seeds up to 10,000 vectors to measure the index at scale |
 | `pytest tests/integration` | Writes real incidents through the real schema, by design |
-| `make chaos-capture` | Deliberately leaves its incident in the cluster and prints the id |
+| `make chaos-capture` | **Rehearsals only — see the split below.** The keeper run belongs on Cloud |
 | `make load-test` | k6 read-path smoke. Read-only, but sustained and unbounded |
 
-Two of these have guards as of 0.9.2: `resilience_bench.py` refuses more than 400 incidents or
+### `chaos-capture` is split by purpose, not banned
+
+This one earlier sat flatly under "must go local", with the reason *"deliberately leaves its
+incident in the cluster and prints the id"*. That reason is **backwards for the run that matters**:
+leaving the incident and printing its id is exactly what makes shot `03` — the `executing` row in
+the **CockroachDB Cloud console** — possible. Run the keeper capture locally and the money shot
+frames a localhost container, which evidences nothing and cannot be retaken once the run resolves.
+
+| Purpose | Where | Why |
+| --- | --- | --- |
+| Rehearsing timing — does the kill land mid-window, does the pause fall in the right place | **local** | Free, disposable, leaves no residue on the demo surface |
+| **The keeper run you screenshot or film** | **Cloud** | The evidence *is* the Cloud console. Cost is one incident and three steps — a few hundred RU against a 50M/month allowance |
+
+The distinction that makes this consistent with the rest of the table: `resilience-bench` creates
+**hundreds** of incidents, so it is banned on Cloud on demo-cleanliness grounds. `chaos-capture`
+creates **one**, and that one *is* the artifact. Use `make chaos-capture-pause` for a keeper run —
+it holds at the frozen phase so the screenshot is takeable at all.
+
+Two of the commands above have guards as of 0.9.2: `resilience_bench.py` refuses more than 400 incidents or
 10,000 vectors against a `*.cockroachlabs.cloud` host without `--allow-cloud-burn`. **The guard is
 a backstop, not permission** — pointing a bench at Cloud is still the wrong call even under the
 limit, because the cost is demo-cleanliness, not Request Units.

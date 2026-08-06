@@ -2,9 +2,22 @@
 
 > **Target 2:50–2:55** (hard cap **3:00**, disqualifying if over) · **public** on YouTube · 1920×1080 / 30 fps ·
 > no copyrighted music · synthetic data only (ADR 005).
-> **Status: not yet shot.** Narration is generated and committed; charts, cards and diagrams are
-> generated and committed; `s03` is already captured under `assets/provider-evidence/`. The
-> remaining eight stills and the one live take are outstanding.
+> **Status: not yet shot.** Ready and committed: narration (13 clips), captions, charts, cards,
+> both diagrams, and `s03` under `assets/provider-evidence/`. Outstanding: **8 stills, Recording #1
+> (the take that matters), Recording #2 (optional), Session C (evidence capture — not filmed), and
+> the cut.** Nothing here is blocked on anything — see the time budget below.
+
+**Time budget — this is a one-day shoot, and the deadline is the only hard constraint.** Everything
+below is written to make each beat correct on the first attempt, not to be worked through in order
+on the day. Plan roughly: OBS + desktop setup **30 min** · Step 0 prep **20 min** · Recording #1
+**45 min** including retakes · Session C evidence capture **15 min** · stills **45 min** ·
+assembly and export **90 min**. That is one
+focused day with slack, and it fits several times over in the time remaining — but only if it
+starts. **If you are running long, cut in this order**: Recording #2 (beat 12 falls back to the
+`s06` still, explicitly sanctioned below) → the `s09` Lambda console still (beat 10 runs on the
+chart alone) → beat 13's third still. **Never cut, shorten, or re-shoot-in-pieces beats 6–8.**
+A rough cut of beats 6–8 with everything else missing is a submittable video; a polished everything
+else without beats 6–8 is not.
 
 The whole video exists to land one sentence:
 
@@ -48,6 +61,13 @@ So the shoot splits three ways:
   hardcoded string.
 - **Stills** — every other beat. Crisper text, free retakes, and the charts are *generated* rather
   than captured, so they can never show a number that has drifted from the evidence.
+
+There is also a fourth thing to capture on shoot day that is **not part of the video at all**:
+
+- **Session C — Evidence capture** (`make chaos-capture-pause`, ~5 min). Produces the judge-facing
+  `assets/chaos-run/` folder and its console screenshots. Nothing from it appears on the timeline.
+  Do it in the same sitting because the browser tabs and cluster state are already staged — but see
+  *Session C* below for why it **cannot** double as Recording #1.
 
 **What stills cost, and why it's the right trade**: a still has no cursor, so nothing in those beats
 reads as "someone is operating this right now." That's fine — correct, even — for beats whose job is
@@ -137,15 +157,31 @@ This is most of what separates footage that reads as polished from footage that 
 Run this whole block and read the output. It regenerates every generated asset from current
 evidence, so nothing on screen can be stale:
 
+> **`make` is not installed on the shoot machine** — not in PowerShell, not in Git Bash. The
+> `Makefile` remains the source of truth for *what* each step is; the commands below are what you
+> actually type. Every runnable block in this document is PowerShell-native for that reason. If you
+> would rather have the targets, `winget install ezwinports.make` — but do that days ahead, not on
+> shoot day, and re-open the shell so `PATH` picks it up.
+
+| Makefile target | What to type on Windows |
+| --- | --- |
+| `make probe-bedrock` | `python scripts/probe_bedrock.py` |
+| `make check-drift` | `python scripts/check_drift.py` |
+| `make migrate` + `make seed-data` | `.\scripts\migrate_and_seed.ps1` (add `-Offline` for zero-AWS vectors) |
+| `make voiceover` | `python scripts/generate_demo_voiceover.py` |
+| `make chaos-capture-pause` | `python scripts/chaos_capture.py --pause` |
+| `make charts` | `python scripts/build_charts.py` |
+| `make obs-assets` | `python scripts/build_obs_assets.py` |
+| `make run-api` | `python -m uvicorn api.main:app --port 8000` |
+| `make coverage` | `pytest tests/unit --cov=agents --cov=api --cov=observability --cov-report=term` |
+
 ```powershell
 cd C:\ws\continuum
 
-make probe-bedrock          # 1. which mode are you demoing in?
-make check-drift            # 2. no stale claim can appear on screen
-make migrate; make seed-data   # 3. populate the cluster
-make resilience-bench       # 4. fresh evidence -> fresh charts (~20 min)
-make charts                 # 5. regenerate chart stills + PNGs from that run
-make voiceover              # 6. regenerate narration + captions (only if wording changed)
+python scripts/probe_bedrock.py     # 1. which mode are you demoing in?
+python scripts/check_drift.py       # 2. no stale claim can appear on screen
+.\scripts\migrate_and_seed.ps1      # 3. populate the DEMO cluster (see the warning below)
+python scripts/generate_demo_voiceover.py   # 4. narration + captions (only if wording changed)
 ```
 
 1. **`probe-bedrock`** — quotas are dynamic (ADR 008). If Bedrock is throttled, correlation and
@@ -154,9 +190,18 @@ make voiceover              # 6. regenerate narration + captions (only if wordin
    `bedrock` on screen. **Save the probe output into the run's `evidence/` folder whatever it says.**
 2. **`check-drift`** — the README and badges are on camera in beat 13. This is what stops a stale
    number being immortalised in a video you can't edit later.
-3. **`resilience-bench` + `charts`** — beats 9–11 quote real figures; regenerate so the charts, the
-   committed evidence folder, and the screen all agree. `make charts` writes both SVG (for docs) and
-   **PNG at 1920×1080** (for the timeline — Clipchamp cannot import SVG).
+3. **`migrate` + `seed-data`** — these two, and *only* these two, run against the Cloud demo cluster
+   in `$COCKROACH_DATABASE_URL`. That is the cluster the Space and the deployed Lambda share and the
+   one judges open, so nothing else in this shoot points at it.
+
+> **Do NOT run `make resilience-bench` on shoot day.** It refuses to run against a
+> `*.cockroachlabs.cloud` DSN without `--allow-cloud-burn` ([`scripts/resilience_bench.py`](../scripts/resilience_bench.py)),
+> so the command aborts mid-prep — and overriding the guard is worse: an N=200 run once left 665
+> incidents, 431 frozen in `remediating`, on the cluster judges open. The charts for beats 9–11 are
+> **already generated and committed** from evidence run `1f98a6fc`; they cannot drift, because
+> `make charts` derives them from that folder. Regenerating buys nothing and risks the demo surface.
+> If you genuinely need fresh numbers, do it days ahead against `make local-cluster`, per
+> [`docs/CLUSTER_OPS.md`](../docs/CLUSTER_OPS.md), then re-run `make charts` and commit.
 
 If every region is throttled the demo still runs end to end — correlation degrades to "no precedent"
 and remediation to precedent-replay, by design. **Know which mode you're recording in before you
@@ -167,13 +212,26 @@ charts. Every generated asset ships in both variants; mixing them mid-video read
 
 ## Which recovery to record
 
-1. **`--via-lambda`** — recovery as a genuine cold Lambda invocation. The strongest version of the
-   claim: recovery across *invocations*, not just process restarts. The function is deployed
-   (`docs/DEPLOY.md`), so **this is the one to shoot.**
-2. **`--via-api` + restart** — recovery across a process restart on one machine. Still a real
-   `SIGKILL`, still proves the point. Fallback only.
+**You cannot film a Lambda being killed.** `chaos_kill.py` kills a local process by PID or port; a
+deployed function has neither from your terminal. So the take is a **hybrid**, and it is the
+strongest *honest* version of the claim:
 
-**Do not record option 2 and describe it as option 1.**
+| Beat | Command | Why this one |
+| --- | --- | --- |
+| 6–7 — the kill | `--via-api`, then `chaos_kill.py --port 8000` | A genuine `SIGKILL` against a process you can see die on camera. This half **must** be local |
+| 8 — the resume | `--via-lambda` | The resume is a **real cold invocation of the deployed function**, which is exactly what `vo_06-resume` narrates |
+
+This works because the local API and the deployed Lambda **read the same cluster** — the function's
+`COCKROACH_DATABASE_URL` is the same DSN your `.env` uses ([`infra/template.yaml`](../infra/template.yaml)).
+The killed local process leaves the step durably `executing`; the Lambda, in another account-region
+entirely, picks up *that* row. The handoff crossing an execution-environment boundary is a stronger
+demonstration than a same-machine restart, not a weaker one.
+
+**Fallback if the Lambda misbehaves on camera** (throttle, cold-start stall, expired credentials):
+resume with `--via-api` after restarting the API locally. Still a real kill, still a real cold resume from
+CockroachDB. **If you do that, change the beat-8 narration** — `vo_06-resume` says *"A cold Lambda
+invocation"*, and that sentence would no longer be true. Re-record that one clip via `make voiceover`
+rather than letting it play over the wrong footage.
 
 ---
 
@@ -209,7 +267,7 @@ Set the panes up, then start the API and let it settle *before* you start record
 # Pane 1 — the orchestrator, as a killable process
 cd C:\ws\continuum
 Clear-Host
-make run-api
+python -m uvicorn api.main:app --port 8000
 ```
 
 Then, in pane 2, with OBS rolling (hotkey — do not click OBS):
@@ -226,14 +284,31 @@ python scripts/chaos_kill.py --port 8000
 # 4. Show the durable state. HOLD AT LEAST 3 SECONDS on this frame —
 #    the step sitting in `executing` with nothing alive to own it is the whole thesis.
 
-# 5. Restart cold and fire the same alert. `resuming_incident`, `interrupted: true`,
-#    then that same step_index re-running and completing.
-make run-api
-python scripts/demo_run.py --tick --via-api --resume-check
+# 5. THE RESUME — a cold invocation of the DEPLOYED function. Nothing local is
+#    restarted: the left pane stays dead on screen while the right pane shows the
+#    deployed Lambda picking up the same step_index. `resumed: true`,
+#    `reexecuted_after_interrupt: true`, then that step completing.
+python scripts/demo_run.py --tick --via-lambda --resume-check
 ```
 
-Windows shortcut for the whole sequence: `.\scripts\chaos_demo.ps1` (`make chaos-demo` is POSIX-only).
-Drive it by hand the first time so you know what each frame should look like.
+**Leave the dead terminal in frame during step 5.** The killed process visibly still gone while
+something *else* completes its step is the whole thesis in one frame — restarting the local API
+would throw that away. (Fallback only, if the Lambda stalls: `python -m uvicorn api.main:app --port 8000` then
+`python scripts/demo_run.py --tick --via-api --resume-check`, and re-record `vo_06-resume` — see
+*Which recovery to record*.)
+
+Before rolling, confirm the Lambda leg works at all — you do not want to discover an expired
+credential mid-take:
+
+```powershell
+# unset the Bedrock-only static keys first, or boto3 ignores the profile (see CLAUDE.md)
+python scripts/demo_run.py --tick --via-lambda --new   # throwaway incident, not the demo one
+```
+
+Windows shortcut for the local-only sequence: `.\scripts\chaos_demo.ps1` (`make chaos-demo` is
+POSIX-only). It resumes via the API, not the Lambda — useful for rehearsing the timing of the kill,
+not for the final take. Drive the sequence above by hand the first time so you know what each frame
+should look like.
 
 ### Stopping and saving
 
@@ -288,6 +363,75 @@ still you captured, or beat 12 will jump against beats 3 and 5.
 4. Let the answer render fully. **Pause on it** for 2–3 seconds; that pause is the beat.
 5. Stop with the hotkey, wait ~2 s, remux, save as **`mcp-query-take.mp4`**.
 6. `ffprobe` it exactly as above — same 1920×1080 / 30 fps expectation.
+
+---
+
+## Session C — Evidence capture (not filmed, but do it the same day)
+
+`make chaos-capture-pause` produces the judge-facing artifact the *repo* needs: a
+`assets/chaos-run/local-<id>/` folder holding a provenance manifest, the three phase snapshots read
+straight out of CockroachDB, the orchestrator's own structlog, the Bedrock probe — and the console
+screenshots that go with them. **None of it lands on the video timeline.** It is what a judge opens
+when they want to verify the claim without watching anything.
+
+### Why this cannot be Recording #1
+
+Tempting, because it stages the same moment and pauses exactly where the camera wants to linger.
+But `chaos_capture.py` resumes with a **second local uvicorn process**
+([`scripts/chaos_capture.py`](../scripts/chaos_capture.py) — `srv2 = Orchestrator(...)`), not a
+Lambda invocation. Beat 8's committed narration says *"A cold Lambda invocation."* Filming this run
+would put that sentence over a local process restart, which is precisely the substitution the
+Honesty rules forbid.
+
+| | Recording #1 | Session C |
+| --- | --- | --- |
+| Purpose | the video's beats 6–8 | the repo's evidence folder |
+| Resume performed by | **cold Lambda** (`--via-lambda`) | second local process |
+| Produces evidence JSON | no | **yes**, with a manifest |
+| Frozen state held by | you, between typed commands | `--pause`, until ENTER |
+
+Both are real kills and both prove the contract. They differ in *who resumes* and *what is written
+down*, and each is the right tool for its job. Run them as two sessions, back to back.
+
+### Steps
+
+Run this against the **Cloud** cluster — shot `03` is a screenshot of the CockroachDB *Cloud*
+console, so a local run frames a container and evidences nothing
+([`docs/CLUSTER_OPS.md`](../docs/CLUSTER_OPS.md) § `chaos-capture` is split by purpose). It costs
+one incident and three steps.
+
+Have open before you start: the **CockroachDB console SQL shell**, and the **Gradio console**
+(click Refresh once — it is blank on first paint by design).
+
+```powershell
+python scripts/chaos_capture.py --pause
+```
+
+It probes Bedrock, spawns a real orchestrator, fires an alert, waits for the step to be *durably*
+`executing`, hard-kills the process — then **stops** and prints the `incident_id` and the SQL to
+run. Nothing is running during the pause; take as long as you like.
+
+While paused, capture into `assets/chaos-run/local-<id>/screenshots/`, prefixed with the run id:
+
+| Shot | What | Why it can only happen now |
+| --- | --- | --- |
+| `03` | CockroachDB console — the `remediation_steps` row in `executing` | **The money shot.** Once you press ENTER the incident resolves and the console shows `resolved`. It cannot be staged again |
+| `01` | Gradio console — the incident open, step mid-flight | Same window; cheaper to take now than to re-stage |
+
+Press **ENTER**. The run resumes, resolves, verifies exactly-once from the durable rows, and writes
+the folder. Shots `02`, `04` and `05` (terminal scrollback, the resolved timeline) can be taken
+afterwards at leisure — those states persist.
+
+**If the capture prints `FAIL`**, keep the folder. A failed capture is a fact about the system, not
+a mistake to hide — the script marks it and records why, and that is the behaviour that makes a
+passing folder worth trusting.
+
+### Afterwards
+
+The new run supersedes `local-4789422d`, which has complete evidence JSON and an empty
+`screenshots/` folder because it was captured before `--pause` existed and its incident has long
+since resolved. Update `assets/README.md`, `assets/chaos-run/README.md` and the Known Gaps row in
+[`SUBMISSION.md`](SUBMISSION.md) to point at the new id.
 
 ---
 
@@ -557,6 +701,7 @@ These matter more than polish. A judge who catches one overstatement discounts e
 | Resume shows a *new* incident | Correlation id differed between invocations — reuse the exact same alert |
 | Terminal text unreadable at 1080p | Font below ~16 pt. Increase and reshoot; this beat only works if legible |
 | Lambda invocation times out on camera | Check the function's `Timeout` wasn't left low by a benchmark run — it should be 60 s |
+| Lambda resume fails on camera (`AccessDenied`, throttle, stall) | Fall back to `--via-api` for beat 8 **and** re-record `vo_06-resume` — the committed clip says "a cold Lambda invocation". `AccessDenied` is almost always the `.env` static keys outranking the profile (CLAUDE.md) |
 | Recording is silent when you expected audio | Desktop Audio was disabled, not just muted. Unrecoverable — reshoot |
 
 ---
@@ -569,7 +714,9 @@ These matter more than polish. A judge who catches one overstatement discounts e
 
 - [ ] `make probe-bedrock` green, `reasoning_source` reads `bedrock` on screen, output saved to evidence
 - [ ] `make check-drift` clean — nothing stale can appear in beat 13
-- [ ] `make resilience-bench` fresh, `make charts` regenerated from that same run
+- [ ] Charts present and committed (`assets/charts/*-16x9.png`, from evidence run `1f98a6fc`) —
+      **do not run `make resilience-bench` today**; it aborts on a Cloud DSN and burns the demo
+      cluster if forced
 - [ ] `make voiceover` current — narration table in this doc matches the committed MP3s
 - [ ] OBS: 1920×1080 base *and* output, 30 fps, CBR 12–16 Mbps, MKV, **mic Disabled**, desktop audio ON
 - [ ] OBS: Start/Stop **hotkeys bound** — OBS's own window never appears on camera
@@ -581,13 +728,24 @@ These matter more than polish. A judge who catches one overstatement discounts e
 - [ ] Recording #1 is **one continuous take** covering beats 6–8, remuxed to `kill-recover-take.mp4`
 - [ ] Every take **`ffprobe`d**: 1920×1080, 30/1, h264 — not the monitor's native resolution
 - [ ] The interrupted step reads **`executing`** in the take — verified before cutting
-- [ ] Recovery recorded as **`--via-lambda`**, and narrated as such
+- [ ] Kill is local (`--via-api` + `chaos_kill.py`); **resume is `--via-lambda`** and the dead
+      terminal stays in frame. If the resume fell back to `--via-api`, `vo_06-resume` was re-recorded
+      to match
 - [ ] Recording #2 shot, or beat 12 consciously falls back to the `s06` still
 - [ ] The remaining **8** stills captured at the right type and viewport into
       `assets/demo-video/statics/` — `s03` is already satisfied by
       `assets/provider-evidence/1080p/01.space-console-executing-banner.png`
 - [ ] `make obs-assets` run, so anything used from `assets/provider-evidence/` is the 1080p variant
 - [ ] One theme held throughout — UI, cards, diagram, charts
+
+**Session C — evidence capture (not filmed)**
+
+- [ ] `make chaos-capture-pause` run **against the Cloud cluster**, folder written, outcome `PASS`
+- [ ] Shot `03` — the `executing` row in the CockroachDB console — taken **during the pause**.
+      This is unrecoverable afterwards; the incident resolves on ENTER
+- [ ] Shots `01`, `02`, `04`, `05` into `assets/chaos-run/local-<id>/screenshots/`, run-id prefixed
+- [ ] `assets/README.md`, `assets/chaos-run/README.md` and `SUBMISSION.md` Known Gaps updated to
+      the new run id, superseding `local-4789422d`
 
 **Cut & publish**
 
@@ -608,5 +766,7 @@ These matter more than polish. A judge who catches one overstatement discounts e
 - `docs/RESILIENCE.md` — the numbers quoted in beats 9–11
 - `docs/BENCHMARKS.md` — latency methodology and caveats
 - `assets/README.md` — evidence index and capture conventions
+- `assets/chaos-run/README.md` — Session C's output: folder layout and the numbered shot list
+- `docs/CLUSTER_OPS.md` — which commands may touch the Cloud cluster, and why `chaos-capture` is split
 - `assets/demo-voiceover/README.md` — how the narration is generated
 - `submission/SUBMISSION.md` — the rules checklist this video satisfies

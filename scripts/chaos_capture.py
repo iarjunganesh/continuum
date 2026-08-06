@@ -28,6 +28,12 @@ run's rows rather than some other incident's.
 Usage:
     python scripts/chaos_capture.py                  # local process kill
     python scripts/chaos_capture.py --keep-logs      # keep raw uvicorn output too
+    python scripts/chaos_capture.py --pause          # HOLD at the frozen phase for screenshots
+
+`--pause` is the only way to photograph the `executing` row. Without it the run
+resolves in the same breath, and afterwards the console shows `resolved` — the
+interrupted state is not reproducible after the fact. Use it for any run whose
+screenshots or video footage you intend to keep.
 """
 
 from __future__ import annotations
@@ -185,7 +191,44 @@ def _probe_bedrock() -> tuple[str, bool]:
 # --------------------------------------------------------------------------
 # The run
 # --------------------------------------------------------------------------
-def capture_local(step_seconds: float, keep_logs: bool) -> int:
+def _pause_for_screenshots(correlation_id: str, incident_id: str | None) -> None:
+    """Hold the frozen state on the cluster until the operator says go.
+
+    This exists because `assets/chaos-run/README.md` instructs the operator to
+    screenshot the `executing` row "while the run is paused at step [4/6]" — and
+    for a long time nothing paused. The print landed microseconds before the
+    resuming process started, so the one screenshot that carries the argument
+    was impossible to take, and every `screenshots/` folder stayed empty.
+
+    The frozen row is not reproducible after the fact: once the run resolves, the
+    console shows `resolved` and the interrupted state is gone forever. Pausing
+    here is the ONLY window in which that screenshot exists.
+    """
+    print("\n" + "=" * 72)
+    print("  PAUSED — the step is frozen in 'executing' and NO process owns it.")
+    print("  This state does not exist before this moment or after you continue.")
+    print("")
+    print(f"  correlation_id : {correlation_id}")
+    if incident_id:
+        print(f"  incident_id    : {incident_id}")
+    print("")
+    print("  Capture now:")
+    print("    1. CockroachDB console -> SQL shell:")
+    print("       SELECT step_index, status, action FROM remediation_steps")
+    print(f"       WHERE incident_id = '{incident_id or '<see above>'}' ORDER BY step_index;")
+    print("    2. The Gradio console timeline showing the step mid-flight")
+    print("    3. If recording: this is video beat 7 — hold the frame 3+ seconds")
+    print("")
+    print("  Save into the run's screenshots/ folder, prefixed with the run id.")
+    print("=" * 72)
+    try:
+        input("\n  Press ENTER to resume (the cold process picks up this exact step)... ")
+    except EOFError:
+        # Non-interactive (CI, piped stdin): never block a scripted run.
+        print("  [no tty — continuing without pausing]")
+
+
+def capture_local(step_seconds: float, keep_logs: bool, pause: bool = False) -> int:
     run = new_run("chaos", label="local")
     correlation_id = f"chaos-{uuid.uuid4().hex[:8]}"
     memory = MemoryAgent()
@@ -259,7 +302,11 @@ def capture_local(step_seconds: float, keep_logs: bool) -> int:
         frozen_step = next((s for s in frozen["remediation_steps"] if s["step_index"] == interrupted_at), None)
         if frozen_step is None or frozen_step["status"] != "executing":
             raise CaptureFailed(f"interrupted step is not 'executing' after the kill: {frozen_step}")
-        print("[4/6] CAPTURED: step frozen in 'executing' with no live process — screenshot this now if recording")
+        print("[4/6] CAPTURED: step frozen in 'executing' with no live process")
+        if pause:
+            _pause_for_screenshots(
+                correlation_id, frozen["incident"].get("incident_id") if frozen.get("incident") else None
+            )
 
         # 6. A cold process resumes purely from CockroachDB.
         srv2 = Orchestrator(0.5, log_path).start()
@@ -378,11 +425,19 @@ def main() -> None:
         help="execution window to strike inside; wide enough that the kill reliably lands mid-step",
     )
     p.add_argument("--keep-logs", action="store_true", help="keep raw uvicorn output, not just the structlog JSON")
+    p.add_argument(
+        "--pause",
+        action="store_true",
+        help=(
+            "hold at phase [4/6] — the step frozen in 'executing' with no live process — until ENTER. "
+            "The ONLY window in which that screenshot exists; the state is gone once the run resolves"
+        ),
+    )
     args = p.parse_args()
 
     if not settings.cockroach_database_url:
         sys.exit("COCKROACH_DATABASE_URL is not set — this capture runs against a live cluster")
-    sys.exit(capture_local(args.step_seconds, args.keep_logs))
+    sys.exit(capture_local(args.step_seconds, args.keep_logs, args.pause))
 
 
 if __name__ == "__main__":

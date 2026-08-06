@@ -48,6 +48,16 @@ chaos-run/<id>/
 
 ## Screenshot plan (numbered in walkthrough order)
 
+**Only `chaos-run/` carries screenshots.** `resilience-run/`, `deploy-restart-run/` and the
+benchmark suites are machine-evidenced by design: their results are counts and JSON, whose visual
+form is the generated charts in [`charts/`](charts/) — regenerated from the evidence, so they
+cannot drift the way a screenshot of a number does. Those folders deliberately have no
+`screenshots/` directory rather than an empty one implying an unfinished task.
+
+**Shot `03` must be taken during `make chaos-capture-pause`.** The frozen `executing` row exists
+only inside that pause; once the run resolves, the console shows `resolved` and the state cannot be
+staged again. Every other shot below can be taken afterwards against the printed incident id.
+
 | # | Shot | Why it matters |
 | --- | --- | --- |
 | `01` | Gradio console — incident open, steps progressing | Establishes the normal path |

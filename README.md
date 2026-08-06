@@ -33,7 +33,7 @@ license: mit
 [![Codecov](https://codecov.io/gh/iarjunganesh/continuum/graph/badge.svg)](https://codecov.io/gh/iarjunganesh/continuum)
 [![Release](https://img.shields.io/badge/release-v0.9.3-2ea44f?logo=github&logoColor=white)](https://github.com/iarjunganesh/continuum/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Watch Video](https://img.shields.io/badge/%E2%96%B6_Watch-3--min_demo-FF0000?logo=youtube&logoColor=white)
+[![Demo video](https://img.shields.io/badge/%E2%96%B6_Demo_video-recording_pending-9CA3AF?logo=youtube&logoColor=white)](submission/DEMO_SCRIPT.md)
 
 <!-- Row 2 — AWS services -->
 [![AWS Lambda](https://img.shields.io/badge/AWS_Lambda-python3.14-FF9900?logo=awslambda&logoColor=white)](https://aws.amazon.com/lambda/)
@@ -231,11 +231,23 @@ Setup notes and conventions: [`notebooks/README.md`](notebooks/README.md).
 
 ---
 
-## Screenshots
+## Captured Evidence
 
-Judge-facing evidence — captured kill-and-recover runs with raw DB snapshots, structured logs, and numbered screenshots — lives in [`assets/README.md`](assets/README.md), which indexes what each run proves.
+Judge-facing evidence — real runs with raw CockroachDB snapshots, structured logs, and provenance manifests recording the exact commit, cluster and models used. Index: [`assets/README.md`](assets/README.md).
 
-> **Not yet captured.** The runs are recorded against the deployed Lambda so the evidence shows the real system rather than a local-only one; [`assets/README.md`](assets/README.md) carries the capture plan and the numbered shot list in the meantime. This section will list actual images.
+**A real kill-and-recover run is captured and committed**: [`assets/chaos-run/local-4789422d/`](assets/chaos-run/local-4789422d/) — a live orchestrator hard-killed mid-step (real `SIGKILL`, pid 40760, no graceful shutdown), read back out of the database at three phases:
+
+| Phase | What CockroachDB said |
+| --- | --- |
+| `01-before-kill` | step 0 `executing`, process alive |
+| `02-frozen` | **process dead — the step still `executing`, with nothing alive to own it** |
+| `03-after-resume` | incident `resolved`, all 3 steps `executed` exactly once, none duplicated |
+
+Captured by `make chaos-capture`, which performs the kill *and* records it, and marks the folder `FAIL` rather than emitting evidence if the kill misses the execution window or a step runs twice. `correlation_source` and `reasoning_source` both read `bedrock`, so the live AWS path is provable from the rows rather than assumed.
+
+Alongside it: [`assets/resilience-run/`](assets/resilience-run/) (kill storms, AWS-initiated Lambda timeouts, exactly-once under 50-way concurrency, vector search to 10,000 vectors), [`assets/deploy-restart-run/`](assets/deploy-restart-run/) (the function's code replaced under an open incident), and [`assets/provider-evidence/`](assets/provider-evidence/) — the same facts in Cockroach Labs' and Hugging Face's own consoles, screens this project cannot fake.
+
+> **Still pending:** console screenshots for the chaos run, and an equivalent capture driven by cold Lambda invocations rather than a local process. Recovery on the deployed function is already evidenced three other ways (the deploy-restart drill, the AWS-timeout suite, and cold-invocation latencies in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md)) — open gaps are tracked in [`submission/SUBMISSION.md`](submission/SUBMISSION.md).
 
 ---
 
@@ -264,12 +276,52 @@ make run-ui
 make chaos-demo
 ```
 
-On Windows (no `make`), use the PowerShell equivalents:
+### On Windows — PowerShell 7+
+
+Windows has no `make`, so every step has a direct equivalent. The `Makefile` stays the source of
+truth for *what* each step does; this is the same work, typed differently.
 
 ```powershell
-.\scripts\migrate_and_seed.ps1   # step 4 — schema + synthetic seed data
-.\scripts\chaos_demo.ps1         # step 6 — the resilience demo
+# 1. Clone
+git clone https://github.com/iarjunganesh/continuum.git
+cd continuum
+
+# 2. Configure
+Copy-Item .env.example .env    # fill in COCKROACH_DATABASE_URL + AWS keys
+
+# 3. Install (requires Python 3.14)
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+# 4. Apply schema + seed synthetic incident history
+.\scripts\migrate_and_seed.ps1              # add -Offline for deterministic vectors, no AWS
+                                            # -SkipSeed for schema only, -Count N to resize
+
+# 5. Run the API + demo UI (separate terminals)
+python -m uvicorn api.main:app --port 8000
+python ui/app.py
+
+# 6. The resilience demo — kills the agent mid-step, proves recovery
+.\scripts\chaos_demo.ps1
 ```
+
+Every other `make` target is a one-line recipe you can read straight out of the `Makefile` — most
+are a single `python scripts/….py`. The ones used most often:
+
+| `make` target | PowerShell |
+| --- | --- |
+| `make probe-bedrock` | `python scripts/probe_bedrock.py` |
+| `make check-drift` | `python scripts/check_drift.py` |
+| `make chaos-capture` | `python scripts/chaos_capture.py` (add `--pause` to hold for screenshots) |
+| `make test` | `pytest tests/unit tests/integration -v` |
+| `make lint` | `ruff check . ; ruff format --check .` |
+| `make typecheck` | `mypy agents/ api/ observability/ config.py` |
+| `make coverage` | `pytest tests/unit tests/integration --cov=agents --cov=api --cov=observability --cov-report=term-missing` |
+
+Two targets are POSIX-only by design and have `.ps1` equivalents rather than translations —
+`make chaos-demo` (backgrounding and `sleep`) and `make deploy` (`$$VAR` expansion). Use
+`.\scripts\chaos_demo.ps1` and the steps in [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 The API is versioned under `/api/v1` — e.g. `GET /api/v1/health`, `POST /api/v1/alert` — so the wire contract can evolve without breaking the Gradio UI or demo scripts.
 

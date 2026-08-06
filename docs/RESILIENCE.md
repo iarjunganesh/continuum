@@ -12,6 +12,23 @@ earlier version of this file published a vector-search table generated *before*
 meaningless and nothing on the page said so. If the commit above predates a change
 to what is being measured, treat the numbers as stale and re-run.</sub>
 
+## What has changed since this run — checked, not assumed
+
+Applying the rule above to the current `HEAD` rather than leaving a reader to do it:
+
+| Commit | Touched | Effect on these numbers |
+| --- | --- | --- |
+| [`ebd0986`](../agents/correlation_agent.py) *(2026-08-02 12:03)* | `find_similar` — the CTE that restores the C-SPANN plan | **Already present.** It was uncommitted in the dirty tree when this ran, which the data corroborates: a pre-fix `find_similar` would climb with the corpus like the full-scan column, and Suite C's C-SPANN column stays flat (44 → 107 ms across 100×). This is exactly why `working tree dirty` is recorded rather than hidden — the numbers are right, but the commit alone cannot prove it |
+| [`21b10ec`](../agents/orchestrator.py) *(2026-08-02 18:48)* | `orchestrator._precedent_detail` — persists the matched precedent into the step's `detail` | Additive JSONB on the write path. No effect on any correctness count; a sub-millisecond addition to resume latency |
+| [`069520f`](../agents/memory_agent.py) *(2026-08-03 20:59)* | `checkpoint_step_start` **resume path** — `detail` now merges (`COALESCE(detail,'{}') \|\| %s::jsonb`) instead of being left untouched | The one change inside measured code. It affects Suite A's resume path only. The forward claim Suite B measures — `INSERT … ON CONFLICT DO NOTHING` — is **untouched**, so every exactly-once result stands unchanged. Resume *latencies* in A1–A3 should be read as indicative rather than exact |
+
+**Net:** the correctness counts — resumed, duplicated, lost, violations, failures — are
+unaffected by every change since this run, because none of them altered the claim guard or the
+recovery read. The latency columns carry one additive write more than they did. Nothing here is
+re-run against the Cloud cluster on a whim: [`docs/CLUSTER_OPS.md`](CLUSTER_OPS.md) explains why
+this suite belongs on `make local-cluster`, and re-running it against Cloud to refresh a few
+milliseconds would leave hundreds of benchmark incidents on the surface judges open.
+
 ---
 
 ## A. Kill storm
@@ -139,6 +156,40 @@ Across a **100× larger corpus** (100 → 10,000 vectors), on a warm connection:
 Both queries run against the same rows on the same connection, so the warm
 comparison is like-for-like. `@primary` forces the full scan, which is the
 baseline the index has to beat.
+
+---
+
+## D. Deploy mid-incident — the code replaced underneath an open step
+
+Every suite above takes the *process* away. This one takes the **code** away, and it is the
+failure an on-call engineer actually causes: shipping a fix while an incident is still open.
+
+The drill holds an incident durably in `executing`, then runs a real `sam build` + `sam deploy`
+from a clean clone against the deployed function, and invokes it cold afterwards. Nothing bridges
+the two builds except the CockroachDB row.
+
+**Run:** 2026-08-02 16:53 UTC · run id `c1fe5151` · code `d25546a` · `make deploy-restart-drill`
+
+| Phase | Observed |
+| --- | --- |
+| Interrupt | AWS timed the invocation out (`Timeout` 6 s, restored to 60 s in a `finally`) |
+| Durable after kill | step 0, `executing`, 1 row |
+| Deploy | 66.2 s · `CodeSha256` `0bpe5L/…` → `ylD4N19l…` · revision id changed |
+| Cold resume | **same incident**, step 0 re-executed on the new build in 10394 ms |
+| Duplication | **none** — 1 row for the step |
+
+The resumed invocation returned `resumed: true`, `reexecuted_after_interrupt: true`, and
+`correlation_source` / `reasoning_source` both `bedrock` — so the new build ran the live AWS path,
+not a fallback, while completing a step the *previous* build had started.
+
+**The drill fails if the code did not actually change.** It compares `CodeSha256` before and after
+and refuses to pass on a no-op deploy, which would otherwise report success while proving nothing.
+`code_replaced: true` and `revision_changed: true` are asserted, not narrated.
+
+**n=1, stated plainly.** Each sample costs a full `sam build` + `sam deploy` against the live
+function, so this demonstrates that the contract holds across a code replacement — it is not a
+distribution. Suites A–B carry the statistical weight. Raw evidence:
+[`assets/deploy-restart-run/c1fe5151/`](../assets/deploy-restart-run/c1fe5151/).
 
 ---
 

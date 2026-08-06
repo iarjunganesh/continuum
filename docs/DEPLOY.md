@@ -66,7 +66,7 @@ The orchestrator (`agents/orchestrator.py`, handler `infra.lambda_handler.lambda
 ### Prerequisites — check them first
 
 ```bash
-make preflight-deploy
+make preflight-deploy                     # Windows: python scripts/preflight_deploy.py
 ```
 
 `sam build` and `sam deploy` fail slowly and at different layers: a stopped Docker daemon surfaces minutes into a build, and an under-privileged IAM identity only surfaces once CloudFormation is already being called. `scripts/preflight_deploy.py` checks all of it up front and reports every failure at once, so one pass tells you everything to fix. `make deploy` is gated on it.
@@ -103,6 +103,37 @@ make deploy   # preflight → sam build → sam deploy
 AWS_PROFILE=continuum-deploy sam deploy \
   --parameter-overrides CockroachDatabaseUrl="$COCKROACH_DATABASE_URL"
 ```
+
+#### On Windows — PowerShell 7+
+
+`make deploy` is one of the two POSIX-only targets (it relies on `$$VAR` expansion), so there is no
+translation — run the three steps directly. **PowerShell has no inline `VAR=x command` prefix**, so
+the profile must be set as an environment variable first:
+
+```powershell
+# 1. Clear the Bedrock-only static keys FIRST. This is the step that bites.
+#    .env exports AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY for the runtime identity,
+#    and boto3 and the AWS CLI both rank static keys ABOVE a named profile — so
+#    $env:AWS_PROFILE is silently ignored and the failure arrives as an IAM
+#    AccessDenied on CloudFormation rather than as a config error.
+Remove-Item Env:AWS_ACCESS_KEY_ID     -ErrorAction SilentlyContinue
+Remove-Item Env:AWS_SECRET_ACCESS_KEY -ErrorAction SilentlyContinue
+Remove-Item Env:AWS_SESSION_TOKEN     -ErrorAction SilentlyContinue
+$env:AWS_PROFILE = "continuum-admin"
+
+# 2. Preflight — reports every failure at once
+python scripts/preflight_deploy.py
+
+# 3. Build from a clean clone; CodeUri: ../ packages the repo root,
+#    so a local .venv would blow Lambda's 250 MB limit
+git clone --depth 1 https://github.com/iarjunganesh/continuum "$env:TEMP\continuum-build"
+Set-Location "$env:TEMP\continuum-build"
+sam build
+sam deploy --parameter-overrides CockroachDatabaseUrl="$env:COCKROACH_DATABASE_URL"
+```
+
+`python scripts/preflight_deploy.py` prints the identity it actually resolved — confirm it names the
+admin profile and **not** `continuum-bedrock` before you let `sam deploy` run.
 
 > **`AWS_PROFILE` alone will not switch identity here.** `.env` exports static
 > `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` for the Bedrock-only user, and boto3 ranks

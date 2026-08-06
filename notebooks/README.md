@@ -21,6 +21,7 @@ timings for the demo video.
 pip install -r ../requirements.txt   # httpx + psycopg are all the notebook needs
 pip install jupyterlab               # not a project dependency — install ad hoc
 make run-api                         # from the repo root, in a separate terminal
+                                     # Windows: python -m uvicorn api.main:app --port 8000
 jupyter lab notebooks/DEMO_RUNBOOK.ipynb
 ```
 

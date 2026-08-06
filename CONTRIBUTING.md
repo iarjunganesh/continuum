@@ -21,10 +21,22 @@ make migrate
 make seed-data          # or seed-data-offline — no AWS call needed
 ```
 
-On Windows (no `make`): `.\scripts\migrate_and_seed.ps1`.
+On Windows (PowerShell 7+, no `make`):
+
+```powershell
+git clone https://github.com/iarjunganesh/continuum.git
+cd continuum
+
+Copy-Item .env.example .env
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+.\scripts\migrate_and_seed.ps1        # -Offline for deterministic vectors, no AWS call
+```
 
 **The Makefile is the source of truth for how to run anything.** If a command in the README and the
-Makefile disagree, the Makefile is right and the README needs fixing.
+Makefile disagree, the Makefile is right and the README needs fixing. On Windows, read the recipe
+under the target you want — nearly every one is a single `python scripts/….py`.
 
 ## Quality gates
 
@@ -35,6 +47,15 @@ make lint         # ruff — also lints notebooks
 make typecheck    # mypy
 make test         # pytest tests/unit tests/integration
 make coverage     # coverage report; CI gate is 90%, currently 100%
+```
+
+On Windows (PowerShell 7+):
+
+```powershell
+ruff check . ; ruff format --check .          # make lint — both halves are CI-gated separately
+mypy agents/ api/ observability/ config.py    # make typecheck
+pytest tests/unit tests/integration -v        # make test
+pytest tests/unit tests/integration --cov=agents --cov=api --cov=observability --cov-report=term-missing
 ```
 
 `tests/integration` needs a live CockroachDB at `$COCKROACH_DATABASE_URL` and skips gracefully
