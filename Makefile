@@ -80,8 +80,9 @@ resilience-bench:
 
 # A local single-node CockroachDB — the same container CI uses, schema applied
 # and vector indexing on. Benchmarks and chaos runs belong here, not on the
-# Cloud cluster the demo Space and the deployed Lambda share: a bench run
-# exhausted that cluster's Request Unit allowance on 2026-08-03 and disabled it.
+# Cloud cluster the demo Space and the deployed Lambda share: an N=200 bench run
+# left 665 incidents there, 431 frozen mid-run, on the surface judges open.
+# (Request Units were never the constraint — see docs/CLUSTER_OPS.md.)
 # Correctness counts hold anywhere; published *latency* still belongs to the
 # real cluster (see the module docstring).
 local-cluster:

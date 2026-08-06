@@ -184,6 +184,9 @@ def check_test_counts() -> list[Failure]:
     fails: list[Failure] = []
     claim = re.compile(r"(\d+)\s+unit\s*\+\s*(\d+)\s+integration", re.I)
     suite = re.compile(r"unit suite \((\d+) tests", re.I)
+    # The bare "N unit tests" phrasing was uncovered until 0.9.3, which is how a
+    # stale 57 survived in submission/DEVPOST.md across several sweeps.
+    bare = re.compile(r"(\d+)\s+unit\s+tests", re.I)
     for path in _markdown_files():
         text = path.read_text(encoding="utf-8", errors="replace")
         rel = path.relative_to(REPO_ROOT).as_posix()
@@ -201,6 +204,9 @@ def check_test_counts() -> list[Failure]:
             for u in suite.findall(line):
                 if int(u) != unit:
                     fails.append(("test-counts", f"{rel}:{lineno} claims a {u}-test unit suite; actual {unit}"))
+            for u in bare.findall(line):
+                if int(u) != unit:
+                    fails.append(("test-counts", f"{rel}:{lineno} claims {u} unit tests; actual {unit}"))
     return fails
 
 

@@ -40,7 +40,7 @@
 
 [![CI](https://github.com/iarjunganesh/continuum/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iarjunganesh/continuum/actions/workflows/ci.yml)
 [![Codecov](https://codecov.io/gh/iarjunganesh/continuum/graph/badge.svg)](https://codecov.io/gh/iarjunganesh/continuum)
-[![Release](https://img.shields.io/badge/release-v0.9.2-2ea44f?logo=github&logoColor=white)](https://github.com/iarjunganesh/continuum/releases/latest)
+[![Release](https://img.shields.io/badge/release-v0.9.3-2ea44f?logo=github&logoColor=white)](https://github.com/iarjunganesh/continuum/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/iarjunganesh/continuum/tree/main/LICENSE/)
 ![Watch Video](https://img.shields.io/badge/%E2%96%B6_Watch-3--min_demo-FF0000?logo=youtube&logoColor=white)
 
@@ -354,7 +354,7 @@ continuum/
 │   ├── synthetic/             # generated incident corpus + alert stream (synthetic, always)
 │   └── snapshots/             # memory exports — insurance against the cluster lapsing
 ├── docs/
-│   ├── ARCHITECTURE.md · DEPLOY.md · BENCHMARKS.md · RESILIENCE.md
+│   ├── ARCHITECTURE.md · DEPLOY.md · BENCHMARKS.md · RESILIENCE.md · CLUSTER_OPS.md
 │   └── adr/                   # 9 Architecture Decision Records
 ├── submission/                # judge-facing packet
 │   └── SUBMISSION.md · DEVPOST.md · DEVPOST_README.md · DEMO_SCRIPT.md · COSTS.md
@@ -402,7 +402,7 @@ Beyond tests: structlog JSON logging across every agent, secrets via environment
 
 ### Load & Resilience
 
-What a remediation step actually costs, end to end: the CockroachDB legs (recovery read, both transaction commits, C-SPANN vector search, the full cold-resume path), the Bedrock legs (real Titan embedding), and the same work measured **on the deployed Lambda** rather than predicted from a workstation. Every run records which path actually executed — `correlation_source` / `reasoning_source` are counted, not assumed, so a throttled account can't quietly publish cheaper numbers under a Bedrock headline. `make benchmark` (add `--with-bedrock --lambda-n N` for the AWS legs; the default run needs no AWS). Full tables, methodology and caveats: [`docs/BENCHMARKS.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/BENCHMARKS.md).
+What a remediation step actually costs, end to end: the CockroachDB legs (recovery read, both transaction commits, C-SPANN vector search, the full cold-resume path), the Bedrock legs (real Titan embedding), and the same work measured **on the deployed Lambda** rather than predicted from a workstation. Every run records which path actually executed — `correlation_source` / `reasoning_source` are counted, not assumed, so a throttled account can't quietly publish cheaper numbers under a Bedrock headline. `make benchmark` (add `--with-bedrock --lambda-n N` for the AWS legs; the default run needs no AWS). Full tables, methodology and caveats: [`docs/BENCHMARKS.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/BENCHMARKS.md). Benchmarks run against `make local-cluster`, not the Cloud cluster serving the demo — [`docs/CLUSTER_OPS.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/CLUSTER_OPS.md) says which commands belong where, and why.
 
 Speed is the less interesting half. The claim this project exists to make is about **correctness when things go badly**, so that is measured too — every number below counted from durable CockroachDB rows rather than from a log, against the live cluster and the deployed function. `make resilience-bench`; full method, sample sizes and caveats in [`docs/RESILIENCE.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/RESILIENCE.md), raw evidence under [`assets/resilience-run/`](https://github.com/iarjunganesh/continuum/tree/main/assets/resilience-run/).
 

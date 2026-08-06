@@ -60,6 +60,22 @@ CockroachDB tools used: **Distributed Vector Indexing** + **Managed MCP Server**
 - **The orchestrator (`agents/orchestrator.py`) must not assume warm state.** Its first action on every invocation is a CockroachDB read to check for existing open incident state before doing anything else. Do not add any in-memory caching of incident state across invocations — that would silently break the resilience guarantee this project is built to prove.
 - **The two-phase step checkpoint is load-bearing (ADR 009).** `checkpoint_step_start` commits the step as `executing` *before* the `time.sleep` execution window; `checkpoint_step_done` commits `executed` *after*. Keep them as two separate transactions with the sleep between them — a kill must land with `executing` durable. Keep the forward-step claim as `INSERT ... ON CONFLICT DO NOTHING`: switching it to `DO UPDATE` silently breaks exactly-once under concurrent invocations. Correlation/Bedrock in STEP 2 is deliberately wrapped in try/except (best-effort) so a Bedrock outage degrades to "no precedent" instead of aborting the incident before it's durable — don't make it fatal.
 - **Code built during the Submission Period only** (June 30 – Aug 18, 2026, per hackathon rules) — no pre-existing code from any prior project may be ported in wholesale. General architectural *patterns* and personal conventions are fine to carry over; source code is not. This is an eligibility requirement, not a style preference.
+- **The Cloud cluster serves the demo and nothing else.** `make resilience-bench`, `make benchmark`,
+  `make chaos-capture`, `make load-test` and `pytest tests/integration` all write real incidents or
+  drive sustained load — they go to `make local-cluster`, never to `$COCKROACH_DATABASE_URL` when
+  that points at `*.cockroachlabs.cloud`. The cost is not Request Units (the whole project has used
+  3.42M of a 50M/month allowance); it is that an N=200 bench left **665 incidents, 431 frozen in
+  `remediating`**, on the cluster judges open. The `--allow-cloud-burn` guard in `resilience_bench.py`
+  is a backstop, not permission. Published *latency* is the one exception and must come from Cloud.
+  Full guidance: `docs/CLUSTER_OPS.md`.
+- **Never set `CONTINUUM_UI_REFRESH_SECONDS` on the Hugging Face Space.** The timer costs ~50 RU per
+  refresh — ~36K RU/hour *per open browser tab*, so one forgotten tab over a four-week judging period
+  is ~24M RU, roughly half the monthly free allowance. Manual refresh is the default for this reason;
+  if you enable it to record, unset it the same day.
+- **A disabled cluster is not proof of overuse.** Free-tier capacity has a meter *and* a clock, and
+  the platform returns the same "Request Unit limit" error for both. On 2026-08-03 a 30-day trial
+  expired with 99.1% of the allowance unspent, and the error text caused a three-day misdiagnosis
+  that reached `submission/COSTS.md`. **Read the billing page before writing down a cause.**
 - **`config.Settings` must tolerate unknown env vars** (`extra="ignore"`) — it is not the only consumer of the process environment (boto3 reads `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` itself). Reintroducing `extra="forbid"` breaks app startup for anyone with ordinary AWS credentials exported.
 
 ## Release & repo-sync discipline (do this on EVERY change, not at release time)

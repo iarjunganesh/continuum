@@ -12,7 +12,7 @@ Every component sits on a free tier that is a real product tier, not a trial.
 
 | Component | Tier | Cost | Notes |
 | --- | --- | --- | --- |
-| **CockroachDB Cloud** | Basic (free allowance) | $0 | The memory layer. Request Units, not instance-hours — an idle agent costs nothing. The allowance is finite, and *this project exhausted it* on 2026-08-03 — see below |
+| **CockroachDB Cloud** | Basic (free trial, then free monthly allowance) | $0 | The memory layer. Request Units, not instance-hours — an idle agent costs nothing. The 30-day trial *expired* on 2026-08-03 with 99% of its credit unspent — see below |
 | **AWS Lambda** | free tier (1M req/mo) | $0 | No provisioned concurrency, deliberately (ADR 002). Cold starts are the *feature* |
 | **Amazon Bedrock** | on-demand, pay per token | ~$0 | Titan embeddings + Claude reasoning; usage is per-incident and tiny (see below) |
 | **Hugging Face Spaces** | free CPU tier | $0 | The public Gradio demo. No card required, no sleep-on-idle billing |
@@ -52,19 +52,69 @@ per-incident costs of about a cent.
 > **Honest note:** the per-incident numbers above are modelled from published token pricing and
 > measured token counts, not read off an invoice. Treat them as an order of magnitude.
 
-**CockroachDB: the free allowance was the constraint that actually bound.** On **2026-08-03** the
-cluster exhausted its 400 million Request Units and disabled itself — every connection refused with
-`max connections = 0`. Nothing about the agent's steady state caused it: three `SERIALIZABLE`
-transaction pairs and one vector search per incident is negligible. It was consumed by
-*development* against the production cluster — resilience benchmark suites at N=50 and N=200, each
-sample a full incident with real writes, plus the seeding and re-seeding those runs required, plus
-the auto-refresh timer audited earlier at ~50 RU per refresh.
+**CockroachDB: the constraint that bound was a calendar, not a meter.** On **2026-08-03** the
+cluster stopped accepting connections — `max connections = 0`, with an error naming a Request Unit
+limit. The obvious reading was that the workload had spent the allowance. It had not. The console,
+captured live before the cutoff (`assets/provider-evidence/02`, `03`):
 
-That is a genuine production-readiness lesson, and a cheaper one to learn here than on an on-call
-rotation: **the load-testing harness is the cost risk, not the workload it measures.** A production
-deployment of this design would run benchmarks against a separate cluster, so a bench run cannot
-take the incident-response system offline. This one did not, and the demo went down with it — see
-the first row of Known Gaps in [`SUBMISSION.md`](SUBMISSION.md).
+| Reading | Value |
+| --- | --- |
+| Credits remaining | **$399 of $400** |
+| Request units used | **3.42 million of 400 million** (0.86%) |
+| Storage used | **19.51 MiB of 40 GiB** (0.05%) |
+| Cluster created | 4 Jul 2026, 17:56 UTC |
+| Trial expires | **2026-08-03** — created plus exactly 30 days |
+
+The trial was time-boxed from the day it was created, and the console said so in advance. What
+lapsed was the *entitlement*; the RU limit in the error message is the post-expiry limit, not
+evidence that 400 million units were consumed. Everything this project has ever run against the
+cluster — development, seeding, the chaos captures, the resilience suites at N=50 and N=200 —
+came to about **one dollar**.
+
+Two lessons, and the second one is the reason this section was rewritten:
+
+- **Free-tier capacity has two independent limits — a meter and a clock — and only one of them is
+  visible in your metrics.** Usage dashboards, budget alerts and RU guards all watch consumption.
+  None of them watch an expiry date. The failure arrives looking exactly like exhaustion, because
+  the error message the platform returns is about the limit that is now binding.
+- **A plausible cause is not a diagnosed one.** This document previously stated that the resilience
+  benchmark suites exhausted the allowance, and drew a production-readiness moral from it — *the
+  load-testing harness is the cost risk, not the workload it measures*. That was inferred from the
+  error text and never checked against the billing page, which was showing 0.86%. The harness
+  guard added in 0.9.2 is still worth having, and the post-upgrade monthly allowance (50M RU) is
+  eight times narrower than the trial's, so it now guards something real — but it was built for a
+  fire that never happened.
+
+Corrected 2026-08-06 against the console screenshots in `assets/provider-evidence/`. The demo Space
+went down with the cluster either way — see the first row of Known Gaps in
+[`SUBMISSION.md`](SUBMISSION.md).
+
+### Resolution, and the standing budget
+
+**Resolved 2026-08-06** by adding a payment method to the existing organization — the cheapest fix
+available, and the one the evidence pointed at once the cause was right. Service resumed on the
+same cluster with no data loss, and the org moved from a one-off trial credit onto Basic's
+**recurring $15/month free allowance**.
+
+| | Value |
+| --- | --- |
+| Free allowance | **50M Request Units + 10 GiB**, reset monthly |
+| Measured monthly usage | **3.42M RU · 19.51 MiB** — 6.8% of RU, 0.2% of storage |
+| Resource limits set | **100M RU/mo · 10 GiB/mo** |
+| Gross ceiling in console | **$25.00/mo** (100M × $0.20/M + 10 GiB × $0.50/GiB) |
+| Net worst case after the credit | **≈ $10/mo** |
+| Expected invoice | **$0** |
+
+The cap is set at 2× the free allowance rather than exactly at it, deliberately. Reaching an RU
+limit **disables the cluster** until the limit is raised or the cycle rolls over — it is a kill
+switch, not an alert. A cap that trips during the judging period costs far more than $10 does, so
+the ceiling is set where only a genuine runaway can reach it. At 100M, the 50%-of-limit email
+fires exactly when the free tier is exceeded, which makes it a useful signal rather than noise.
+
+The one path to a non-zero invoice is not the agent and not the benchmarks: it is the Gradio
+auto-refresh timer at ~36K RU/hour per open browser tab, where a single tab left open across a
+four-week judging period is ≈24M RU — about half the monthly allowance, from nobody doing
+anything. It is off by default and stays off. Operating rules: [`../docs/CLUSTER_OPS.md`](../docs/CLUSTER_OPS.md).
 
 ## Cost guardrails
 
@@ -99,11 +149,12 @@ This is why an accidental loop can waste tokens but cannot provision anything ex
   repeatedly would multiply Bedrock calls. The exactly-once forward-step claim
   (`INSERT … ON CONFLICT DO NOTHING`, ADR 009) is a correctness guarantee that doubles as a cost
   ceiling.
-- **Two measured burn incidents, neither of them the agent.** The Gradio dashboard's auto-refresh
-  timer consumed roughly 50 Request Units per refresh; it was changed to manual-refresh by default
-  and the fix verified against the live cluster. Then the resilience benchmark suites finished the
-  allowance off on 2026-08-03. Polling UIs and load harnesses are the cost risk in this
-  architecture — the incident path itself is the cheapest thing running.
+- **One measured burn incident, and it was not the agent.** The Gradio dashboard's auto-refresh
+  timer consumed roughly 50 Request Units per refresh — ~36K RU/hour per open browser tab, which
+  is most of the project's lifetime consumption. It was changed to manual-refresh by default and
+  the fix verified against the live cluster. Polling UIs are the cost risk in this architecture;
+  the incident path itself is the cheapest thing running, and the load harnesses turned out to
+  cost about a dollar in total.
 
 ## Scaling estimate
 

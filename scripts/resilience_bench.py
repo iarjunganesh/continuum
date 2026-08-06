@@ -54,8 +54,12 @@ from observability.structured_logger import get_logger  # noqa: E402
 log = get_logger(__name__)
 
 # Ceilings for a run pointed at a CockroachDB Cloud cluster. Chosen so the
-# documented default run passes and the two runs that exhausted the allowance on
-# 2026-08-03 (~2,000 incidents apiece) do not. Override with --allow-cloud-burn.
+# documented default run passes and the 2026-08-03 runs do not: those left 667
+# incidents on the demo cluster, 431 frozen in `remediating` when the trial
+# lapsed mid-run, on the surface judges open. Request Units were never the
+# constraint (see docs/CLUSTER_OPS.md) — demo cleanliness is. This is a
+# backstop, not permission: benchmarks belong on `make local-cluster`.
+# Override with --allow-cloud-burn.
 CLOUD_INCIDENT_BUDGET = 400
 CLOUD_VECTOR_BUDGET = 10_000
 

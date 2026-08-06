@@ -132,11 +132,20 @@ Checked against `submission/SUBMISSION.md`'s "no credentials or account IDs in a
 
 ## The trial expiry, stated plainly
 
-`02` shows the free trial expiring **2026-08-03**, and it did: on that date the cluster exhausted
-its Request Unit allowance and disabled itself, refusing connections with `max connections = 0`.
-These captures were taken while it was live and are left exactly as they were — a screenshot dated
-before an outage is evidence, and back-dating one would be the opposite. That is a real constraint
-on this project, not something to crop out — see the Known Gaps table in
+`02` shows the free trial expiring **2026-08-03**, and it did: on that date the cluster stopped
+accepting connections, `max connections = 0`. The trial was time-boxed to 30 days from the cluster
+creation date `03` records (4 Jul 2026, 17:56 UTC) — it lapsed on schedule, and these two frames
+are also what disproves the tempting alternative explanation. `02` reads **$399 of $400 credits
+remaining** and `03` reads **3.42 million of 400 million Request Units**: the entitlement expired
+with 99% of it unspent. The error the cluster returns afterwards names a Request Unit limit, which
+is the post-expiry limit rather than a record of consumption — and reading it as exhaustion is
+exactly the mistake `../../submission/COSTS.md` made until these screenshots were checked against
+it. These captures were taken while the cluster was live and are left exactly as they were — a
+screenshot dated before an outage is evidence, and back-dating one would be the opposite.
+**Resolved 2026-08-06** by adding a payment method to the same organization: service resumed on the
+cluster id these frames show, with no data lost, so `03` still describes the live cluster in every
+respect except the trial-era capacity figures. That is a real constraint this project hit and
+recorded, not something to crop out — see the Known Gaps table in
 [`../../submission/SUBMISSION.md`](../../submission/SUBMISSION.md) and
 [`../../submission/COSTS.md`](../../submission/COSTS.md). The memory layer is snapshot-covered
 (`make export-memory` / `make restore-memory`), so the data survives the cluster.
