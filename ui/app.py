@@ -36,6 +36,13 @@ from config import settings  # noqa: E402
 
 query_agent = QueryAgent()
 
+# The card feed is paginated for layout (3-up grid); the KPI tiles are NOT — they
+# count the whole table. Keeping these separate is load-bearing: a page-size cap
+# that also feeds the headline numbers makes "durable in CockroachDB" a function
+# of the grid width, and makes the totals *drop* when unrelated rows are written.
+FEED_LIMIT = 24
+OPEN_STATES = ("open", "correlating", "remediating")
+
 # UI polling cadence for the incident feed.
 # Set CONTINUUM_UI_REFRESH_SECONDS=0 to disable auto-refresh entirely.
 REFRESH_SECONDS = max(0.0, float(os.getenv("CONTINUUM_UI_REFRESH_SECONDS", "0")))
@@ -310,6 +317,7 @@ footer {{ display: none !important; }}
 :root[data-cx="light"] .cx-theme-light {{ display: block; }}
 .cx-figcap {{ color: {MUTED}; font-size: 12px; padding: 9px 14px 12px; border-top: 1px solid {BORDER}; }}
 
+.cx-feedcap {{ color: {MUTED}; font-size: 12px; margin: 0 0 10px; }}
 .cx-empty {{ border: 1px dashed {BORDER}; border-radius: 14px; padding: 34px; text-align: center;
   color: {INK2}; background: {SURF1}; }}
 .cx-foot {{ color: {MUTED}; font-size: 12px; text-align: center; margin: 22px 0 6px; }}
@@ -461,7 +469,8 @@ def load_dashboard():
     """Returns (banner_html, kpis_html, cards_html, dropdown_update)."""
     try:
         with _connect() as conn, conn.cursor(row_factory=dict_row) as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT i.incident_id, i.service, i.region, i.severity, i.state,
                        i.summary, i.opened_at, i.updated_at,
                        count(s.step_id) FILTER (WHERE s.status = 'executed')  AS steps_executed,
@@ -471,21 +480,44 @@ def load_dashboard():
                 GROUP BY i.incident_id, i.service, i.region, i.severity, i.state,
                          i.summary, i.opened_at, i.updated_at
                 ORDER BY i.updated_at DESC
-                LIMIT 24
-            """)
+                LIMIT %s
+            """,
+                (FEED_LIMIT,),
+            )
             incidents = cur.fetchall()
 
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT incident_id, step_index, action, status, created_at
                 FROM remediation_steps
                 WHERE incident_id IN (
-                    SELECT incident_id FROM incidents ORDER BY updated_at DESC LIMIT 24
+                    SELECT incident_id FROM incidents ORDER BY updated_at DESC LIMIT %s
                 )
                 ORDER BY incident_id, step_index
-            """)
+            """,
+                (FEED_LIMIT,),
+            )
             steps_by_incident: dict = {}
             for s in cur.fetchall():
                 steps_by_incident.setdefault(str(s["incident_id"]), []).append(s)
+
+            # Totals over the whole table, not the paginated feed above. One
+            # round trip; counting a few hundred rows is a rounding error in RU
+            # next to the grouped join the feed already runs.
+            cur.execute(
+                """
+                SELECT
+                  (SELECT count(*) FROM incidents WHERE state = ANY(%s))          AS open_n,
+                  (SELECT count(*) FROM incidents WHERE state = 'resolved')       AS resolved_n,
+                  (SELECT count(*) FROM incidents)                                AS total_n,
+                  (SELECT count(*) FROM remediation_steps WHERE status =
+                     'executing')                                                 AS executing_n,
+                  (SELECT count(*) FROM remediation_steps WHERE status =
+                     'executed')                                                  AS executed_n
+            """,
+                (list(OPEN_STATES),),
+            )
+            totals = cur.fetchone() or {}
     except Exception as exc:  # no DB / bad URL — keep the Space alive with a clear message
         empty = (
             f'<div class="cx-empty"><b>Waiting on CockroachDB.</b><br>'
@@ -494,11 +526,11 @@ def load_dashboard():
         )
         return empty, "", empty, gr.update(choices=[], value=None)
 
-    open_states = {"open", "correlating", "remediating"}
-    open_n = sum(1 for r in incidents if r["state"] in open_states)
-    resolved_n = sum(1 for r in incidents if r["state"] == "resolved")
-    executing_n = sum(int(r["steps_executing"]) for r in incidents)
-    executed_n = sum(int(r["steps_executed"]) for r in incidents)
+    open_n = int(totals.get("open_n", 0))
+    resolved_n = int(totals.get("resolved_n", 0))
+    total_n = int(totals.get("total_n", 0))
+    executing_n = int(totals.get("executing_n", 0))
+    executed_n = int(totals.get("executed_n", 0))
 
     kpis = "".join(
         [
@@ -512,7 +544,16 @@ def load_dashboard():
 
     if incidents:
         cards = "".join(_incident_card(r, steps_by_incident.get(str(r["incident_id"]), [])) for r in incidents)
-        cards = f'<div class="cx-grid">{cards}</div>'
+        # Say so when the feed is a window. Silently showing 24 of 44 is what let
+        # the tiles disagree with the table for a month without anyone noticing.
+        if total_n > len(incidents):
+            caption = (
+                f'<div class="cx-feedcap">Showing the {len(incidents)} most recently updated '
+                f"of {total_n} incidents in memory — the tiles above count all of them.</div>"
+            )
+        else:
+            caption = ""
+        cards = f'{caption}<div class="cx-grid">{cards}</div>'
     else:
         cards = (
             '<div class="cx-empty"><b>No incidents yet.</b><br>'
