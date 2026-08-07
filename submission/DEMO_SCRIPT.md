@@ -602,7 +602,7 @@ video.
 | 10 | AWS kills it | `vo_08-aws` (11.5s) | `chart-lambda-timeout-*` → `s09-lambda-console` | static ×2 | `AWS terminated the function — it still resumed` | 12.3s | 2:13 |
 | 11 | The index earns its place | `vo_09-vector` (11.4s) | `chart-vector-scale-*` → `s05-explain-plan` | static ×2 | `100 → 10,000 vectors · C-SPANN stays flat` | 12.2s | 2:25 |
 | 12 | Live query over MCP | `vo_10-mcp` (8.6s) | **#2 live** — `mcp-query-take.mp4` (or `s06` still) | native, no move | `Managed MCP Server · read-only` | 9.4s | 2:35 |
-| 13 | Production | `vo_11-production` (8.4s) | `s07-ci-badges` → `s08-adr-list` → `chart-throughput-*` | static, pan, static | `100% coverage · 9 ADRs · CI on every push` | 9.2s | 2:44 |
+| 13 | Production | `vo_11-production` (8.4s) | `s07-ci-badges` → `s08-adr-list` → `chart-throughput-*` | static, pan, static | `100% coverage · 10 ADRs · CI on every push` | 9.2s | 2:44 |
 | 14 | Close | `vo_12-close` (5.7s) | `demo-cards/signoff-{dark,light}.png` | **static** | `The memory outlived the failure.` | 8.7s | **2:53** |
 
 **Never hold a single static frame longer than ~15 s** under continuous narration — that's the real

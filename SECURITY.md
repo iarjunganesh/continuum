@@ -23,6 +23,20 @@ comments, test fixtures, and captured evidence.
 - Deployment secrets live in the platform, not the repo: `COCKROACH_DATABASE_URL` and
   `COCKROACH_MCP_API_KEY` as Hugging Face Space repository secrets; SAM parameters (`NoEcho: true`)
   for the Lambda.
+- **The CI deploy holds two GitHub repository secrets** (ADR [010](docs/adr/010-deploy-on-tag-from-ci.md)):
+  `AWS_DEPLOY_ROLE_ARN` and `COCKROACH_DATABASE_URL`. The second is a live cluster credential in a
+  third party, on a public repository, and is stated here rather than left to be discovered.
+  Repository secrets are encrypted and are never exposed to workflows triggered by forked pull
+  requests, and `deploy.yml` runs only on tags, which only a maintainer can push. The cluster holds
+  synthetic data only (ADR 005), so the credential is not a route to anything real. The honest
+  alternative — resolving the DSN from an AWS-side secret store at runtime — is the right move if
+  that ever stops being true.
+- **No long-lived AWS keys exist in GitHub.** The deploy workflow assumes an IAM role through
+  GitHub's OIDC provider, so credentials are minted per run and expire with it. The role's trust
+  policy is scoped to this repository **and** to `refs/tags/*`, so a branch push cannot assume it
+  even if a future workflow tries. Its permissions are broader than ideal — SAM creates the
+  function's execution role as part of the stack, so `iam:*` is currently attached; narrowing it to
+  this stack's role paths is recorded as outstanding in ADR 010 rather than glossed over.
 - CI runs on deliberately fake credentials — every outbound call in the unit suite is mocked at the
   import boundary, so a real key is never needed to make the suite pass.
 - The `.mcp.json` MCP server config uses `${COCKROACH_MCP_API_KEY}` environment expansion, so no

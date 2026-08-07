@@ -91,9 +91,16 @@ images as `.txt`:
       --filter-pattern "recovered_incident_state" --max-items 40 \
       --query "events[].message" --output text
 
-To drive fresh invocations first (four cold calls take one incident `0 → 1 → 2 → resolved`):
+To drive fresh invocations first — each call is a separate cold invocation, and four of them take
+one incident `0 → 1 → 2 → resolved`:
 
-    python scripts/demo_run.py --tick --via-lambda --new
+    python scripts/demo_run.py --tick --via-lambda
+
+**Without `--new`.** The default alert carries the fixed correlation id `demo-incident-001`, which
+is what makes successive calls resume the *same* incident; `--new` mints a random one, so passing
+it every time opens four unrelated incidents frozen at step 0 and demonstrates no resume at all.
+There is no flag to continue an incident `--new` created, so reach for it only when you deliberately
+want a fresh one.
 
 ### One thing to redact
 

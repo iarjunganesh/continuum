@@ -106,6 +106,10 @@ These are load-bearing invariants, not preferences. Each is documented in an ADR
 - ADRs go in `docs/adr/`, numbered sequentially, one decision per file.
 - Commit subjects carry no version numbers — the tag and CHANGELOG carry the version.
 
+**Pushing a `v*.*.*` tag deploys the orchestrator to AWS Lambda** ([ADR 010](docs/adr/010-deploy-on-tag-from-ci.md)),
+so `git push --follow-tags` changes a live system, not just GitHub. Run every gate above first —
+that is what the release checklist is now protecting. Pushes to `main` do not deploy, deliberately.
+
 Keeping docs in sync with code is part of the change, not follow-up work. See the release &
 repo-sync discipline section in [`CLAUDE.md`](CLAUDE.md) for the checklist.
 

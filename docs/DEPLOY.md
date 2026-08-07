@@ -63,7 +63,137 @@ This split is deliberate: the Space is the *window* into the memory, not the thi
 
 The orchestrator (`agents/orchestrator.py`, handler `infra.lambda_handler.lambda_handler`) is the thing that recovers state, and it deploys as a Lambda function from `infra/template.yaml` (AWS SAM). `python3.14` is a **managed Lambda runtime** (added November 2025, based on `provided.al2023`), so the template's `Runtime: python3.14` deploys as-is — no container image needed.
 
-### Prerequisites — check them first
+### The normal path: push a tag
+
+**`.github/workflows/deploy.yml` deploys on any `v*.*.*` tag** ([ADR 010](adr/010-deploy-on-tag-from-ci.md)). Tagging is therefore an action that changes AWS, not just GitHub:
+
+```bash
+git push origin main --follow-tags
+```
+
+The job assumes an IAM role through GitHub's OIDC provider, builds, deploys, asserts `CodeSha256` actually moved, and invokes the deployed function once with an empty payload to prove the package imports. It writes a summary table naming the before and after hashes.
+
+The invariant this buys: **the deployed function is the newest tag.** Before this existed the two drifted silently — the function ran a five-day-old build on 2026-08-07, and later sat two commits behind `v0.9.4`, both while looking entirely healthy.
+
+It deliberately does **not** run on pushes to `main`. Redeploying during ordinary work would swap the code out from under a demo recording, which is the one moment the function must hold still.
+
+The manual path below still works and is still the right tool for deploying an untagged commit, overriding `BedrockRegion` when a probe shows a region has closed, or debugging a build. `make deploy-restart-drill` also deploys directly, by design.
+
+#### One-time setup for the CI deploy
+
+Two repository secrets, and one IAM role the workflow cannot create for itself.
+
+**1. Repository secrets** — GitHub repo → Settings → Secrets and variables → Actions:
+
+| Secret | Value |
+| --- | --- |
+| `AWS_DEPLOY_ROLE_ARN` | the role ARN from step 2 |
+| `COCKROACH_DATABASE_URL` | the same DSN used locally, with `sslmode=require` |
+
+Prefer `gh secret set` over the web form for the DSN — it never puts the credential in a browser,
+a clipboard history, or a screenshot:
+
+```powershell
+gh secret set COCKROACH_DATABASE_URL --body $env:COCKROACH_DATABASE_URL
+gh secret set AWS_DEPLOY_ROLE_ARN --body $roleArn      # $roleArn from step 2
+gh secret list
+```
+
+The DSN is a live cluster credential and this is a public repository. Repository secrets are encrypted and are never exposed to workflows from forked pull requests, and this workflow runs only on tags, which only a maintainer can push. It is a real disclosure surface, accepted knowingly, and the cluster holds only synthetic data (ADR 005).
+
+**2. The OIDC provider and role.** Run once, as an admin identity:
+
+```bash
+# Trust GitHub's OIDC provider (skip if it already exists in the account)
+aws iam create-open-id-connect-provider \
+  --url https://token.actions.githubusercontent.com \
+  --client-id-list sts.amazonaws.com
+
+# Trust policy — scoped to this repo AND to tag refs only, so a branch push
+# cannot assume the role even if a workflow is added that tries.
+cat > trust.json <<'JSON'
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com" },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
+      "StringLike": { "token.actions.githubusercontent.com:sub": "repo:iarjunganesh/continuum:ref:refs/tags/*" }
+    }
+  }]
+}
+JSON
+
+aws iam create-role --role-name continuum-deploy \
+  --assume-role-policy-document file://trust.json
+
+# Permissions. PowerUserAccess is NOT enough — the stack creates the
+# function's execution role, so iam:* on that role is required.
+aws iam attach-role-policy --role-name continuum-deploy \
+  --policy-arn arn:aws:iam::aws:policy/AWSCloudFormationFullAccess
+aws iam attach-role-policy --role-name continuum-deploy \
+  --policy-arn arn:aws:iam::aws:policy/AWSLambda_FullAccess
+aws iam attach-role-policy --role-name continuum-deploy \
+  --policy-arn arn:aws:iam::aws:policy/IAMFullAccess
+aws iam attach-role-policy --role-name continuum-deploy \
+  --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+
+aws iam get-role --role-name continuum-deploy --query Role.Arn --output text
+```
+
+**The same, in PowerShell 7+** — the account id is read from STS rather than pasted, so it never
+lands in a file you might commit, and the trust policy is written to `$env:TEMP` rather than the
+repo root for the same reason:
+
+```powershell
+$env:AWS_PROFILE = "continuum-admin"
+Remove-Item Env:AWS_ACCESS_KEY_ID     -ErrorAction SilentlyContinue
+Remove-Item Env:AWS_SECRET_ACCESS_KEY -ErrorAction SilentlyContinue
+$acct = aws sts get-caller-identity --query Account --output text
+
+# Already exists in the account? This errors EntityAlreadyExists — harmless, carry on.
+aws iam create-open-id-connect-provider `
+  --url https://token.actions.githubusercontent.com `
+  --client-id-list sts.amazonaws.com
+
+$trust = "$env:TEMP\continuum-trust.json"
+@"
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Federated": "arn:aws:iam::${acct}:oidc-provider/token.actions.githubusercontent.com" },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
+      "StringLike": { "token.actions.githubusercontent.com:sub": "repo:iarjunganesh/continuum:ref:refs/tags/*" }
+    }
+  }]
+}
+"@ | Set-Content -Encoding utf8 $trust
+
+aws iam create-role --role-name continuum-deploy --assume-role-policy-document "file://$trust"
+
+foreach ($p in @("AWSCloudFormationFullAccess","AWSLambda_FullAccess","IAMFullAccess","AmazonS3FullAccess")) {
+  aws iam attach-role-policy --role-name continuum-deploy --policy-arn "arn:aws:iam::aws:policy/$p"
+}
+
+$roleArn = aws iam get-role --role-name continuum-deploy --query Role.Arn --output text
+Remove-Item $trust
+$roleArn
+```
+
+`${acct}` needs the braces — PowerShell parses a bare `$acct:` as a scope qualifier and the ARN
+comes out malformed, which surfaces later as an opaque `InvalidParameterValue` on `create-role`
+rather than as a syntax error.
+
+The `sub` condition is the part that matters: without it, any workflow in any repository could assume the role. Scoping it to `refs/tags/*` in this repository means a branch push cannot deploy even if a future workflow tries.
+
+`IAMFullAccess` is broader than ideal. SAM creates the function's execution role as part of the stack, so the deployer needs to create and pass IAM roles; narrowing it to the specific role paths this stack manages is worth doing if this outlives the hackathon.
+
+### Prerequisites — check them first (manual path)
 
 ```bash
 make preflight-deploy                     # Windows: python scripts/preflight_deploy.py
@@ -128,7 +258,12 @@ python scripts/preflight_deploy.py
 #    so a local .venv would blow Lambda's 250 MB limit
 git clone --depth 1 https://github.com/iarjunganesh/continuum "$env:TEMP\continuum-build"
 Set-Location "$env:TEMP\continuum-build"
-sam build
+
+# --use-container is NOT optional on Windows (see the packaging note below):
+# without it SAM bundles host-platform wheels for psycopg[binary] and
+# pydantic-core, and the deploy succeeds while the function fails at import
+# on Lambda's Linux runtime. Needs Docker Desktop running.
+sam build --use-container
 sam deploy --parameter-overrides CockroachDatabaseUrl="$env:COCKROACH_DATABASE_URL"
 ```
 
@@ -196,7 +331,18 @@ Kept because a stale function is invisible from the repo, and the one thing that
 | 2026-08-01 | — | 1.71 s / 129 MB | First deploy; recovery contract observed across four cold invocations |
 | 2026-08-02 | `0bpe5L/…` → `ylD4N19l…` | — | `make deploy-restart-drill` — code swapped under an open incident, resumed exactly once (`assets/deploy-restart-run/c1fe5151/`, superseded) |
 | 2026-08-07 | `ylD4N19l…` → `cfj/1z90…` | **1719 ms / 130 MB** | Picked up the provenance fields (`_stack_detail`), the Titan reseed and the Alertmanager-shaped demo alert. The function had been **five days stale** |
-| **2026-08-07** | `cfj/1z90…` → **`r8pbqNx1…`** | not re-measured | `make deploy-restart-drill` re-run on current code — code swapped under an open incident, resumed exactly once (`assets/deploy-restart-run/dba642ed/`). Cold start was not re-sampled on this build, so the figures above still describe `cfj/1z90…` |
+| 2026-08-07 | `cfj/1z90…` → `r8pbqNx1…` | not re-measured | `make deploy-restart-drill` re-run on current code — code swapped under an open incident, resumed exactly once (`assets/deploy-restart-run/dba642ed/`) |
+| 2026-08-07 18:33 UTC | `r8pbqNx1…` → `amvfjds9…` | not re-measured | Manual deploy of `v0.9.4` from the clean clone, so the live function matched the tag |
+| 2026-08-07 18:44 UTC | `amvfjds9…` → *(recorded by the next deploy's summary)* | not re-measured | Manual deploy of `fb1c1e8` — the structlog `force=True` fix, without which the function wrote **no** application log lines at all |
+
+**From `v0.9.5` onward this table is written by the CI deploy**, which prints the before and after
+hashes into the workflow run summary ([ADR 010](adr/010-deploy-on-tag-from-ci.md)). The hand-kept
+rows above are the manual era, and the gap in the last one is exactly why: a hash nobody recorded at
+the time cannot be recovered afterwards, only overwritten by the next deploy.
+
+The cold-start figure of **1719 ms / 130 MB** was measured on `cfj/1z90…` and has not been
+re-sampled on any build since. `Max Memory Used` has held at 129–130 MB across every build measured,
+so that half is stable; the init time is the part that is genuinely unverified on current code.
 
 **Redeploy before recording.** Recording #1 resumes via `--via-lambda`, so a stale function puts a Lambda on camera that behaves differently from the repo — and nothing in the demo would reveal it.
 

@@ -22,7 +22,7 @@ box here is the honest state, not an oversight.
 
 - [x] **Uses CockroachDB as persistent memory layer, deployed on AWS** — *CockroachDB Cloud is
       live, and the orchestrator runs on AWS Lambda in eu-central-1 (first deployed 2026-08-01, redeployed
-      2026-08-07 — `CodeSha256` `r8pbqNx1…`). The
+      repeatedly on 2026-08-07; `docs/DEPLOY.md` carries the log). The
       recovery contract was observed on the deployed function: successive cold invocations drove
       one incident 0 → 1 → 2 → `resolved`, each resuming from CockroachDB with the same
       `incident_id`*
@@ -42,8 +42,8 @@ box here is the honest state, not an oversight.
   - [x] **AWS Lambda** — deployed from `infra/template.yaml` via SAM:
         `arn:aws:lambda:eu-central-1:504804196134:function:continuum-orchestrator`, stack
         `continuum`. No provisioned concurrency (ADR 002), so every invocation is a cold start —
-        1719 ms init, 130 MB of a 512 MB allocation (measured 2026-08-07 on `CodeSha256` `cfj/1z90…`; the
-        deploy-restart drill has since replaced the code with `r8pbqNx1…`, which was not re-sampled)
+        1719 ms init, 130 MB of a 512 MB allocation (measured 2026-08-07 on `CodeSha256` `cfj/1z90…`;
+        the function has been redeployed since and this was not re-sampled)
 
 ## Submission Materials
 
@@ -74,6 +74,10 @@ box here is the honest state, not an oversight.
   - [ ] Shows the CockroachDB memory layer at work — the kill-and-resume beat
   - [ ] Public, not unlisted
   - [ ] No third-party trademarks / unlicensed music
+  - [ ] **After upload: wrap the README's `▶ Watch · 3-min demo` badge in the YouTube URL.** It
+        renders unlinked until then — wrap the existing image in a markdown link pointing at the
+        `youtu.be` URL, then run `python scripts/build_devpost_readme.py` so the mirror carries it.
+        `check_drift.py` cannot catch this — a badge is an image URL, not a claim it parses
   - [ ] No credentials or account IDs in any frame
 - [x] **Text description of features and functionality** — [`DEVPOST.md`](DEVPOST.md) +
       [`DEVPOST_README.md`](DEVPOST_README.md) (paste-ready mirror with absolute URLs)
@@ -92,7 +96,7 @@ box here is the honest state, not an oversight.
       uses environment expansion
 - [ ] Demo app accessible without login
 - [ ] Video watched start to finish, verified under 3:00 on the **exported file**
-- [x] All CI gates green: ruff lint, ruff format, mypy, Devpost mirror freshness, 83 unit +
+- [x] All CI gates green: ruff lint, ruff format, mypy, Devpost mirror freshness, 85 unit +
       9 integration tests, 100% coverage against a 90% gate
 - [x] No broken links repo-wide (markdown links and HTML `src`/`srcset`/`href`)
 - [x] No placeholder artifacts shipping as finished — pending items are marked pending explicitly

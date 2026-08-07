@@ -227,20 +227,42 @@ def check_test_counts() -> list[Failure]:
 
 
 def check_adr_count() -> list[Failure]:
+    """Every stated ADR count, however it is phrased.
+
+    Three patterns, because the first one alone was not enough. Adding ADR 010
+    left `README.md` reading "Nine decisions documented (001-009)" with no row
+    for the new one, and this check reported green: it only matched the literal
+    words "ADRs" / "Architecture Decision Records", so neither "N decisions
+    documented" nor the range itself was ever looked at. The gate was narrower
+    than the prose it was meant to police — the same shape as the wrapped-claim
+    hole in check_test_counts.
+    """
     actual = len(list((REPO_ROOT / "docs" / "adr").glob("[0-9]*.md")))
     fails: list[Failure] = []
-    pattern = re.compile(r"\b(\w+)\s+(?:ADRs?|Architecture Decision Records)\b", re.I)
-    words = {"nine": 9, "eight": 8, "ten": 10, "seven": 7}
+    counted = [
+        re.compile(r"\b(\w+)\s+(?:ADRs?|Architecture Decision Records)\b", re.I),
+        re.compile(r"\b(\w+)\s+decisions?\s+documented\b", re.I),
+    ]
+    # "(001-009)" / "001 to 009" — the upper bound is a count claim too.
+    ranges = re.compile(r"\b001\s*(?:[-–—]|to)\s*0*(\d+)\b")
+    words = {
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+        "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+    }  # fmt: skip
     for path in _markdown_files():
         text = path.read_text(encoding="utf-8", errors="replace")
         rel = path.relative_to(REPO_ROOT).as_posix()
         if rel.startswith("CHANGELOG"):
             continue
         for lineno, line in enumerate(text.splitlines(), 1):
-            for token in pattern.findall(line):
-                n = words.get(token.lower()) or (int(token) if token.isdigit() else None)
-                if n is not None and n != actual:
-                    fails.append(("adr-count", f"{rel}:{lineno} says {token} ADRs; actual {actual}"))
+            for pattern in counted:
+                for token in pattern.findall(line):
+                    n = words.get(token.lower()) or (int(token) if token.isdigit() else None)
+                    if n is not None and n != actual:
+                        fails.append(("adr-count", f"{rel}:{lineno} says {token} ADRs; actual {actual}"))
+            for hi in ranges.findall(line):
+                if int(hi) != actual:
+                    fails.append(("adr-count", f"{rel}:{lineno} claims the range ends at {hi}; actual {actual}"))
     return fails
 
 

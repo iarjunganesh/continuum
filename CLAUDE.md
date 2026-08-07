@@ -11,7 +11,7 @@ Continuum — an agentic incident-response system built for the CockroachDB × A
 
 **The orchestrator is deployed and the recovery guarantee is proven on the real runtime** (first proven 2026-08-01): stack `continuum` in eu-central-1, `arn:aws:lambda:eu-central-1:504804196134:function:continuum-orchestrator`. Four cold `sam remote invoke` calls drove one incident 0 → 1 → 2 → `resolved`, each reporting `correlation_source`/`reasoning_source` of `bedrock`, so Bedrock and the vector search demonstrably ran inside Lambda under the function's own role.
 
-**Redeployed twice on 2026-08-07** — first to `cfj/1z90…` (cold start **1719 ms init, 130 MB of 512 MB**, measured on that build, not carried over), then to **`r8pbqNx1…`** by the deploy-restart drill, which was not re-sampled. `docs/DEPLOY.md` carries the log. The function had gone **five days stale**, still running the 2026-08-02 build: it predated the KPI fix, `_stack_detail`, the Titan reseed and the current alert text. That matters beyond tidiness — Recording #1 resumes via `--via-lambda`, so filming against a stale function shows a Lambda behaving differently from the repo. **Redeploy before recording, and check `CodeSha256` actually moved.**
+**Redeployed repeatedly on 2026-08-07** — `docs/DEPLOY.md` carries the log, which is the authority; don't restate hashes here, they go stale within the hour. Cold start **1719 ms init, 130 MB of 512 MB** was measured on `cfj/1z90…` and has not been re-sampled since. Before that day the function had gone **five days stale**, still running the 2026-08-02 build: it predated the KPI fix, `_stack_detail`, the Titan reseed and the current alert text. That matters beyond tidiness — Recording #1 resumes via `--via-lambda`, so filming against a stale function shows a Lambda behaving differently from the repo. **This is what ADR 010 exists to stop**; the manual rule stands for untagged builds: redeploy before recording, and check `CodeSha256` actually moved.
 
 **Every failure mode in the Never-Miss table is now closed** (first 2026-08-02, re-proven on current code 2026-08-07): the last one, *deployment restart mid-incident*, is proven by `make deploy-restart-drill` — an incident held in a durable `executing` row while a real `sam build` + `sam deploy` swaps the function's code, then resumed exactly once on the new build (evidence `assets/deploy-restart-run/dba642ed/`, `cfj/1z90…` → `r8pbqNx1…`). The drill asserts `CodeSha256` actually moved; a no-op deploy would otherwise pass while proving nothing.
 
@@ -136,12 +136,15 @@ someone deleting it later:
 **twice** on any change that touches behaviour, structure, counts, or claims:
 
 1. **Before committing to `main`** — walk the README top to bottom, section by section, not just
-   the part you edited. The badge row (release version, dependency floors), What Is This, How It
+   the part you edited. The badge row (dependency floors — the release badge reads `latest` and
+   links to `/releases/latest`, so it never needs bumping), What Is This, How It
    Works, the tool/service lists, Quick Start against the `Makefile`, Project Structure,
    Production & Quality, Load & Resilience. Then `make check-drift` and `make devpost-readme`.
-2. **Before tagging** — again, because the release badge and the version fields only become wrong
-   *at* the tag, and a tag is the thing judges land on. Confirm the release badge names the
-   version you are about to tag.
+2. **Before tagging** — again, because the version fields only become wrong *at* the tag, and a tag
+   is the thing judges land on. The release badge is deliberately **not** one of them: it reads
+   `latest` and links to `/releases/latest`, so GitHub resolves it and it cannot go stale. Do not
+   reintroduce a hardcoded `release-vX.Y.Z` badge — it was wrong at exactly the moment a judge
+   would see it, and `check_drift.py` never looked at it.
 
 `submission/DEVPOST_README.md` is a rendering of the same file, so both sweeps cover it by
 regenerating — never by editing it.
@@ -178,10 +181,15 @@ regeneration. Change `README.md` and let the generator do the rest. **Any prose 
 README — counts, dates, claims, new sections — is a change to both files.**
 
 **Before tagging a release:**
+
+**A tag deploys the Lambda (ADR 010).** Everything below was already the standard; it is now the
+thing standing between a bad commit and the live demo, so treat step 1 as a gate rather than a
+formality. After pushing the tag, watch the **Deploy Orchestrator** run and confirm its summary
+shows `CodeSha256` moving — a warning there means the tag shipped identical code.
+
 1. `make lint && make typecheck && make test && make coverage` — all green, coverage above the gate.
    (`make lint` covers both `ruff check` and `ruff format --check`; CI gates them separately.)
-2. `make check-drift`, then the README sweep above — top to bottom, including the release badge,
-   which names the version and is only wrong *at* the tag.
+2. `make check-drift`, then the README sweep above — top to bottom.
 3. `make devpost-readme` — the mirror must be current, or CI's `--check` step fails.
 4. `CHANGELOG.md` has a section for the exact version being tagged; `release.yml` extracts release
    notes from it by regex, so the heading format `## [X.Y.Z]` is load-bearing.
@@ -189,7 +197,7 @@ README — counts, dates, claims, new sections — is a change to both files.**
    by a rebase/amend that rewrote the commits underneath them — `git describe --tags` failed
    because no tag was an ancestor of `HEAD`. After tagging, verify:
    `git describe --tags` resolves, and `git log --oneline --decorate -5` shows the tag.
-6. Push commits *and* tags: `git push origin main --follow-tags`.
+6. Push commits *and* tags: `git push origin main --follow-tags`. **This deploys to AWS.**
 7. Never rebase or amend a commit that a tag points at. If history must be rewritten, re-point the
    affected tags in the same operation and force-push them deliberately.
 
@@ -219,6 +227,7 @@ Commit subjects carry no version numbers — the tag and CHANGELOG carry the ver
 - **A green unit suite is necessary but not sufficient for MCP or Bedrock changes.** Both are mocked at the import boundary, so the suite passes against a client that would fail against the real server. Those changes need a live round trip — this is exactly why `mcp` is pinned `<2` despite 2.0.0 being released.
 
 ## Deployment
+- **Tagging deploys the Lambda.** `.github/workflows/deploy.yml` runs on any `v*.*.*` tag (ADR 010): OIDC role assumption, `sam build`, `sam deploy`, a `CodeSha256`-moved assertion, and an empty-payload invoke that proves the package imports without writing an incident. **`git push --follow-tags` therefore mutates AWS** — the pre-tag gates in the release checklist stop being a formality. It does *not* run on pushes to `main`, deliberately: redeploying during ordinary work would swap the code out from under a demo recording. The manual path in `docs/DEPLOY.md` still exists for untagged commits, `BedrockRegion` overrides and debugging.
 - Region: **eu-central-1** — co-locates the Lambda with the CockroachDB Cloud cluster (ADR 007). Keep `AWS_REGION` / `config.py` defaults / `infra/template.yaml` in sync; a drift between them fails silently as a Bedrock access error, not a config error.
 - Bedrock calls target a **separate** `BEDROCK_REGION` setting, not `AWS_REGION` (ADR 008). Keep it a separate setting — quotas are dynamic and account-level, and moving Bedrock without redeploying the Lambda is the whole point of the seam. **Its default is now `eu-central-1`, matching `AWS_REGION`** (ADR 008 addendum 3, 2026-08-01): the seam was introduced because an account-level clamp left eu-north-1 as the only region accepting calls, and once that clamp lifted nothing argued for the defaults differing. Same value, still two settings — so `make probe-bedrock` stays a pre-demo step and a closed region is a one-variable override. Both Bedrock paths degrade silently by design (no precedent / precedent-replay), so a throttled account *looks* fine while never touching Bedrock; the probe and the `reasoning_source` / `correlation_source` markers are how you tell which mode you're in.
 - Lambda runtime: `python3.14` (`infra/template.yaml`) — matches the rest of the codebase; do not downgrade to chase an older SAM example.

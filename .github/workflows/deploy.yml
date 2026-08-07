@@ -1,0 +1,158 @@
+name: Deploy Orchestrator
+
+# Tags only, never pushes to main. A tag is a deliberate act; a push is not,
+# and redeploying the live function during ordinary work would swap the code
+# out from under a demo recording. See docs/adr/010-deploy-on-tag-from-ci.md.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+# Never let two tags deploy at once. The second would race the first's
+# CloudFormation update and fail against a stack already IN_PROGRESS — a
+# failure that looks like a broken workflow rather than a queue.
+concurrency:
+  group: deploy-orchestrator
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      # Mints the OIDC token used to assume the AWS role. Without it,
+      # configure-aws-credentials fails with "Credentials could not be loaded"
+      # rather than anything resembling a permissions error.
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Set up AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Assume the deploy role via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: eu-central-1
+          role-session-name: continuum-deploy-${{ github.ref_name }}
+
+      - name: Confirm the identity actually resolved
+        # Printed because the most expensive recurring failure on this project
+        # is deploying as the wrong identity. The account id is masked so it
+        # cannot leak into a public log that later gets pasted into an issue —
+        # submission/SUBMISSION.md bars account ids from judge-facing material.
+        run: |
+          ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
+          echo "::add-mask::$ACCOUNT"
+          aws sts get-caller-identity --query Arn --output text
+
+      - name: Build
+        # Bare `sam build`, with no arguments, deliberately — identical to how
+        # it is run locally and by the Makefile.
+        #
+        # The first version passed `--template infra/template.yaml`, which made
+        # SAM resolve samconfig.toml relative to the template's directory
+        # (infra/), where there is none. So NEITHER `manifest` nor
+        # `use_container` applied: the build resolved the root requirements.txt
+        # — Gradio plus the whole dev toolchain — and CloudFormation rejected
+        # the result with "Unzipped size must be smaller than 262144000 bytes".
+        # samconfig.toml supplies template, manifest and use_container; let it.
+        run: sam build
+
+      - name: Package is under Lambda's unzipped limit
+        # CloudFormation reports an oversized package as an opaque 400 during
+        # the stack update, after a rollback, several minutes in. Measuring the
+        # built artifact here names the actual problem in one line — and
+        # preflight_deploy.py cannot cover this: it measures the source tree
+        # before dependencies are resolved, and the dependencies are the risk.
+        run: |
+          BYTES=$(du -sb .aws-sam/build | cut -f1)
+          LIMIT=262144000
+          echo "built artifact: $((BYTES / 1024 / 1024)) MB of $((LIMIT / 1024 / 1024)) MB"
+          if [ "$BYTES" -gt "$LIMIT" ]; then
+            echo "::error::Built package is $((BYTES / 1024 / 1024)) MB, over Lambda's 250 MB unzipped limit. \
+          Check that sam build used infra/requirements-lambda.txt (samconfig.toml 'manifest') and not the root requirements.txt."
+            exit 1
+          fi
+
+      - name: Record the deployed code hash before
+        id: before
+        run: |
+          SHA="$(aws lambda get-function-configuration \
+            --function-name continuum-orchestrator --region eu-central-1 \
+            --query CodeSha256 --output text 2>/dev/null || echo "none")"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy
+        # Every parameter is passed explicitly rather than inheriting what is
+        # already on the stack. Inheriting would mean CI never needed the DSN,
+        # but that value exists only because someone deployed by hand first —
+        # so the workflow would silently depend on a bootstrap it cannot itself
+        # perform, and could not stand the stack up from nothing. ADR 010.
+        run: |
+          sam deploy \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              CockroachDatabaseUrl="${{ secrets.COCKROACH_DATABASE_URL }}"
+
+      - name: Verify the code actually changed
+        # `sam deploy` exits 0 on a no-op by design, so a green job proves
+        # nothing on its own — the same reason the deploy-restart drill asserts
+        # on this. An unchanged hash warns rather than fails: re-tagging the
+        # same commit is a legitimate thing to do.
+        run: |
+          AFTER="$(aws lambda get-function-configuration \
+            --function-name continuum-orchestrator --region eu-central-1 \
+            --query CodeSha256 --output text)"
+          BEFORE="${{ steps.before.outputs.sha }}"
+          if [ "$BEFORE" = "$AFTER" ]; then
+            echo "::warning::CodeSha256 did not change — this tag deployed identical code."
+          fi
+          {
+            echo "### Deployed \`${{ github.ref_name }}\`"
+            echo ""
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Function | \`continuum-orchestrator\` (eu-central-1) |"
+            echo "| CodeSha256 before | \`$BEFORE\` |"
+            echo "| CodeSha256 after | \`$AFTER\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Smoke-test the deployed package
+        # A deploy that succeeded and a function that runs are different claims.
+        # This invokes the real function once with an EMPTY payload, which is
+        # deliberate: handle_alert reads alert["correlation_id"] before it
+        # touches CockroachDB, so the call raises KeyError having written
+        # nothing. That distinguishes the two outcomes that matter —
+        #
+        #   KeyError                -> the package imported and our code ran
+        #   Runtime.ImportModuleError -> the build is mis-packaged
+        #
+        # — without putting a ci-smoke incident into the cluster the demo runs
+        # on and judges browse. A real alert here would be tidier to read and
+        # would violate the cluster-hygiene rule in CLAUDE.md every single tag.
+        run: |
+          aws lambda invoke \
+            --function-name continuum-orchestrator --region eu-central-1 \
+            --cli-binary-format raw-in-base64-out --payload '{}' \
+            response.json > invoke-meta.json
+          cat invoke-meta.json response.json
+          ERRTYPE="$(python -c "import json;print(json.load(open('response.json')).get('errorType',''))")"
+          if [ "$ERRTYPE" != "KeyError" ]; then
+            echo "::error::Expected KeyError from an empty payload, got '$ERRTYPE'. \
+          The deployed package may be mis-built (Runtime.ImportModuleError) or the handler changed."
+            exit 1
+          fi
+          echo "Package imports and the handler executes on the deployed build."

@@ -40,9 +40,9 @@
 
 [![CI](https://github.com/iarjunganesh/continuum/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iarjunganesh/continuum/actions/workflows/ci.yml)
 [![Codecov](https://codecov.io/gh/iarjunganesh/continuum/graph/badge.svg)](https://codecov.io/gh/iarjunganesh/continuum)
-[![Release](https://img.shields.io/badge/release-v0.9.4-2ea44f?logo=github&logoColor=white)](https://github.com/iarjunganesh/continuum/releases/latest)
+[![Release](https://img.shields.io/badge/release-latest-2ea44f?logo=github&logoColor=white)](https://github.com/iarjunganesh/continuum/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/iarjunganesh/continuum/tree/main/LICENSE/)
-[![Demo video](https://img.shields.io/badge/%E2%96%B6_Demo_video-recording_pending-9CA3AF?logo=youtube&logoColor=white)](https://github.com/iarjunganesh/continuum/blob/main/submission/DEMO_SCRIPT.md)
+![Watch Video](https://img.shields.io/badge/%E2%96%B6_Watch-3--min_demo-FF0000?logo=youtube&logoColor=white)
 
 <!-- Row 2 — AWS services -->
 [![AWS Lambda](https://img.shields.io/badge/AWS_Lambda-python3.14-FF9900?logo=awslambda&logoColor=white)](https://aws.amazon.com/lambda/)
@@ -151,7 +151,7 @@ The component diagram shows *what* talks to what. This shows *what survives* —
 
 ### Architecture Decision Records
 
-Nine decisions documented (001–009), **all accepted and implemented** — see [`docs/adr/`](https://github.com/iarjunganesh/continuum/tree/main/docs/adr/) for full rationale.
+Ten decisions documented (001–010), **all accepted and implemented** — see [`docs/adr/`](https://github.com/iarjunganesh/continuum/tree/main/docs/adr/) for full rationale.
 
 | ADR | Decision |
 | --- | --- |
@@ -164,6 +164,7 @@ Nine decisions documented (001–009), **all accepted and implemented** — see 
 | [007](https://github.com/iarjunganesh/continuum/blob/main/docs/adr/007-eu-central-1-region.md) | eu-central-1 deployment region, kept in sync across config/template/ADR |
 | [008](https://github.com/iarjunganesh/continuum/blob/main/docs/adr/008-bedrock-region-split.md) | Bedrock calls target their own `BEDROCK_REGION` setting rather than reusing `AWS_REGION`, so Bedrock can move without redeploying the Lambda — introduced when a dynamic account-level quota clamp probed as ~0 across all regions and models (lifted 2026-08-01); the default is back to eu-central-1 alongside the Lambda and cluster (addendum 3), and the app degrades to deterministic fallbacks either way |
 | [009](https://github.com/iarjunganesh/continuum/blob/main/docs/adr/009-step-execution-semantics.md) | Each step runs in two explicit `SERIALIZABLE` transactions with a forward-step claim (`ON CONFLICT DO NOTHING`) for exactly-once; correlation/Bedrock is best-effort, off the recovery critical path |
+| [010](https://github.com/iarjunganesh/continuum/blob/main/docs/adr/010-deploy-on-tag-from-ci.md) | The orchestrator deploys from CI on a `v*.*.*` tag — via GitHub OIDC, never stored AWS keys — so the deployed function and the newest tag cannot drift. Tags only, never pushes to `main`: redeploying during ordinary work would swap the code out from under a demo recording |
 
 ---
 
@@ -200,7 +201,7 @@ Judging-criteria mapping and full submission narrative: [`submission/DEVPOST.md`
 | **Backend** | [![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](https://www.python.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/) [![psycopg](https://img.shields.io/badge/psycopg-3.3-336791?logo=postgresql&logoColor=white)](https://www.psycopg.org/psycopg3/) | Versioned gateway (`/api/v1`) around the orchestrator; psycopg 3 because psycopg2 has no 3.14 wheels |
 | **Demo UI** | [![Gradio](https://img.shields.io/badge/Gradio-6.22-F97316?logo=gradio&logoColor=white)](https://gradio.app/) [![HF Spaces](https://img.shields.io/badge/🤗_Spaces-live-FFD21E)](https://huggingface.co/spaces/iarjunganesh/continuum) | Live incident console with recovery-timeline replay, the recalled precedent per step, and the committed failure evidence — reading straight from CockroachDB, in the viewer's own light or dark theme. Every card carries provenance badges naming the CockroachDB and AWS features that produced it (`⟲ resumed after kill`, `⌖ recalled #N of M`, the embedding and reasoning models, the runtime), and a legend names the **column each one is read from** — so the tool claims are checkable against the database, not taken on trust |
 | **Observability** | [![structlog](https://img.shields.io/badge/structlog-JSON-4A90E2)](https://www.structlog.org/) | Structured event logging across every agent — no bare `print` |
-| **Quality** | [![Ruff](https://img.shields.io/badge/Ruff-lint%20%2B%20format-D7FF64?logo=ruff&logoColor=111827)](https://docs.astral.sh/ruff/) [![Mypy](https://img.shields.io/badge/Mypy-type_checked-2A6DB2?logo=python&logoColor=white)](https://mypy-lang.org/) [![pytest](https://img.shields.io/badge/pytest-9.1-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/) | Lint → format → types → 83 unit + 9 integration tests → 100% coverage against a 90% gate → Codecov |
+| **Quality** | [![Ruff](https://img.shields.io/badge/Ruff-lint%20%2B%20format-D7FF64?logo=ruff&logoColor=111827)](https://docs.astral.sh/ruff/) [![Mypy](https://img.shields.io/badge/Mypy-type_checked-2A6DB2?logo=python&logoColor=white)](https://mypy-lang.org/) [![pytest](https://img.shields.io/badge/pytest-9.1-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/) | Lint → format → types → 85 unit + 9 integration tests → 100% coverage against a 90% gate → Codecov |
 
 ---
 
@@ -209,7 +210,7 @@ Judging-criteria mapping and full submission narrative: [`submission/DEVPOST.md`
 | | |
 | --- | --- |
 | **App** | [https://huggingface.co/spaces/iarjunganesh/continuum](https://huggingface.co/spaces/iarjunganesh/continuum) *(deploys on push to `main`)* |
-| **Orchestrator** | Live on AWS Lambda — `continuum-orchestrator`, eu-central-1 (stack `continuum`, deployed via SAM). No provisioned concurrency, so every invocation is a genuine cold start: **1719 ms init, 130 MB / 512 MB** (measured 2026-08-07 on `CodeSha256` `cfj/1z90…`; the deploy-restart drill has since replaced the code with `r8pbqNx1…`) |
+| **Orchestrator** | Live on AWS Lambda — `continuum-orchestrator`, eu-central-1 (stack `continuum`, deployed via SAM). No provisioned concurrency, so every invocation is a genuine cold start: **1719 ms init, 130 MB / 512 MB** (measured 2026-08-07 on `CodeSha256` `cfj/1z90…`). The function has been redeployed several times since and the figure has not been re-sampled — the deployment log in [`docs/DEPLOY.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/DEPLOY.md) is the authority on what is currently live |
 | **Demo Video** | *Not yet recorded.* Recording script: [`submission/DEMO_SCRIPT.md`](https://github.com/iarjunganesh/continuum/blob/main/submission/DEMO_SCRIPT.md) |
 | **Try It Now** | `make chaos-demo` — kill the agent mid-incident, watch it resume from CockroachDB |
 
@@ -414,7 +415,7 @@ continuum/
 │   └── snapshots/             # memory exports — insurance against the cluster lapsing
 ├── docs/
 │   ├── ARCHITECTURE.md · DEPLOY.md · BENCHMARKS.md · RESILIENCE.md · CLUSTER_OPS.md
-│   └── adr/                   # 9 Architecture Decision Records
+│   └── adr/                   # 10 Architecture Decision Records
 ├── submission/                # judge-facing packet
 │   └── SUBMISSION.md · DEVPOST.md · DEVPOST_README.md · DEMO_SCRIPT.md · COSTS.md
 ├── assets/                    # judge-facing evidence — see assets/README.md
@@ -435,7 +436,7 @@ continuum/
 ├── requirements.txt           # floor-pinned with major-version caps
 ├── .env.example               # every setting, placeholder values only
 ├── .mcp.json                  # MCP server config — environment expansion, no secrets
-├── .github/workflows/         # ci.yml · release.yml · sync-to-hf-space.yml
+├── .github/workflows/         # ci.yml · deploy.yml · release.yml · sync-to-hf-space.yml
 └── CHANGELOG.md · CLAUDE.md · CONTRIBUTING.md · SECURITY.md · LICENSE
 ```
 
@@ -446,14 +447,18 @@ continuum/
 ```text
 push → ruff lint → ruff format --check → mypy → Devpost mirror freshness
      → ephemeral single-node CockroachDB → schema apply
-     → pytest (83 unit + 9 integration) → coverage (≥90% gate, 100% measured) → Codecov
+     → pytest (85 unit + 9 integration) → coverage (≥90% gate, 100% measured) → Codecov
 push to main → auto-sync to Hugging Face Space (public demo)
 tag v*.*.*   → GitHub Release, notes pulled from CHANGELOG.md
+             → deploy the orchestrator to AWS Lambda (OIDC, no stored keys)
+                 → assert CodeSha256 actually moved → smoke-test the deployed package
 ```
 
-See [`.github/workflows/ci.yml`](https://github.com/iarjunganesh/continuum/blob/main/.github/workflows/ci.yml), [`.github/workflows/release.yml`](https://github.com/iarjunganesh/continuum/blob/main/.github/workflows/release.yml), and [`docs/DEPLOY.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/DEPLOY.md).
+**A tag deploys the function** ([ADR 010](https://github.com/iarjunganesh/continuum/blob/main/docs/adr/010-deploy-on-tag-from-ci.md)), so the deployed orchestrator and the newest tag cannot drift. Deliberately not on every push to `main` — that would redeploy the live function during ordinary work, including while the demo is being recorded against it.
 
-The unit suite (83 tests, one file per agent/module, 100% measured coverage against a 90% CI gate) pins the properties the demo depends on: recovery read happens before any write, each step commits inside an explicit `SERIALIZABLE` transaction, interrupted steps are re-executed (never skipped, never duplicated), a forward step is claimed exactly once under concurrent invocations, and incidents resolve atomically with the final step.
+See [`.github/workflows/ci.yml`](https://github.com/iarjunganesh/continuum/blob/main/.github/workflows/ci.yml), [`.github/workflows/deploy.yml`](https://github.com/iarjunganesh/continuum/blob/main/.github/workflows/deploy.yml), [`.github/workflows/release.yml`](https://github.com/iarjunganesh/continuum/blob/main/.github/workflows/release.yml), and [`docs/DEPLOY.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/DEPLOY.md).
+
+The unit suite (85 tests, one file per agent/module, 100% measured coverage against a 90% CI gate) pins the properties the demo depends on: recovery read happens before any write, each step commits inside an explicit `SERIALIZABLE` transaction, interrupted steps are re-executed (never skipped, never duplicated), a forward step is claimed exactly once under concurrent invocations, and incidents resolve atomically with the final step.
 
 [`tests/integration/test_recovery_e2e.py`](https://github.com/iarjunganesh/continuum/blob/main/tests/integration/test_recovery_e2e.py) drives that same resume-and-exactly-once contract against the real schema on a real CockroachDB instance CI spins up — not just against mocks — and [`tests/integration/test_chaos_kill_e2e.py`](https://github.com/iarjunganesh/continuum/blob/main/tests/integration/test_chaos_kill_e2e.py) goes one step further: it spawns the orchestrator as a real subprocess and hard-kills it mid-step with [`scripts/chaos_kill.py`](https://github.com/iarjunganesh/continuum/blob/main/scripts/chaos_kill.py) (a real `SIGKILL`/`TerminateProcess`, no graceful shutdown), then asserts a cold restart resumes the interrupted step exactly once from CockroachDB. The same script drives the literal process-kill beat live in the demo.
 
