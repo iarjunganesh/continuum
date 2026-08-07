@@ -1,0 +1,46 @@
+{
+  "run_id": "e765a3c5",
+  "kind": "resilience",
+  "started_utc": "2026-08-07T13:06:23.498883+00:00",
+  "finished_utc": "2026-08-07T13:06:23.530280+00:00",
+  "code": {
+    "commit": "a14247537e0f050bb266e0645801cb54f8407870",
+    "commit_short": "a142475",
+    "describe": "v0.9.3-6-ga142475",
+    "working_tree_dirty": true
+  },
+  "environment": {
+    "python": "3.14.6",
+    "platform": "win32",
+    "cluster": "continuum-28621.j77.aws-eu-central-1.cockroachlabs.cloud/defaultdb",
+    "aws_region": "eu-central-1",
+    "bedrock_region": "eu-central-1",
+    "embedding_model": "amazon.titan-embed-text-v2:0",
+    "reasoning_model": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "lambda_function": "continuum-orchestrator",
+    "step_execution_seconds": 5.0,
+    "max_remediation_steps": 3
+  },
+  "command": "resilience_bench.py --kills 50 --real-kills 10 --lambda-timeouts 15 --concurrency 2,5,10,25,50 --conc-trials 20 --agents 10,50,100 --max-vectors 10000 --vector-samples 10 --allow-cloud-burn",
+  "files": [
+    "e765a3c5_agent-throughput.json",
+    "e765a3c5_exactly-once.json",
+    "e765a3c5_kill-storm.json",
+    "e765a3c5_lambda-timeout.json",
+    "e765a3c5_real-sigkill.json",
+    "e765a3c5_resilience.md",
+    "e765a3c5_vector-scale.json"
+  ],
+  "screenshots": [],
+  "results": {
+    "kill_storm": {
+      "n": 50,
+      "resumed": 50,
+      "duplicated": 0,
+      "lost": 0,
+      "wrong_step": 0
+    },
+    "exactly_once_violations": 0,
+    "throughput_failures": 0
+  }
+}

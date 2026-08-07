@@ -184,8 +184,20 @@ def _code_provenance() -> dict:
         return {"sha": "(unknown)", "dirty_tracked": [], "measured_dirty": []}
 
 
+# Set when re-rendering a committed run, so provenance describes the commit the
+# numbers were MEASURED at rather than whatever is checked out now. Without this,
+# `--render-from` silently re-attributes old measurements to a newer commit —
+# which is the exact failure the provenance section exists to make visible, so
+# getting it wrong here would be worse than having no section at all.
+_MEASURED_AT: dict | None = None
+
+
+def _provenance() -> dict:
+    return _MEASURED_AT if _MEASURED_AT is not None else _code_provenance()
+
+
 def _code_ref() -> str:
-    p = _code_provenance()
+    p = _provenance()
     if p["measured_dirty"]:
         return f"{p['sha']} + UNCOMMITTED CHANGES TO MEASURED CODE"
     return p["sha"]
@@ -199,7 +211,14 @@ def _provenance_note() -> str:
     silently deleted the audit that told readers whether to trust it. Deriving
     it here means it is rebuilt with the numbers it describes.
     """
-    p = _code_provenance()
+    p = _provenance()
+    if p.get("from_manifest") and not p.get("granular"):
+        return (
+            f"> **Re-rendered from committed evidence measured at `{p['sha']}`.** That run's manifest "
+            f"predates per-file provenance, so it records only that the working tree was "
+            f"{'dirty' if p.get('dirty_flag') else 'clean'} — not which files. The numbers below are "
+            f"the ones it captured; the commit is the one it captured them at."
+        )
     if p["measured_dirty"]:
         files = ", ".join(f"`{f}`" for f in p["measured_dirty"])
         return (
@@ -744,7 +763,9 @@ def _write(
     tput: list[dict],
     vec: list[dict],
 ) -> None:
-    now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    # When re-rendering, this is the time the numbers were MEASURED, not the time
+    # the markdown was written — same reasoning as the commit attribution above.
+    now = (_MEASURED_AT or {}).get("started") or dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     perfect = storm["duplicated"] == 0 and storm["lost"] == 0 and storm["wrong_step"] == 0
     verdict = (
@@ -1084,6 +1105,30 @@ def main() -> None:
             hits = sorted(ev.glob(f"*_{suffix}.json"))
             return json.loads(hits[0].read_text(encoding="utf-8")) if hits else default
 
+        # Provenance must describe the commit the numbers were MEASURED at, not
+        # the one checked out while re-rendering. Taken from the run's manifest.
+        global _MEASURED_AT
+        manifest_path = run_dir / "manifest.json"
+        if manifest_path.is_file():
+            man = json.loads(manifest_path.read_text(encoding="utf-8"))
+            code = man.get("code", {})
+            started = man.get("started_utc", "")
+            _MEASURED_AT = {
+                "started": (
+                    dt.datetime.fromisoformat(started).astimezone(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+                    if started
+                    else ""
+                ),
+                "sha": code.get("commit_short", "(unknown)"),
+                "dirty_tracked": code.get("dirty_tracked", []),
+                "measured_dirty": code.get("measured_dirty", []),
+                "from_manifest": True,
+                "granular": "measured_dirty" in code,
+                "dirty_flag": code.get("working_tree_dirty", False),
+            }
+        else:
+            p.error(f"{run_dir} has no manifest.json — cannot attribute these numbers to a commit")
+
         _write(
             args.out,
             load("kill-storm"),
@@ -1133,6 +1178,11 @@ def main() -> None:
                 "kill_storm": {k: v for k, v in storm.items() if k != "resume_ms"},
                 "exactly_once_violations": sum(r["violations"] for r in conc),
                 "throughput_failures": sum(r["failures"] for r in tput),
+                # Recorded so `--render-from` can attribute these numbers to the
+                # commit that produced them. The manifest's own `code` block
+                # carries only a boolean dirty flag, which cannot distinguish a
+                # rewritten report from modified agent code.
+                "code_provenance": _code_provenance(),
             }
         )
         log.info("evidence_captured", run=run.short_id, manifest=str(manifest))

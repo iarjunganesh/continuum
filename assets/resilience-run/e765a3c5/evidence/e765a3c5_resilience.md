@@ -4,17 +4,13 @@
 answer: **when the agent dies mid-incident, does it resume exactly once — every
 time, under contention, at scale?**
 
-**Run:** 2026-08-07 13:06 UTC · **Code:** `a142475` · Reproduce with `make resilience-bench`.
+**Run:** 2026-08-07 13:06 UTC · **Code:** `a142475 (working tree dirty)` · Reproduce with `make resilience-bench`.
 
 <sub>The commit is recorded because a benchmark outlives the code it measured. An
 earlier version of this file published a vector-search table generated *before*
 `find_similar` was fixed to actually use the C-SPANN index — the numbers were
 meaningless and nothing on the page said so. If the commit above predates a change
 to what is being measured, treat the numbers as stale and re-run.</sub>
-
-### Provenance — derived, not asserted
-
-> **Re-rendered from committed evidence measured at `a142475`.** That run's manifest predates per-file provenance, so it records only that the working tree was dirty — not which files. The numbers below are the ones it captured; the commit is the one it captured them at.
 
 ---
 
