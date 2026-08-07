@@ -95,7 +95,15 @@ class EvidenceRun:
         as well as inputs."""
         from config import settings
 
-        dirty = bool(_git("status", "--porcelain"))
+        # Tracked-only, deliberately. `git status --porcelain` also counts
+        # untracked files, and a run's own evidence folder is untracked by
+        # definition while it is being written — so every run self-reported a
+        # dirty tree, and a reader could not tell "the evidence was being
+        # saved" from "the agent had uncommitted changes". The untracked count
+        # is kept alongside so nothing is hidden, just no longer conflated.
+        tracked_dirty = sorted(ln.strip() for ln in _git("diff", "--name-only", "HEAD").splitlines() if ln.strip())
+        untracked = [ln for ln in _git("ls-files", "--others", "--exclude-standard").splitlines() if ln.strip()]
+        dirty = bool(tracked_dirty)
         self._manifest = {
             "run_id": self.short_id,
             "kind": self.kind,
@@ -109,6 +117,8 @@ class EvidenceRun:
                 # A dirty tree means the evidence does NOT correspond to any
                 # commit anyone else can check out. Recorded, not hidden.
                 "working_tree_dirty": dirty,
+                "dirty_tracked": tracked_dirty,
+                "untracked_files": len(untracked),
             },
             "environment": {
                 "python": sys.version.split()[0],

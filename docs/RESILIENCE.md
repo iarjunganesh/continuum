@@ -14,7 +14,7 @@ to what is being measured, treat the numbers as stale and re-run.</sub>
 
 ### Provenance — derived, not asserted
 
-> **Re-rendered from committed evidence measured at `a142475`.** That run's manifest predates per-file provenance, so it records only that the working tree was dirty — not which files. The numbers below are the ones it captured; the commit is the one it captured them at.
+> **Re-rendered from committed evidence measured at `a142475`.** That run's manifest predates per-file provenance, so it records only a single dirty flag — not which files. That flag counted **untracked** files too, and a run's own evidence folder is untracked while it is being written, so every run of that vintage reported dirty; it is not evidence that measured code was uncommitted. The numbers below are the ones it captured; the commit is the one it captured them at.
 
 ---
 
@@ -150,6 +150,45 @@ Across a **100× larger corpus** (100 → 10,000 vectors), on a warm connection:
 Both queries run against the same rows on the same connection, so the warm
 comparison is like-for-like. `@primary` forces the full scan, which is the
 baseline the index has to beat.
+
+---
+
+## D. Deploy mid-incident — the code replaced underneath an open step
+
+Every suite above takes the *process* away. This one takes the **code** away, and it is the
+failure an on-call engineer actually causes: shipping a fix while an incident is still open.
+
+The drill holds an incident durably in `executing`, then runs a real `sam build` + `sam deploy`
+from a clean clone against the deployed function, and invokes it cold afterwards. Nothing bridges
+the two builds except the CockroachDB row.
+
+**Run:** 2026-08-07 17:39 UTC · run id `dba642ed` · code `ae768ab` · `make deploy-restart-drill`
+
+| Phase | Observed |
+| --- | --- |
+| Interrupt | AWS timed the invocation out (`Timeout` 6 s, restored to 60 s in a `finally`) |
+| Durable after kill | step 0, `executing`, 1 row |
+| Deploy | 48.6 s · `CodeSha256` `cfj/1z90…` → `r8pbqNx1…` · revision id changed |
+| Cold resume | **same incident**, step 0 re-executed on the new build in 10834 ms |
+| Duplication | **none** — 1 row for the step |
+
+The resumed invocation returned `resumed: true`,
+`reexecuted_after_interrupt: true`, and
+`correlation_source` / `reasoning_source` both `bedrock` — so the new build ran the live AWS path,
+not a fallback, while completing a step the *previous* build had started.
+
+**The drill fails if the code did not actually change.** It compares `CodeSha256` before and after
+and refuses to pass on a no-op deploy, which would otherwise report success while proving nothing.
+`code_replaced: true` and `revision_changed: true` are asserted, not narrated.
+
+**n=1, stated plainly.** Each sample costs a full `sam build` + `sam deploy` against the live
+function, so this demonstrates that the contract holds across a code replacement — it is not a
+distribution. Suites A–B carry the statistical weight. Raw evidence:
+[`assets/deploy-restart-run/dba642ed/`](../assets/deploy-restart-run/dba642ed/).
+
+<sub>Measured by `scripts/deploy_restart_drill.py`, not by this script, and rendered here from that
+run's committed evidence. It used to be written into this file by hand, which meant the next
+`make resilience-bench` deleted it — once, silently, for a whole release.</sub>
 
 ---
 

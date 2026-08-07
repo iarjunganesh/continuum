@@ -194,8 +194,9 @@ Kept because a stale function is invisible from the repo, and the one thing that
 | Date | `CodeSha256` | Cold start | Notes |
 | --- | --- | --- | --- |
 | 2026-08-01 | — | 1.71 s / 129 MB | First deploy; recovery contract observed across four cold invocations |
-| 2026-08-02 | `0bpe5L/…` → `ylD4N19l…` | — | `make deploy-restart-drill` — code swapped under an open incident, resumed exactly once (`assets/deploy-restart-run/c1fe5151/`) |
-| **2026-08-07** | `ylD4N19l…` → **`cfj/1z90…`** | **1719 ms / 130 MB** | Picked up the provenance fields (`_stack_detail`), the Titan reseed and the Alertmanager-shaped demo alert. The function had been **five days stale** |
+| 2026-08-02 | `0bpe5L/…` → `ylD4N19l…` | — | `make deploy-restart-drill` — code swapped under an open incident, resumed exactly once (`assets/deploy-restart-run/c1fe5151/`, superseded) |
+| 2026-08-07 | `ylD4N19l…` → `cfj/1z90…` | **1719 ms / 130 MB** | Picked up the provenance fields (`_stack_detail`), the Titan reseed and the Alertmanager-shaped demo alert. The function had been **five days stale** |
+| **2026-08-07** | `cfj/1z90…` → **`r8pbqNx1…`** | not re-measured | `make deploy-restart-drill` re-run on current code — code swapped under an open incident, resumed exactly once (`assets/deploy-restart-run/dba642ed/`). Cold start was not re-sampled on this build, so the figures above still describe `cfj/1z90…` |
 
 **Redeploy before recording.** Recording #1 resumes via `--via-lambda`, so a stale function puts a Lambda on camera that behaves differently from the repo — and nothing in the demo would reveal it.
 

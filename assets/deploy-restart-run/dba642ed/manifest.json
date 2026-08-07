@@ -1,0 +1,32 @@
+{
+  "run_id": "dba642ed",
+  "kind": "deploy-restart",
+  "started_utc": "2026-08-07T17:39:16.573714+00:00",
+  "finished_utc": "2026-08-07T17:40:29.722767+00:00",
+  "code": {
+    "commit": "ae768ab84790ba80f92e8df4d8eb9bd83b7ffb6f",
+    "commit_short": "ae768ab",
+    "describe": "v0.9.3-8-gae768ab",
+    "working_tree_dirty": true
+  },
+  "environment": {
+    "python": "3.14.6",
+    "platform": "win32",
+    "cluster": "continuum-28621.j77.aws-eu-central-1.cockroachlabs.cloud/defaultdb",
+    "aws_region": "eu-central-1",
+    "bedrock_region": "eu-central-1",
+    "embedding_model": "amazon.titan-embed-text-v2:0",
+    "reasoning_model": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "lambda_function": "continuum-orchestrator",
+    "step_execution_seconds": 5.0,
+    "max_remediation_steps": 3
+  },
+  "command": "deploy_restart_drill.py --clone-dir C:\\ws\\continuum-deploy --profile continuum-admin",
+  "files": [
+    "dba642ed_deploy-restart.json"
+  ],
+  "screenshots": [],
+  "results": {
+    "deploy_restart_passed": true
+  }
+}

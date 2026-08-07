@@ -1,0 +1,51 @@
+{
+  "correlation_id": "resbench-deployrestart-da4bd5e5",
+  "function": "continuum-orchestrator",
+  "region": "eu-central-1",
+  "before": {
+    "code_sha256": "cfj/1z90wL90mFhgjHgFGSEzz/8/hUInLXLG45XE8XY=",
+    "revision_id": "0eaf309a-e0a8-4c14-ad13-78ee64f07d0e",
+    "last_modified": "2026-08-07T12:57:24.000+0000",
+    "version": "$LATEST",
+    "timeout": 60
+  },
+  "interrupt": {
+    "timed_out": true,
+    "timeout_used": 6,
+    "timeout_restored": 60
+  },
+  "durable_after_kill": {
+    "step_index": 0,
+    "status": "executing",
+    "steps": 1
+  },
+  "deploy": {
+    "skipped": false,
+    "seconds": 48.6
+  },
+  "after": {
+    "code_sha256": "r8pbqNx1obRenFc9olDyYsp//pJXZgR/XoASKHwmJ5Y=",
+    "revision_id": "1a8e8489-2343-4e67-b0e7-a421bd55344a",
+    "last_modified": "2026-08-07T17:40:06.000+0000",
+    "version": "$LATEST",
+    "timeout": 60
+  },
+  "code_replaced": true,
+  "revision_changed": true,
+  "resume_ms": 10833.6,
+  "recovery_payload": {
+    "incident_id": "cdcd5770-f20c-46aa-973f-95b0f6e94b82",
+    "step_index": 0,
+    "action": "increase_connection_pool_size",
+    "state": "remediating",
+    "resumed": true,
+    "reexecuted_after_interrupt": true,
+    "correlation_source": "bedrock",
+    "reasoning_source": "bedrock"
+  },
+  "resumed": true,
+  "same_incident": true,
+  "rows_for_step": 1,
+  "duplicated": false,
+  "passed": true
+}

@@ -22,7 +22,7 @@ box here is the honest state, not an oversight.
 
 - [x] **Uses CockroachDB as persistent memory layer, deployed on AWS** — *CockroachDB Cloud is
       live, and the orchestrator runs on AWS Lambda in eu-central-1 (first deployed 2026-08-01, redeployed
-      2026-08-07 — `CodeSha256` `cfj/1z90…`). The
+      2026-08-07 — `CodeSha256` `r8pbqNx1…`). The
       recovery contract was observed on the deployed function: successive cold invocations drove
       one incident 0 → 1 → 2 → `resolved`, each resuming from CockroachDB with the same
       `incident_id`*
@@ -42,7 +42,8 @@ box here is the honest state, not an oversight.
   - [x] **AWS Lambda** — deployed from `infra/template.yaml` via SAM:
         `arn:aws:lambda:eu-central-1:504804196134:function:continuum-orchestrator`, stack
         `continuum`. No provisioned concurrency (ADR 002), so every invocation is a cold start —
-        1719 ms init, 130 MB of a 512 MB allocation (measured 2026-08-07 on the currently deployed build, `CodeSha256` `cfj/1z90…`)
+        1719 ms init, 130 MB of a 512 MB allocation (measured 2026-08-07 on `CodeSha256` `cfj/1z90…`; the
+        deploy-restart drill has since replaced the code with `r8pbqNx1…`, which was not re-sampled)
 
 ## Submission Materials
 
@@ -91,7 +92,7 @@ box here is the honest state, not an oversight.
       uses environment expansion
 - [ ] Demo app accessible without login
 - [ ] Video watched start to finish, verified under 3:00 on the **exported file**
-- [x] All CI gates green: ruff lint, ruff format, mypy, Devpost mirror freshness, 82 unit +
+- [x] All CI gates green: ruff lint, ruff format, mypy, Devpost mirror freshness, 83 unit +
       9 integration tests, 100% coverage against a 90% gate
 - [x] No broken links repo-wide (markdown links and HTML `src`/`srcset`/`href`)
 - [x] No placeholder artifacts shipping as finished — pending items are marked pending explicitly
@@ -113,7 +114,7 @@ drift and the stale one is always the one a judge reads.
 | ~~**Live Bedrock path never executed**~~ — **resolved 2026-08-01** | Titan/Claude response handling was unproven; every run to date had used silent fallbacks | Both paths verified end to end: `embed()` returns 1024 floats matching `VECTOR(1024)`, `_propose_via_bedrock()` parsed real Claude output 3/3. Every step now records `reasoning_source` / `correlation_source` so the mode is visible rather than inferred |
 | **No demo video** | A required submission material | Scripted in `DEMO_SCRIPT.md`, unrecorded |
 | ~~**No captured evidence runs**~~ — **partly resolved 2026-08-03** | `assets/chaos-run/` was scaffolding — capture plan and shot list only | `make chaos-capture` now performs the kill *and* records it. `assets/chaos-run/local-4789422d/` holds a real run: a live orchestrator hard-killed mid-step, the frozen `executing` row read back out of CockroachDB with no process alive to own it, and the cold resume of that exact step, with `correlation_source`/`reasoning_source` both `bedrock`. **Still open:** the console screenshots for that run. The Lambda half narrowed on 2026-08-07 — a cold invoke of the deployed function persisted `runtime: lambda` alongside both model ids into a durable step — but that is a *provenance* proof, not a kill-and-resume capture, so the folder in the next row stays open |
-| **Lambda-side recovery has no `chaos-run` folder of its own** | The captured run is a local process kill | Recovery on the deployed function is nonetheless evidenced **four** independent ways: the deploy-restart drill (`assets/deploy-restart-run/c1fe5151/`), the Lambda-timeout suite where **AWS** performs the kill, the cold-invocation latencies in `docs/BENCHMARKS.md`, and — as of 2026-08-07 — a durable step written by the deployed function recording `runtime: lambda`, `reasoning_model_id` and `embedding_model_id` under its own IAM role. A dedicated capture would re-prove the same contract, so it stays deprioritised rather than forgotten |
+| **Lambda-side recovery has no `chaos-run` folder of its own** | The captured run is a local process kill | Recovery on the deployed function is nonetheless evidenced **four** independent ways: the deploy-restart drill (`assets/deploy-restart-run/dba642ed/`), the Lambda-timeout suite where **AWS** performs the kill, the cold-invocation latencies in `docs/BENCHMARKS.md`, and — as of 2026-08-07 — a durable step written by the deployed function recording `runtime: lambda`, `reasoning_model_id` and `embedding_model_id` under its own IAM role. A dedicated capture would re-prove the same contract, so it stays deprioritised rather than forgotten |
 | **Container / process-restart not proven separately** | One row of the failure-mode matrix has no dedicated harness | Deliberately subsumed: a Lambda timeout *is* the execution environment being taken away mid-step, under stricter conditions than a container restart — AWS delivers the kill, with no catchable signal. Stated rather than quietly folded away |
 | **Bedrock quotas are dynamic and account-level** | Both Bedrock paths degrade *silently* by design, so a throttled account produces a demo that looks fine while never calling Bedrock | `make probe-bedrock` before any recording, and every step persists `reasoning_source` / `correlation_source` so the mode is visible in the durable row rather than inferred. Since 2026-08-07 a step that *did* reach Bedrock also records **which model** (`reasoning_model_id`, `embedding_model_id`, `bedrock_region`), and one that fell back records none — so the console can name the model rather than assert it. ADR 008 has the history |
 | **HF Space can't self-trigger an incident** | A first-time judge sees state but can't create any | Read-only by design (single write path); an incident-start CTA is not currently in scope |

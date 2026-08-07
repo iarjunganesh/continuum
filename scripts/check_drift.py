@@ -273,6 +273,32 @@ def check_generated_files() -> list[Failure]:
     return []
 
 
+def check_resilience_suites() -> list[Failure]:
+    """Every suite the report promises must actually be in the report.
+
+    `docs/RESILIENCE.md` is generated, and Suite D used to be hand-written into
+    it — so the 2026-08-07 bench run deleted the whole section and a release
+    shipped with the README's failure-mode table pointing at a heading that no
+    longer existed. Nothing noticed, because a missing section looks exactly
+    like a section that was never promised. This asserts the promise.
+    """
+    path = REPO_ROOT / "docs" / "RESILIENCE.md"
+    if not path.is_file():
+        return [("resilience-suites", "docs/RESILIENCE.md does not exist")]
+    text = path.read_text(encoding="utf-8")
+    expected = {
+        "A. Kill storm": "process killed mid-step",
+        "B. Exactly-once under concurrency": "the exactly-once claim guard",
+        "C. Vector search at scale": "C-SPANN vs full scan",
+        "D. Deploy mid-incident": "code replaced under an open incident",
+    }
+    fails = []
+    for heading, what in expected.items():
+        if f"## {heading}" not in text:
+            fails.append(("resilience-suites", f"docs/RESILIENCE.md has no '{heading}' section ({what})"))
+    return fails
+
+
 def check_lambda_manifest() -> list[Failure]:
     proc = subprocess.run(
         [sys.executable, "-m", "pytest", "tests/unit/test_lambda_manifest.py", "-q", "--no-header"],
@@ -371,6 +397,7 @@ CHECKS = [
     ("stated ADR count is real", check_adr_count),
     ("relative links resolve", check_links),
     ("generated files current", check_generated_files),
+    ("resilience report has every suite", check_resilience_suites),
     ("lambda manifest in sync", check_lambda_manifest),
     ("README project tree matches the repo", check_project_tree),
 ]
