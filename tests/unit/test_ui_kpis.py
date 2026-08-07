@@ -222,3 +222,95 @@ def test_empty_cluster_renders_zeros_not_a_crash(dashboard):
     assert _tile_numbers(kpis)[:4] == [0, 0, 0, 0]
     assert "No incidents yet" in cards
     assert "No steps in-flight" in banner
+
+
+# ── Provenance badges ────────────────────────────────────────────────────────
+# Same rule as the tiles: a badge states something about the durable row, so it
+# reads a column or it does not render. The failure this guards against is not
+# a crash — it is a badge that looks authoritative and asserts something the
+# database never said.
+
+
+def _step(**over):
+    base = {
+        "incident_id": "0000000000-0000-0000-0000-000000000000",
+        "step_index": 0,
+        "action": "restart_pods",
+        "status": "executed",
+        "created_at": None,
+        "reasoning_source": None,
+        "correlation_source": None,
+        "precedent_id": None,
+        "precedent_distance": None,
+        "precedent_rank": None,
+        "precedents_considered": None,
+        "resumed": None,
+        "reasoning_model_id": None,
+        "embedding_model_id": None,
+        "runtime": None,
+    }
+    return {**base, **over}
+
+
+def test_resumed_badge_renders_only_from_the_durable_flag(app):
+    """The differentiator. It is a boolean in `detail`, and it was invisible on
+    the page for the entire project."""
+    row = {"embedding_model": None}
+    assert "resumed after kill" not in app._provenance(row, [_step()])
+    assert "resumed after kill" in app._provenance(row, [_step(resumed="true")])
+
+
+def test_distance_is_suppressed_without_an_attestable_vector_space(app):
+    """A distance means nothing outside the embedding model that produced it,
+    and this corpus has been re-embedded once — every distance moved from ~1.40
+    to ~0.64. Rank still renders: 'closest of 5' is true in any space."""
+    prec = _step(
+        reasoning_source="bedrock",
+        precedent_id="abc12345",
+        precedent_distance="1.4034",
+        precedent_rank="0",
+        precedents_considered="5",
+    )
+    legacy = app._provenance({"embedding_model": None}, [prec])
+    assert "#1 of 5" in legacy
+    assert "1.4034" not in legacy, "an uninterpretable distance was rendered as a similarity"
+
+    attested = app._provenance(
+        {"embedding_model": None}, [_step(**{**prec, "embedding_model_id": "amazon.titan-embed-text-v2:0"})]
+    )
+    assert "d=1.4034" in attested
+
+
+def test_embedding_model_is_printed_verbatim_not_prettified(app):
+    """It read `synthetic-deterministic` for a month while the docs said Titan.
+    A badge that cannot say the unflattering thing is decoration."""
+    assert "synthetic-deterministic" in app._provenance({"embedding_model": "synthetic-deterministic"}, [])
+    assert "titan-embed-text-v2" in app._provenance({"embedding_model": "amazon.titan-embed-text-v2:0"}, [])
+
+
+def test_runtime_badge_is_not_invented(app):
+    """`runtime` comes from the orchestrator reading Lambda's own env var. No
+    field, no badge — the UI must never guess where a step executed."""
+    assert "lambda" not in app._provenance({"embedding_model": None}, [_step(reasoning_source="bedrock")])
+    assert "lambda" in app._provenance({"embedding_model": None}, [_step(reasoning_source="bedrock", runtime="lambda")])
+
+
+def test_no_provenance_row_when_nothing_is_known(app):
+    """An empty bordered strip under every card is worse than no strip."""
+    assert app._provenance({"embedding_model": None}, [_step()]) == ""
+
+
+def test_malformed_numerics_do_not_take_the_card_down(app):
+    """JSONB read back as text. One bad value must cost one badge, not the feed."""
+    out = app._provenance(
+        {"embedding_model": None},
+        [
+            _step(
+                precedent_id="abc",
+                precedent_rank="not-a-number",
+                precedents_considered="five",
+                precedent_distance="NaN-ish",
+            )
+        ],
+    )
+    assert isinstance(out, str)

@@ -20,6 +20,7 @@ exactly-once by the claim in checkpoint_step_start (ON CONFLICT DO NOTHING).
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Any, Dict
 
@@ -47,6 +48,36 @@ CORRELATION_UNAVAILABLE = "unavailable"
 # recognise the incident without turning the step log into a second copy of the
 # incidents table — the id is there for anyone who wants the full row.
 PRECEDENT_SUMMARY_CHARS = 160
+
+
+def _stack_detail(correlation_source: str, reasoning_source: str) -> Dict[str, Any]:
+    """Which models, which region, which runtime — recorded per step.
+
+    The model ids reach `invoke_model` and are logged, but were never persisted,
+    so a durable row could say *that* Bedrock reasoned and never *what* reasoned.
+    Anything downstream wanting to name the model had to read it from `settings`
+    at display time, which is a different process, possibly a different deploy,
+    and answers "what is configured now" rather than "what ran then".
+
+    `embedding_model_id` matters most, and not for decoration: it pins the
+    vector space `precedent_distance` was measured in. Distances from different
+    embedding models are not comparable — the same corpus re-embedded moved
+    every distance from ~1.40 to ~0.64 — so a distance whose model is unknown
+    cannot honestly be displayed as a similarity. Only recorded when the path
+    actually ran; a degraded step must not inherit a model id it never called.
+    """
+    detail: Dict[str, Any] = {
+        # Lambda sets this itself; absent means this ran somewhere else. Not
+        # inferred from config, so a locally-run step can never claim Lambda.
+        "runtime": "lambda" if os.getenv("AWS_LAMBDA_FUNCTION_NAME") else "local",
+    }
+    if correlation_source == CORRELATION_BEDROCK:
+        detail["embedding_model_id"] = settings.bedrock_embedding_model_id
+        detail["bedrock_region"] = settings.bedrock_region
+    if reasoning_source == "bedrock":
+        detail["reasoning_model_id"] = settings.bedrock_reasoning_model_id
+        detail["bedrock_region"] = settings.bedrock_region
+    return detail
 
 
 def _precedent_detail(matches, proposed) -> Dict[str, Any]:
@@ -163,6 +194,7 @@ def handle_alert(alert: Dict[str, Any]) -> Dict[str, Any]:
             "reasoning_source": proposed.source,
             "correlation_source": correlation_source,
             **_precedent_detail(matches, proposed),
+            **_stack_detail(correlation_source, proposed.source),
         },
         resuming=interrupted,
     )

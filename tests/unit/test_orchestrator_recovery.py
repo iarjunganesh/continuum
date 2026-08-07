@@ -16,6 +16,7 @@ from agents.orchestrator import (
     CORRELATION_BEDROCK,
     CORRELATION_UNAVAILABLE,
     PRECEDENT_SUMMARY_CHARS,
+    _stack_detail,
     handle_alert,
     lambda_handler,
 )
@@ -404,3 +405,68 @@ def test_lambda_handler_delegates_to_handle_alert(mock_memory, mock_correlation,
     result = lambda_handler(ALERT, context=None)
 
     assert result["incident_id"] == "new-id"
+
+
+# ── Stack provenance (_stack_detail) ─────────────────────────────────────────
+# These pin what a durable step is allowed to *claim* about the infrastructure
+# that produced it. The model ids reach invoke_model and were logged but never
+# persisted, so rows could say Bedrock reasoned and never say what reasoned —
+# leaving anything downstream to read `settings` at display time, which answers
+# "what is configured now", not "what ran then".
+
+
+def test_runtime_says_lambda_only_when_lambda_says_so(monkeypatch):
+    """Read from the runtime's own env var, never inferred from config — a step
+    executed on a laptop must not be able to claim it ran in Lambda."""
+    monkeypatch.delenv("AWS_LAMBDA_FUNCTION_NAME", raising=False)
+    assert _stack_detail(CORRELATION_BEDROCK, SOURCE_BEDROCK)["runtime"] == "local"
+
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", "continuum-orchestrator")
+    assert _stack_detail(CORRELATION_BEDROCK, SOURCE_BEDROCK)["runtime"] == "lambda"
+
+
+def test_degraded_step_does_not_inherit_a_model_it_never_called(monkeypatch):
+    """Both Bedrock paths degrade silently, so the absence of a model id is the
+    only signal that the fallback ran. Recording one anyway would erase it."""
+    monkeypatch.delenv("AWS_LAMBDA_FUNCTION_NAME", raising=False)
+
+    both = _stack_detail(CORRELATION_BEDROCK, SOURCE_BEDROCK)
+    assert both["embedding_model_id"] and both["reasoning_model_id"]
+    assert both["bedrock_region"]
+
+    # Bedrock unreachable for correlation, so remediation replayed a precedent:
+    # neither model was invoked, so neither may be named.
+    degraded = _stack_detail(CORRELATION_UNAVAILABLE, SOURCE_PRECEDENT_REPLAY)
+    assert "embedding_model_id" not in degraded
+    assert "reasoning_model_id" not in degraded
+    assert "bedrock_region" not in degraded
+    assert degraded["runtime"] == "local"  # still attestable — it always is
+
+    # Vector search ran, reasoning fell back: exactly one model is nameable.
+    partial = _stack_detail(CORRELATION_BEDROCK, SOURCE_PRECEDENT_REPLAY)
+    assert "embedding_model_id" in partial
+    assert "reasoning_model_id" not in partial
+
+
+@patch("agents.orchestrator.remediation")
+@patch("agents.orchestrator.correlation")
+@patch("agents.orchestrator.memory")
+def test_step_detail_pins_the_vector_space_of_its_distance(mock_memory, mock_correlation, mock_remediation):
+    """`precedent_distance` is only comparable within one embedding model, and
+    the corpus has been re-embedded once already — every distance moved from
+    ~1.40 to ~0.64. A durable distance without its model is uninterpretable, so
+    they must be written together, in the same row."""
+    match = CorrelationMatch(incident_id="prec-1", summary="past outage", state="resolved", distance=0.6382)
+    mock_memory.get_open_incident.return_value = None
+    mock_memory.open_incident.return_value = "new-id"
+    mock_correlation.embed.return_value = [0.0] * 8
+    mock_correlation.find_similar.return_value = [match]
+    mock_remediation.propose_next_step.return_value = ProposedAction(
+        action="do_thing", rationale="r", based_on_incident_id="prec-1", source=SOURCE_BEDROCK
+    )
+
+    handle_alert(ALERT)
+
+    detail = mock_memory.checkpoint_step_start.call_args.kwargs["detail"]
+    assert "precedent_distance" in detail
+    assert "embedding_model_id" in detail, "a distance was persisted with no vector space to interpret it in"

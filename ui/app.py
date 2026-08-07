@@ -317,6 +317,21 @@ footer {{ display: none !important; }}
 :root[data-cx="light"] .cx-theme-light {{ display: block; }}
 .cx-figcap {{ color: {MUTED}; font-size: 12px; padding: 9px 14px 12px; border-top: 1px solid {BORDER}; }}
 
+/* Provenance badges — which CockroachDB / AWS feature produced this row. */
+.cx-prov {{ display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px;
+  padding-top: 9px; border-top: 1px solid {BORDER}; }}
+.cx-badge {{ font-size: 10.5px; line-height: 1.5; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--c, {MUTED}) 40%, transparent);
+  color: var(--c, {MUTED}); background: color-mix(in srgb, var(--c, {MUTED}) 10%, transparent);
+  white-space: nowrap; font-family: ui-monospace, "Cascadia Code", monospace; }}
+.cx-badge.resumed {{ --c: {SERIOUS}; font-weight: 700; letter-spacing: .02em;
+  border-color: var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); }}
+.cx-legend {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 6px 18px; }}
+.cx-leg {{ display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 4px 0; }}
+.cx-leg-t {{ color: {INK2}; font-size: 12.5px; }}
+.cx-leg-c {{ color: {MUTED}; font-size: 11px; font-family: ui-monospace, monospace;
+  margin-left: auto; white-space: nowrap; }}
+.cx-leg-note {{ color: {MUTED}; font-size: 12px; margin-top: 10px; max-width: 78ch; }}
 .cx-feedcap {{ color: {MUTED}; font-size: 12px; margin: 0 0 10px; }}
 .cx-empty {{ border: 1px dashed {BORDER}; border-radius: 14px; padding: 34px; text-align: center;
   color: {INK2}; background: {SURF1}; }}
@@ -389,6 +404,88 @@ def _precedent_block(step: dict) -> str:
         </div>"""
 
 
+def _num(value, cast):
+    """Durable JSONB read back as text. Absent or unparseable -> None, never an
+    exception: a card that can't render one badge must still render the card."""
+    if value in (None, ""):
+        return None
+    try:
+        return cast(value)
+    except TypeError, ValueError:
+        return None
+
+
+def _provenance(row: dict, steps: list[dict]) -> str:
+    """The stack that produced this incident's remediation, stated on the card.
+
+    Every badge here is read from a durable column — nothing is inferred from
+    which code path exists, and a missing field renders nothing rather than a
+    default. That rule is not stylistic: the same panel spent a month showing
+    `distance 1.4034 · 5 candidates ranked` over vectors whose own generator
+    documents nearest-neighbour ordering as arbitrary. A badge that cannot say
+    the unflattering thing is decoration, so `embedding_model` is printed
+    verbatim rather than mapped to a friendly "Titan".
+    """
+    chips: list[str] = []
+
+    # The differentiator, and it was invisible: a durable boolean recording that
+    # a cold invocation picked this step back up rather than restarting the
+    # incident. Nothing else on the page says the kill actually happened.
+    if any(str(s.get("resumed")).lower() == "true" for s in steps):
+        chips.append(
+            '<span class="cx-badge resumed" title="detail.reexecuted_after_interrupt">⟲ resumed after kill</span>'
+        )
+
+    latest = next((s for s in reversed(steps) if s.get("reasoning_source")), None)
+    if latest:
+        meta = SOURCE_META.get(latest["reasoning_source"])
+        if meta:
+            model = latest.get("reasoning_model_id")
+            label = _model_short(model) if model else meta[2]
+            chips.append(f'<span class="cx-badge" style="--c:{meta[0]}">{meta[1]} {_esc(label)}</span>')
+        if latest.get("runtime"):
+            chips.append(f'<span class="cx-badge" style="--c:{NEUTRAL}">λ {_esc(latest["runtime"])}</span>')
+
+    model = row.get("embedding_model")
+    if model:
+        honest = model != "synthetic-deterministic"
+        chips.append(
+            f'<span class="cx-badge" style="--c:{PURPLE if honest else MUTED}" '
+            f'title="incident_embeddings.embedding_model">◈ {_esc(_model_short(model))}</span>'
+        )
+
+    prec = next((s for s in reversed(steps) if s.get("precedent_id")), None)
+    if prec:
+        rank, considered = _num(prec.get("precedent_rank"), int), _num(prec.get("precedents_considered"), int)
+        dist = _num(prec.get("precedent_distance"), float)
+        bits = []
+        if rank is not None and considered:
+            bits.append(f"#{rank + 1} of {considered}")
+        # A distance is only meaningful inside the vector space that produced it.
+        # Steps written before `embedding_model_id` existed cannot attest theirs,
+        # and the corpus has since been re-embedded — every distance moved from
+        # ~1.40 to ~0.64. Rendering an unattributable number next to a Titan
+        # badge would assert those were measured together. Rank survives: "the
+        # closest of 5 candidates" is true in any space.
+        if dist is not None and prec.get("embedding_model_id"):
+            bits.append(f"d={dist:.4f}")
+        if bits:
+            chips.append(
+                f'<span class="cx-badge" style="--c:{GOOD}" title="C-SPANN vector search">'
+                f"⌖ recalled {_esc(' · '.join(bits))}</span>"
+            )
+
+    return f'<div class="cx-prov">{"".join(chips)}</div>' if chips else ""
+
+
+def _model_short(model_id: str) -> str:
+    """`amazon.titan-embed-text-v2:0` -> `titan-embed-text-v2`. The full id is in
+    the tooltip; the card has ~90px. Anything unrecognised passes through whole
+    so a new model never renders as a blank chip."""
+    name = model_id.split(".")[-1].split(":")[0]
+    return name or model_id
+
+
 def _mini_stepper(steps: list[dict]) -> str:
     if not steps:
         return '<div class="cx-mini-lbl">no steps yet</div>'
@@ -422,6 +519,7 @@ def _incident_card(row: dict, steps: list[dict]) -> str:
       <div>{_chip(s_color, s_glyph, s_label)}</div>
       <div class="cx-summary">{summary}</div>
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">{_mini_stepper(steps)}</div>
+      {_provenance(row, steps)}
     </div>"""
 
 
@@ -473,12 +571,18 @@ def load_dashboard():
                 """
                 SELECT i.incident_id, i.service, i.region, i.severity, i.state,
                        i.summary, i.opened_at, i.updated_at,
+                       -- How this incident is stored for future recall. Rendered
+                       -- verbatim on the card: it read 'synthetic-deterministic'
+                       -- for a month while the docs said Titan, so the badge has
+                       -- to be able to say the unflattering thing.
+                       e.embedding_model,
                        count(s.step_id) FILTER (WHERE s.status = 'executed')  AS steps_executed,
                        count(s.step_id) FILTER (WHERE s.status = 'executing') AS steps_executing
                 FROM incidents i
-                LEFT JOIN remediation_steps s ON s.incident_id = i.incident_id
+                LEFT JOIN remediation_steps s  ON s.incident_id = i.incident_id
+                LEFT JOIN incident_embeddings e ON e.incident_id = i.incident_id
                 GROUP BY i.incident_id, i.service, i.region, i.severity, i.state,
-                         i.summary, i.opened_at, i.updated_at
+                         i.summary, i.opened_at, i.updated_at, e.embedding_model
                 ORDER BY i.updated_at DESC
                 LIMIT %s
             """,
@@ -488,7 +592,20 @@ def load_dashboard():
 
             cur.execute(
                 """
-                SELECT incident_id, step_index, action, status, created_at
+                SELECT incident_id, step_index, action, status, created_at,
+                       -- Provenance, pulled as text and converted in Python.
+                       -- Casting in SQL means one malformed value 500s the whole
+                       -- dashboard; the panel's job is to stay up.
+                       detail ->> 'reasoning_source'            AS reasoning_source,
+                       detail ->> 'correlation_source'          AS correlation_source,
+                       detail ->> 'based_on'                    AS precedent_id,
+                       detail ->> 'precedent_distance'          AS precedent_distance,
+                       detail ->> 'precedent_rank'              AS precedent_rank,
+                       detail ->> 'precedents_considered'       AS precedents_considered,
+                       detail ->> 'reexecuted_after_interrupt'  AS resumed,
+                       detail ->> 'reasoning_model_id'          AS reasoning_model_id,
+                       detail ->> 'embedding_model_id'          AS embedding_model_id,
+                       detail ->> 'runtime'                     AS runtime
                 FROM remediation_steps
                 WHERE incident_id IN (
                     SELECT incident_id FROM incidents ORDER BY updated_at DESC LIMIT %s
@@ -973,6 +1090,35 @@ theme = gr.themes.Base(
     font=["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
 )
 
+# The badges are the answer to "which sponsor tools does this actually use?" —
+# but only if the reader can tell what each one is evidence of. Every row names
+# the column it is read from, so the claim is checkable against the database
+# rather than taken on trust. Deliberately not a feature list: nothing appears
+# here that a card cannot render from a durable row.
+_LEGEND_ROWS = [
+    ("⟲", SERIOUS, "resumed after kill", "CockroachDB · durable step state", "detail.reexecuted_after_interrupt"),
+    ("⌖", GOOD, "recalled #N of M", "CockroachDB · Distributed Vector Indexing (C-SPANN)", "detail.precedent_rank"),
+    ("◈", PURPLE, "embedding model", "AWS Bedrock · Titan Text Embeddings V2", "incident_embeddings.embedding_model"),
+    ("◆", PURPLE, "reasoning model", "AWS Bedrock · Claude", "detail.reasoning_model_id"),
+    ("λ", NEUTRAL, "runtime", "AWS Lambda — read from the runtime's own env var", "detail.runtime"),
+]
+_LEGEND = (
+    '<div class="cx"><div class="cx-h">What the badges mean</div>'
+    '<div class="cx-legend">'
+    + "".join(
+        f'<div class="cx-leg"><span class="cx-badge" style="--c:{color}">{glyph} {_esc(label)}</span>'
+        f'<span class="cx-leg-t">{_esc(feature)}</span>'
+        f'<code class="cx-leg-c">{_esc(column)}</code></div>'
+        for glyph, color, label, feature, column in _LEGEND_ROWS
+    )
+    + "</div>"
+    '<div class="cx-leg-note">Every badge is read from a durable column — never inferred from which '
+    "code path exists. A step that fell back to precedent replay names no model, because it invoked "
+    "none; a distance renders only alongside the embedding model that produced it, since distances "
+    "from different vector spaces are not comparable.</div></div>"
+)
+
+
 with gr.Blocks(title="Continuum — Live Incident Memory", analytics_enabled=False) as demo:
     # analytics_enabled=False: Gradio's launch-time telemetry compares this
     # theme's font list against built-in themes' Font objects; Font.__eq__
@@ -994,6 +1140,8 @@ with gr.Blocks(title="Continuum — Live Incident Memory", analytics_enabled=Fal
 
     gr.HTML('<div class="cx"><div class="cx-h">Incident memory · live from CockroachDB</div></div>')
     cards = gr.HTML()
+
+    gr.HTML(_LEGEND)
 
     gr.HTML('<div class="cx"><div class="cx-h">Recovery timeline · replay a remediation log</div></div>')
     incident_dd = gr.Dropdown(label="Incident", choices=[], interactive=True, filterable=True)
