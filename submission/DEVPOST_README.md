@@ -344,7 +344,14 @@ The API is versioned under `/api/v1` — e.g. `GET /api/v1/health`, `POST /api/v
 python scripts/generate_synthetic_incidents.py --out data/synthetic/incidents_seed.jsonl --count 40
 ```
 
-**Seeding without Bedrock.** `make seed-data` embeds each incident via Titan. To populate the console or Space with **no AWS dependency at all**, use deterministic vectors — `make seed-data-offline` (or `.\scripts\migrate_and_seed.ps1 -Offline`). For honest, semantically-ranked vectors without a per-run Bedrock call, capture them once where Bedrock is reachable (`python scripts/capture_seed_embeddings.py`) and seed with `python scripts/seed_memory.py --file … --from-fixture data/synthetic/seed_embeddings.json`.
+**Seeding without Bedrock.** Real Titan vectors for the 40 seed incidents are **committed** at [`data/synthetic/seed_embeddings.json`](https://github.com/iarjunganesh/continuum/blob/main/data/synthetic/seed_embeddings.json), so honest semantic correlation needs no AWS call at seed time:
+
+```powershell
+python scripts/seed_memory.py --file data/synthetic/incidents_seed.jsonl `
+    --from-fixture data/synthetic/seed_embeddings.json --replace-embeddings
+```
+
+`--replace-embeddings` overwrites vectors that already exist; without it the insert is `ON CONFLICT DO NOTHING`, which is right for topping up incidents and silently wrong when the point of the run is to replace the vectors. `make seed-data` embeds via a live Titan call per record instead; `make seed-data-offline` uses deterministic vectors that populate the table with **no AWS dependency at all** but are explicitly not semantically meaningful — measured precision@1 **55% vs 98%** for Titan on the same corpus, so prefer the fixture for anything a reader will interpret as correlation.
 
 ---
 

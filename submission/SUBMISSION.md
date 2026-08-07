@@ -57,10 +57,16 @@ box here is the honest state, not an oversight.
         connect 360 ms, `EXPLAIN` still plans `• vector search` on the C-SPANN index, embeddings
         intact. See the first row of Known Gaps and [`../docs/CLUSTER_OPS.md`](../docs/CLUSTER_OPS.md)
   - [ ] URL confirmed publicly accessible in a private/incognito window before submitting
-  - [ ] Populated with seeded synthetic incidents. Not blocked by anything: `make seed-data-offline`
-        seeds incidents + remediation history + deterministic vectors with **zero AWS calls**. Real
-        Titan vectors can be captured once (`scripts/capture_seed_embeddings.py`) and seeded
-        `--from-fixture`. Run against the Space's cluster, then check this
+  - [x] **Populated with seeded synthetic incidents, on real Titan vectors (2026-08-07).** 44
+        incidents, 129 remediation steps, 40 embeddings — all `amazon.titan-embed-text-v2:0`.
+        The cluster had been seeded with `--no-embeddings` deterministic vectors, which
+        [`scripts/synthetic_vectors.py`](../scripts/synthetic_vectors.py) states are "deliberately
+        NOT semantically meaningful": measured **precision@1 of 55%**, and that only because
+        duplicate summaries hash to identical vectors. Captured real vectors once into the
+        committed fixture [`data/synthetic/seed_embeddings.json`](../data/synthetic/seed_embeddings.json)
+        and replaced them — **precision@1 98%** (39/40 nearest neighbours share the failure mode),
+        symptom separation +0.1043 → +0.4585. `EXPLAIN` re-verified: still `• vector search` on the
+        C-SPANN index, `prefix spans: [/'checkout-api']`
 - [ ] **Demo video** (<3 min, public on YouTube/Vimeo) — script: [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md)
   - [ ] Shows the project functioning on its intended platform
   - [ ] Shows the CockroachDB memory layer at work — the kill-and-resume beat

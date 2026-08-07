@@ -74,7 +74,33 @@ def _resolve_embedding(rec, mode, correlation, fixture):
     return _embed_with_retry(correlation, rec["summary"])  # live Bedrock
 
 
-def seed(file_path: str, mode: str = "live", fixture_path: str | None = None):
+# Re-seeding an already-populated cluster is a no-op for embeddings by default:
+# `DO NOTHING` makes repeat runs safe, which is right for topping up incidents.
+# It is wrong when the *point* of the run is to replace the vectors — upgrading a
+# cluster seeded with `--no-embeddings` to real Titan vectors silently discarded
+# every one of them and reported success. Replacing is therefore opt-in and loud,
+# rather than the default becoming an upsert.
+#
+# Note this is NOT the `ON CONFLICT DO NOTHING` that CLAUDE.md pins: that one is
+# the forward-step claim in memory_agent.checkpoint_step_start, where DO UPDATE
+# would break exactly-once under concurrent invocations. Different table,
+# different module, no concurrency — this is a seeding script.
+_EMBEDDING_INSERT = """
+    INSERT INTO incident_embeddings (incident_id, service, region, embedding, embedding_model)
+    VALUES (%s, %s, %s, %s::vector, %s)
+    ON CONFLICT (incident_id) DO NOTHING
+"""
+_EMBEDDING_UPSERT = """
+    INSERT INTO incident_embeddings (incident_id, service, region, embedding, embedding_model)
+    VALUES (%s, %s, %s, %s::vector, %s)
+    ON CONFLICT (incident_id) DO UPDATE
+        SET embedding = EXCLUDED.embedding,
+            embedding_model = EXCLUDED.embedding_model,
+            created_at = now()
+"""
+
+
+def seed(file_path: str, mode: str = "live", fixture_path: str | None = None, replace_embeddings: bool = False):
     correlation = CorrelationAgent() if mode == "live" else None
     fixture: dict = {}
     if mode == "fixture":
@@ -117,18 +143,14 @@ def seed(file_path: str, mode: str = "live", fixture_path: str | None = None):
             embedding = _resolve_embedding(rec, mode, correlation, fixture)
             vector_literal = "[" + ",".join(str(v) for v in embedding) + "]"
             cur.execute(
-                """
-                INSERT INTO incident_embeddings (incident_id, service, region, embedding, embedding_model)
-                VALUES (%s, %s, %s, %s::vector, %s)
-                ON CONFLICT (incident_id) DO NOTHING
-                """,
+                _EMBEDDING_UPSERT if replace_embeddings else _EMBEDDING_INSERT,
                 (rec["incident_id"], rec["service"], rec["region"], vector_literal, model_label),
             )
             conn.commit()  # commit per record — a later throttle must not roll back seeded rows
             count += 1
             if mode == "live":
                 time.sleep(1.0)  # space out Bedrock calls — default on-demand TPS
-        log.info("seed_complete", records=count, embedding_source=mode)
+        log.info("seed_complete", records=count, embedding_source=mode, embeddings_replaced=replace_embeddings)
 
 
 if __name__ == "__main__":
@@ -141,10 +163,16 @@ if __name__ == "__main__":
     source.add_argument(
         "--no-embeddings", action="store_true", help="deterministic Bedrock-free vectors — no AWS credentials needed"
     )
+    parser.add_argument(
+        "--replace-embeddings",
+        action="store_true",
+        help="overwrite existing vectors instead of skipping them — needed to upgrade a "
+        "cluster seeded with --no-embeddings to real Titan vectors",
+    )
     args = parser.parse_args()
     if args.no_embeddings:
-        seed(args.file, mode="no-embeddings")
+        seed(args.file, mode="no-embeddings", replace_embeddings=args.replace_embeddings)
     elif args.from_fixture:
-        seed(args.file, mode="fixture", fixture_path=args.from_fixture)
+        seed(args.file, mode="fixture", fixture_path=args.from_fixture, replace_embeddings=args.replace_embeddings)
     else:
-        seed(args.file)
+        seed(args.file, replace_embeddings=args.replace_embeddings)

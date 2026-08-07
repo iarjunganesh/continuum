@@ -60,8 +60,9 @@ These are what the demo is made of. Their cost is negligible — the whole incid
 | Command | Notes |
 | --- | --- |
 | `make migrate` | Schema only. Idempotent |
-| `make seed-data-offline` | ~40 incidents, deterministic vectors, zero AWS calls. Cheap. Prefer over `seed-data` |
-| `make seed-data` | Same, but calls Bedrock for real Titan vectors. Costs AWS, not RU |
+| `python scripts/seed_memory.py --file … --from-fixture data/synthetic/seed_embeddings.json` | **Prefer this.** Real Titan vectors from the committed fixture, zero AWS calls at seed time. Add `--replace-embeddings` to overwrite existing vectors — without it the upsert is `DO NOTHING` and silently keeps whatever is already there |
+| `make seed-data-offline` | ~40 incidents, deterministic vectors, zero AWS calls. Cheap, but the vectors are **not semantically meaningful** — fine to prove the table is populated, wrong for anything a judge reads as correlation |
+| `make seed-data` | Same, but calls Bedrock per record at seed time. Costs AWS, not RU. The fixture path gets the same vectors without the per-run dependency |
 | `make demo` | One remediation tick |
 | `make chaos-demo` | The kill-and-recover sequence. This is the graded flow — rehearse it freely |
 | `make run-ui` | See the Space discipline section below |
