@@ -30,12 +30,32 @@ from observability.structured_logger import get_logger  # noqa: E402
 
 log = get_logger(__name__)
 
+# Shaped like a real Alertmanager payload rather than a sentence someone typed:
+# labels, a fired rule name, the query that breached and the telemetry alongside
+# it. Vendor-neutral on purpose — the submission rules bar third-party
+# trademarks from the recording, and Prometheus/Alertmanager is the one format
+# that is both instantly recognisable and nobody's trademark.
+#
+# The wording is also deliberately NOT a copy of any seeded summary. It used to
+# be one, byte for byte, which was invisible while the corpus held hash vectors
+# and became obvious the moment it held real Titan ones: identical text embeds
+# to an identical vector, so the demo retrieved its precedent at distance
+# 0.0000 — a number that demonstrates nothing a string comparison couldn't.
+#
+# Measured against the committed fixture: retrieves the pool-exhaustion
+# precedent at rank 0, d=0.7902, with the runner-up 0.3052 away. It shares no
+# prose with that row — no "elevated", no "latency", no "exhaustion" — so the
+# match cannot be explained by keyword overlap. Re-measure if this text changes.
 DEMO_ALERT = {
     "correlation_id": "demo-incident-001",  # fixed, so re-running proves resume behaviour
     "service": "checkout-api",
     "region": "us-east-1",
     "severity": "high",
-    "text": "Elevated p99 latency on checkout-api in us-east-1, likely connection pool exhaustion",
+    "text": (
+        "[FIRING:1] HighLatencyP99 service=checkout-api region=us-east-1 severity=high — "
+        "histogram_quantile(0.99, http_server_duration_seconds) = 2.41s exceeds SLO 0.80s for 5m; "
+        "db_pool_connections_active 200/200, db_pool_clients_waiting 47"
+    ),
 }
 
 

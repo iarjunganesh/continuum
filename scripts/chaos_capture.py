@@ -237,7 +237,18 @@ def capture_local(step_seconds: float, keep_logs: bool, pause: bool = False) -> 
         "service": SERVICE,
         "region": REGION,
         "severity": "high",
-        "text": "Elevated p99 latency on checkout-api, connection pool saturated after deploy",
+        # Alertmanager-shaped and vendor-neutral, matching demo_run.DEMO_ALERT —
+        # this text becomes the incident summary a judge reads in the CockroachDB
+        # Cloud console screenshot, so it should look like something a monitor
+        # emitted. Measured against the committed fixture: retrieves the
+        # pool-exhaustion precedent at rank 0, d=0.8313, runner-up 0.2768 away.
+        # Deliberately not a copy of any seeded summary — see the note on
+        # DEMO_ALERT for why identical text used to return distance 0.0000.
+        "text": (
+            "[FIRING:1] HighLatencyP99 service=checkout-api region=eu-central-1 severity=high — "
+            "histogram_quantile(0.99, http_server_duration_seconds) = 3.08s exceeds SLO 0.80s for 5m; "
+            "db_pool_connections_active 200/200, db_pool_clients_waiting 63, deploy_age_minutes 12"
+        ),
     }
     log_path = run.evidence / f"{run.short_id}_orchestrator-log.jsonl"
     phases: list[dict] = []
