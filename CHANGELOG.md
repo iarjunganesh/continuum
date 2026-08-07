@@ -5,6 +5,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.9.4] — 2026-08-07 — the memory made semantic, the stack put on the card, every suite re-measured
+
 ### Added
 
 - **Every resilience suite re-measured against CockroachDB Cloud and the deployed Lambda (2026-08-07, run `e765a3c5`).** The previous numbers dated from 2026-08-02 and predated the Titan reseed, `_stack_detail`, the KPI fix and the current alert text. Correctness is unchanged and perfect — **50/50 resumed, 0 duplicated, 0 lost, 0 wrong step**; **10/10** real `SIGKILL` resumes; **15/15** invocations killed by AWS and resumed exactly once; **0 exactly-once violations** across 100 trials to 50-way concurrency; **0 failures** at 10/50/100 concurrent agents. The vector story improved: C-SPANN is now **7.5× faster** than a forced full scan at 10,000 vectors (was 6.1×), and its warm curve flattened from 2.43× to **1.81×** across a 100× larger corpus while the full scan degraded from 11.18× to 14.71×. Cleanup verified against a pre-run baseline: incidents, steps and embeddings all back to 46 / 131 / 40, **zero `resbench-` residue, zero non-Titan vectors** — the check that matters, since Suite C seeds 10,000 `synthetic-deterministic` vectors and a failed cleanup would have silently falsified the "all Titan" claim in `SUBMISSION.md`. The Lambda's `Timeout` was confirmed restored to 60 s; at the 6 s Suite A3 sets it to, the demo would fail mid-recording with nothing to indicate why.

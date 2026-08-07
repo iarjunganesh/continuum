@@ -99,11 +99,20 @@ same cluster with no data loss, and the org moved from a one-off trial credit on
 | | Value |
 | --- | --- |
 | Free allowance | **50M Request Units + 10 GiB**, reset monthly |
-| Measured monthly usage | **3.42M RU · 19.51 MiB** — 6.8% of RU, 0.2% of storage |
+| Measured monthly usage | **3.42M RU · 19.51 MiB** — 6.8% of RU, 0.2% of storage (console reading, **2026-08-03**) |
 | Resource limits set | **100M RU/mo · 10 GiB/mo** |
 | Gross ceiling in console | **$25.00/mo** (100M × $0.20/M + 10 GiB × $0.50/GiB) |
 | Net worst case after the credit | **≈ $10/mo** |
 | Expected invoice | **$0** |
+
+**The usage figure is dated on purpose.** It was read from the console on 2026-08-03 and does
+**not** include the 2026-08-07 runs against Cloud — the full resilience bench (run `e765a3c5`:
+50 injected interrupts, 10 real `SIGKILL`s, 15 Lambda timeouts, 100 exactly-once trials, a corpus
+grown to 10,000 vectors) or the deploy-restart drill (`dba642ed`). Those are the largest single
+day of consumption this project has had. The headroom is wide enough that the conclusion is
+unlikely to change, but the number is a *reading*, not an estimate, and this file exists partly
+because a cluster outage was once misdiagnosed from an error message instead of the billing page.
+Re-read the console before citing it.
 
 The cap is set at 2× the free allowance rather than exactly at it, deliberately. Reaching an RU
 limit **disables the cluster** until the limit is raised or the cycle rolls over — it is a kill

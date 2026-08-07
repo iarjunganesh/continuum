@@ -19,7 +19,7 @@ captures and the integration suite go to `make local-cluster`.
 | Cluster limits set | **100M RU/mo**, **10 GiB/mo** |
 | Gross ceiling shown in console | **$25.00/mo** (100M × $0.20/M + 10 GiB × $0.50/GiB) |
 | Net worst case after the free credit | **≈ $10/mo ≈ 105 SEK** |
-| Measured lifetime usage (to 2026-08-03) | **3.42M RU, 19.51 MiB** |
+| Measured lifetime usage (to 2026-08-03) | **3.42M RU, 19.51 MiB** — excludes the 2026-08-07 Cloud bench (`e765a3c5`) and drill (`dba642ed`) |
 
 So normal operation uses about **7% of one month's free allowance**, and the cap exists only to
 bound an accident. Two consequences worth internalising:

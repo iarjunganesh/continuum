@@ -31,7 +31,7 @@ license: mit
 
 [![CI](https://github.com/iarjunganesh/continuum/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iarjunganesh/continuum/actions/workflows/ci.yml)
 [![Codecov](https://codecov.io/gh/iarjunganesh/continuum/graph/badge.svg)](https://codecov.io/gh/iarjunganesh/continuum)
-[![Release](https://img.shields.io/badge/release-v0.9.3-2ea44f?logo=github&logoColor=white)](https://github.com/iarjunganesh/continuum/releases/latest)
+[![Release](https://img.shields.io/badge/release-v0.9.4-2ea44f?logo=github&logoColor=white)](https://github.com/iarjunganesh/continuum/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Demo video](https://img.shields.io/badge/%E2%96%B6_Demo_video-recording_pending-9CA3AF?logo=youtube&logoColor=white)](submission/DEMO_SCRIPT.md)
 
