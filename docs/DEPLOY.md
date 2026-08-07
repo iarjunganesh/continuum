@@ -180,6 +180,32 @@ SELECT state FROM incidents WHERE correlation_id = 'deploy-smoke-1';
 
 Once that returns a row, check the **AWS Lambda** and **"Uses CockroachDB deployed on AWS"** items in `submission/SUBMISSION.md`.
 
+**Confirm the code actually moved.** `sam deploy` exits 0 on a no-op, and `fail_on_empty_changeset = false` in `samconfig.toml` makes that deliberate — so a successful-looking deploy proves nothing on its own:
+
+```powershell
+aws lambda get-function-configuration --function-name continuum-orchestrator `
+  --region eu-central-1 --query "{CodeSha256:CodeSha256,LastModified:LastModified}" --output json
+```
+
+### Deployment log
+
+Kept because a stale function is invisible from the repo, and the one thing that makes it dangerous is that everything still *works* — just as an older build.
+
+| Date | `CodeSha256` | Cold start | Notes |
+| --- | --- | --- | --- |
+| 2026-08-01 | — | 1.71 s / 129 MB | First deploy; recovery contract observed across four cold invocations |
+| 2026-08-02 | `0bpe5L/…` → `ylD4N19l…` | — | `make deploy-restart-drill` — code swapped under an open incident, resumed exactly once (`assets/deploy-restart-run/c1fe5151/`) |
+| **2026-08-07** | `ylD4N19l…` → **`cfj/1z90…`** | **1719 ms / 130 MB** | Picked up the provenance fields (`_stack_detail`), the Titan reseed and the Alertmanager-shaped demo alert. The function had been **five days stale** |
+
+**Redeploy before recording.** Recording #1 resumes via `--via-lambda`, so a stale function puts a Lambda on camera that behaves differently from the repo — and nothing in the demo would reveal it.
+
+Verify both runtimes are distinguishable after deploying, which is the one thing a unit test cannot show:
+
+```powershell
+python scripts/demo_run.py --tick --new              # writes detail.runtime = "local"
+python scripts/demo_run.py --tick --via-lambda --new # writes detail.runtime = "lambda"
+```
+
 ### Driving the demo through the deployed Lambda
 
 After the smoke test passes, the alert-stream driver can target the deployed function instead of running the orchestrator in-process — this is what makes "a fresh Lambda invocation starts cold" in `submission/DEMO_SCRIPT.md` literally true:

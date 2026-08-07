@@ -192,21 +192,37 @@ def check_test_counts() -> list[Failure]:
         rel = path.relative_to(REPO_ROOT).as_posix()
         if rel.startswith("CHANGELOG"):
             continue  # historical entries are allowed to state past counts
-        for lineno, line in enumerate(text.splitlines(), 1):
-            for u, i in claim.findall(line):
-                if (int(u), int(i)) != (unit, integration):
-                    fails.append(
-                        (
-                            "test-counts",
-                            f"{rel}:{lineno} claims {u} unit + {i} integration; actual {unit} + {integration}",
-                        )
+
+        # Scanned over the WHOLE document, not line by line. A claim that wraps
+        # across a newline is still one claim, and the line-by-line version of
+        # this loop could not see it: `submission/SUBMISSION.md` carried
+        # "65 unit +\n      9 integration tests" through several releases while
+        # this check reported green, because the two halves never shared a line.
+        # The patterns already use `\s`, which matches the newline — only the
+        # per-line iteration was wrong. Same failure shape as the bare-"N unit
+        # tests" hole closed in 0.9.3: the gate was narrower than the prose.
+        def _line_of(offset: int, _text: str = text) -> int:
+            return _text.count("\n", 0, offset) + 1
+
+        for m in claim.finditer(text):
+            u, i = m.group(1), m.group(2)
+            if (int(u), int(i)) != (unit, integration):
+                fails.append(
+                    (
+                        "test-counts",
+                        f"{rel}:{_line_of(m.start())} claims {u} unit + {i} integration; actual {unit} + {integration}",
                     )
-            for u in suite.findall(line):
-                if int(u) != unit:
-                    fails.append(("test-counts", f"{rel}:{lineno} claims a {u}-test unit suite; actual {unit}"))
-            for u in bare.findall(line):
-                if int(u) != unit:
-                    fails.append(("test-counts", f"{rel}:{lineno} claims {u} unit tests; actual {unit}"))
+                )
+        for m in suite.finditer(text):
+            if int(m.group(1)) != unit:
+                fails.append(
+                    ("test-counts", f"{rel}:{_line_of(m.start())} claims a {m.group(1)}-test unit suite; actual {unit}")
+                )
+        for m in bare.finditer(text):
+            if int(m.group(1)) != unit:
+                fails.append(
+                    ("test-counts", f"{rel}:{_line_of(m.start())} claims {m.group(1)} unit tests; actual {unit}")
+                )
     return fails
 
 
