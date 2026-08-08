@@ -50,22 +50,35 @@ deploy-mid-incident tile and the five-tile Proven-Under-Failure panel.
 ## Amazon Bedrock
 
 Captured **2026-08-08** in `eu-central-1`, the region the deployed function actually calls
-(`BEDROCK_REGION` on the Lambda). All three are the same query — `Invocations`, `Sum`, 1-day
-period, a 2-week window, grouped **By ModelId** — drawn three ways, because the table proves and
-the charts persuade.
+(`BEDROCK_REGION` on the Lambda). One frame: `Invocations` and `InvocationLatency` for both models,
+1-day period over a 2-week window, grouped **By ModelId**.
 
 | # | File | What it establishes |
 | --- | --- | --- |
-| `08` | `08.bedrock-invocations-by-model-table.png` | **The strongest AWS frame.** Exact per-day invocation counts for both models: `amazon.titan-embed-text-v2:0` totalling **1.66k**, `eu.anthropic.claude-sonnet-4-5-20250929-v1:0` totalling **220**. Numbers rather than a shape, dated, from AWS's own console |
-| `09` | `09.bedrock-invocations-by-model-line.png` | The same fortnight as a time series, with the 994-invocation embedding peak on 08/02 legible against a readable axis |
-| `10` | `10.bedrock-invocations-by-model-stacked.png` | Stacked area — the clearest view of the two models' relative volumes, and of the two-day hole in the middle |
+| `08` | `08.bedrock-invocations-and-latency-table.png` | **The strongest AWS frame.** Per-day invocation counts *and* per-call latency for both models: `amazon.titan-embed-text-v2:0` totalling **1.66k** calls at **89.5 ms** mean (64.4–107 ms), `eu.anthropic.claude-sonnet-4-5-20250929-v1:0` totalling **224** calls at **2.27 s** mean (1.84–2.61 s). Numbers rather than a shape, dated, from AWS's own console |
+
+**Why one frame and not four.** Earlier captures of this data as a line chart and a stacked area
+were discarded. Adding latency to a counts chart puts two units on one unlabelled Y axis — the same
+`2.61K` gridline means *994 invocations* for one series and *2610 milliseconds* for another — and
+the stacked form is worse still, because it adds a latency to a count to compute the band height.
+Only a data table renders units per row, and the table already carries the timeline: its per-day
+columns show the same gaps as explicit `–` entries. A chart that says less than the table it sits
+beside is decoration.
+
+**The statistic is per row, and it has to be.** `Invocations` is `Sum`; `InvocationLatency` is
+`Average`. A first pass summed the latency too, which produced a `3.2 min` axis — a judge reads that
+as a three-minute Bedrock call. Summed latency is not a quantity anything has.
 
 ### Why this frame matters more than "Bedrock is configured"
 
 Both Bedrock paths in Continuum **degrade silently by design**: a throttled account produces a demo
 that looks entirely normal while never calling Bedrock at all (ADR 008). Every internal signal —
 the console, the logs, the durable `correlation_source` column — is written by code this repo
-controls. These three frames are the outside check: AWS counting the calls itself.
+controls. This frame is the outside check: AWS counting the calls itself, and timing them.
+
+The latency columns cross-check [`../../docs/BENCHMARKS.md`](../../docs/BENCHMARKS.md) from outside
+the process. Continuum measures its own Bedrock round trips with a stopwatch in code it wrote; AWS
+measures the same calls at the service boundary and agrees.
 
 ### The timeline corroborates two documented incidents
 
@@ -82,23 +95,19 @@ independently confirm two things a judge would otherwise have to take on trust:
 | **08/04** | **–** | **–** | **CockroachDB trial expired 08/03 — the demo was down** |
 | **08/05** | **–** | **–** | still down |
 | **08/06** | **166** | **34** | **cluster restored by adding a payment method** |
-| 08/07 | 14 | 14 | |
+| 08/07 | 18 | 18 | |
 
 Usage in `eu-central-1` begins on the day AWS granted access and stops for exactly the two days the
 cluster was disabled. The empty first week is therefore **evidence, not a gap** — without it, "AWS
 Support had this account clamped until 2026-08-01" is an assertion in a markdown file rather than
 something AWS's own metrics agree with.
 
-**Titan runs ~7.5× Claude's volume, and that is expected.** Reasoning is one Claude call per
+**Titan runs ~7.4× Claude's volume, and that is expected.** Reasoning is one Claude call per
 remediation step; embedding happens in bulk, a whole corpus at a time. The 994 on 08/02 is a
 reseed, not 994 incidents.
 
 Nothing before 2026-08-01 appears here because, under the clamp, the only region accepting calls
 was `eu-north-1` — which is why that region still has a populated `AWS/Bedrock` namespace.
-
-## Still to capture — the AWS side
-
-Bedrock invocation counts are done. What remains is per-model latency and the Lambda console.
 
 > **There is no Model access frame, and there never will be.** A slot was reserved for one —
 > `Titan Text Embeddings V2` and `Claude Sonnet 4.5` showing *Access granted*, the visual close of
@@ -106,8 +115,67 @@ Bedrock invocation counts are done. What remains is per-model latency and the La
 > been retired. Serverless foundation models are now automatically enabled across all AWS
 > commercial regions when first invoked in your account."* The slot is removed rather than left
 > pending, because a checklist item nobody can complete is worse than an honest absence — and
-> `08`–`10` are better evidence regardless: **a model that cannot be accessed cannot be invoked
+> `08` is better evidence regardless: **a model that cannot be accessed cannot be invoked
 > 1.66k times.** See [ADR 008 addendum 4](../../docs/adr/008-bedrock-region-split.md).
+
+## AWS Lambda
+
+Three frames captured **2026-08-08**, in the order a reader needs them: what the function *is*, how
+it *behaved*, and what one invocation actually *did*.
+
+| # | File | What it establishes |
+| --- | --- | --- |
+| `09` | `09.lambda-configuration.png` | Configuration → **Concurrency and recursion detection**: `Provisioned concurrency (0)` — **No configurations**, and `Function concurrency: Use unreserved account concurrency`. ADR 002's guarantee rests on an *absence*, and this is the only page where AWS states it. Runtime, memory and timeout are deliberately not here — `11` prints the runtime and `12` prints `Memory Size` on every REPORT line, so a General-configuration frame would be a third copy of things already proven |
+| `10` | `10.lambda-metrics-table.png` | CloudWatch data table, `FunctionName: continuum-orchestrator`, 2-week window, 1-day period: **109 invocations** (`Sum`), **51 errors** (`Sum`, every one deliberate — see below), **0 throttles**, **6.78 s** mean `Duration` (`Average`, range 6.21–7.78 s) |
+| `11` | `11.lambda-log-stream-recovery.png` | **The single strongest frame in this folder.** One log stream, filtered to `?INIT_START ?recovered_incident_state`: a cold execution environment starting on `python:3.14.mainline.v59`, then **three** `recovered_incident_state` reads carrying `last_step_index` and `last_step_status: executed`. A brand-new process reading its own incident state back out of CockroachDB, in AWS's log, under the function's own role |
+
+**`Invocations` is `Sum`, not `Average`.** A first pass left it on `Average`, which renders `1` in
+every column and tells a reader the orchestrator ran once a day. `ConcurrentExecutions` was dropped
+from the graph — a gauge that is always 1 here, costing a row of legibility for nothing.
+
+**The day columns are bucketed 15:00–15:00 UTC**, so they will not line up with a
+`get-metric-statistics` query run at local midnight. The frame reads 57 · 18 · 16 · 18 across 08/01,
+08/02, 08/06 and 08/07; a midnight-bucketed CLI query over the same range returns 39 · 36 · 25 · 9.
+Both total **109**. Worth knowing before someone treats the difference as a discrepancy.
+
+### The 51 errors on that frame are the chaos experiment
+
+`Errors` sums to **51** against 109 invocations. Unexplained beside the counts that is a 47% failure
+rate and the worst number in this folder. It is not one.
+
+Every error in the log group is `Status: timeout`, and **all 50 timeout `REPORT` lines record
+`Duration: 6000.00 ms`** — exactly six seconds, against a function whose configured timeout is 60.
+Six seconds is `lambda_timeout_storm` in
+[`../../scripts/resilience_bench.py`](../../scripts/resilience_bench.py), suite **A3** of
+[`../../docs/RESILIENCE.md`](../../docs/RESILIENCE.md): the drill lowers the deployed function's
+`Timeout` below the step execution window so **AWS itself** kills the invocation mid-step — no
+signal, no `finally`, no cleanup — then restores the original in a `finally`. `Throttles` is **0**
+across the full fortnight, and there is no error of any other type.
+
+So CloudWatch is corroborating suite A3 from outside the project's code, in AWS's own metrics. That
+is stronger evidence than a clean zero would have been — but only with this paragraph beside it.
+The restoration is verifiable: the function reads `Timeout: 60` today.
+
+### Reading `11`: why `last_step_index` goes 1 → 0 → 1
+
+The three recovery reads in `11` are not one incident losing its place. They span an incident
+boundary, and the log line prints `correlation_id` but not `incident_id`, so the frame cannot show
+that on its own. From the cluster:
+
+| incident_id | opened | resolved |
+| --- | --- | --- |
+| `10ea0cee…` | 13:38:44 | **14:16:16** |
+| `41506226…` | **14:16:17** | 14:16:42 |
+
+The `14:16:08` read at `last_step_index: 1` belongs to `10ea0cee`, which that invocation drove to
+`resolved` eight seconds later. One second after that a **new** incident opened under the same
+correlation id — `demo-incident-001` is a fixed correlation id by design, which is what lets
+successive `--via-lambda` calls resume the same incident — and the `14:16:25` and `14:16:34` reads at
+index 0 then 1 are that second incident advancing. Two incidents, each monotonic.
+
+Left in frame rather than trimmed to a single tidy incident: three cold recoveries inside thirty
+seconds is better evidence than one, and cropping evidence to remove a question is how a folder like
+this stops being trustworthy.
 
 ### Prove it as text too, not just pixels ✅ captured
 
@@ -115,10 +183,10 @@ Screenshots can be doubted; a log query answers back. Both are captured, as of 2
 
 | # | File | What it establishes |
 | --- | --- | --- |
-| `15` | `15.lambda-cold-starts.txt` | Every invocation that began with no warm process, with its `Init Duration` and `Max Memory Used`. The `Status: timeout` lines are AWS itself killing an invocation mid-step — resilience suite B, in Lambda's own words |
-| `16` | `16.lambda-recovery-reads.txt` | `recovered_incident_state` with `last_step_index` advancing across separate cold invocations of one `correlation_id`. The recovery contract, observed on the real runtime |
+| `12` | `12.lambda-cold-starts.txt` | Every invocation that began with no warm process, with its `Init Duration` and `Max Memory Used`. The `Status: timeout` lines are AWS itself killing an invocation mid-step — resilience suite A3, in Lambda's own words |
+| `13` | `13.lambda-recovery-reads.txt` | `recovered_incident_state` with `last_step_index` advancing across separate cold invocations of one `correlation_id`. The recovery contract, observed on the real runtime |
 
-> **`16` starts on 2026-08-07, and that is worth reading rather than trimming.** Nothing appears
+> **`13` starts on 2026-08-07, and that is worth reading rather than trimming.** Nothing appears
 > before that date because the deployed function's structured logs were being *discarded*:
 > `configure_logging()` called `basicConfig()`, which does nothing when the runtime has already
 > installed a root handler, so CloudWatch held only AWS's own START/END/REPORT lines. The function
@@ -154,26 +222,38 @@ it every time opens four unrelated incidents frozen at step 0 and demonstrates n
 There is no flag to continue an incident `--new` created, so reach for it only when you deliberately
 want a fresh one.
 
-### One thing to redact
+### A note for anyone re-capturing these
 
-The Lambda **ARN contains the AWS account ID** (`arn:aws:lambda:eu-central-1:<account>:function:…`)
-and it is displayed at the top of the function page. `submission/SUBMISSION.md` requires no account
-IDs in any video frame; the same care is cheap here. Blur it, or crop above it — nothing in these
-shots depends on the account being legible.
+**The Lambda function page does not print the ARN**, which was the thing this section originally
+warned about. It offers a *Copy ARN* button instead, so `09` needs no redaction beyond the account
+tooltip every AWS page carries. Worth stating because the opposite was assumed, and an assumption
+about where a secret appears is worth replacing with a look.
+
+**The account tooltip is not a hover artifact.** It renders persistently in the top-right of every
+AWS console page, so moving the cursor away does not remove it — a re-capture taken on that theory
+came back identical. It has to be masked, not avoided.
+
+**Its position is not the same on every page.** The CloudWatch *log-events* page renders it about
+16 px right of where the *Metrics* pages do. Reusing the Metrics box there clipped the username and
+left the closing paren showing, so
+[`../../scripts/redact_evidence.py`](../../scripts/redact_evidence.py) declares two boxes, both
+measured off the unredacted capture rather than eyeballed. If you add a frame from a console page
+not already represented here, measure before trusting either box — and note that `--check` only
+verifies regions that have been *declared*, so an unmasked id on an undeclared page passes silently.
 
 ## On what's in frame
 
 Checked against `submission/SUBMISSION.md`'s "no credentials or account IDs in any frame" rule:
 
 - **No credentials, API keys, connection strings or passwords appear in any file.**
-- **Two things are masked, and both are declared.** The browser toolbar in `03`–`10` carried the
+- **Two things are masked, and both are declared.** The browser toolbar in `03`–`11` carried the
   signed-in user's profile photograph — a picture of a real person, in material that goes to
   judges. It is replaced by a neutral grey disc, a flat placeholder rather than a blur, because a
   blur reads as *something was hidden here* and invites the question of what. The regions are
   committed as data in [`../../scripts/redact_evidence.py`](../../scripts/redact_evidence.py) with
   a reason each, the script is idempotent, and `--check` fails if a declared region is ever
   unmasked. It is 24×24 pixels in the window chrome and touches nothing the console rendered.
-- **The AWS account id** in the console's account tooltip is covered in `08`–`10`, filled with the
+- **The AWS account id** in the console's account tooltip is covered in `08`–`11`, filled with the
   tooltip's own background colour so the frame reads as a tooltip showing a username. Only the
   parenthesised number is hidden — the username `iarjunganesh` is the same public handle as the
   GitHub repository and the Hugging Face Space, so hiding that would be theatre. The same id was
@@ -182,7 +262,7 @@ Checked against `submission/SUBMISSION.md`'s "no credentials or account IDs in a
 - **Nothing else is altered.** No metric, count, axis, legend, timestamp, status, query text or
   identifier has been changed in any frame. That rule is written into the redaction script itself,
   because masking a number to make it agree with a document would turn evidence into decoration.
-- Cluster ID (`620162fd-…`) and service-account ID (`30413d2e-…`) are visible in `03`–`07`. The **AWS account id** in `08`–`10` is masked (see below) These
+- Cluster ID (`620162fd-…`) and service-account ID (`30413d2e-…`) are visible in `03`–`07`. The **AWS account id** in `08`–`11` is masked (see above). These
   are **identifiers, not secrets** — useless without the API key or SQL credentials, which are not
   here. Kept because redacting them would weaken the corroboration these files exist to provide.
 - The Cockroach org and Hugging Face owner are both `iarjunganesh`, which is already public on the

@@ -60,6 +60,15 @@ AVATAR = (1752, 47, 1777, 72)
 AWS_ACCOUNT_ID = (1778, 82, 1878, 101)
 AWS_TOOLTIP_BG = (125, 137, 152)
 
+# The CloudWatch Logs *log-events* page renders the same tooltip about 16px further right than the
+# Metrics pages do, so the box above lands inside the username and leaves the closing paren showing.
+# Measured off the unredacted capture rather than eyeballed: the username's ink run ends at x=1792
+# and `(504804196134)` occupies x=1797..1879, inside a tooltip whose background spans y=81..99.
+# Two boxes rather than one generous box that would swallow the username on every page — the
+# username is deliberately left legible, so a mask wide enough to cover both positions would hide
+# something this folder has decided not to hide.
+AWS_ACCOUNT_ID_LOGS = (1794, 81, 1881, 100)
+
 
 @dataclass(frozen=True)
 class Region:
@@ -80,17 +89,21 @@ REDACTIONS: dict[str, tuple[Region, ...]] = {
     "05.crdb-sql-activity-fingerprints.png": (Region(AVATAR, "signed-in user's profile photograph", circle=True),),
     "06.crdb-jobs-history.png": (Region(AVATAR, "signed-in user's profile photograph", circle=True),),
     "07.crdb-service-account-mcp.png": (Region(AVATAR, "signed-in user's profile photograph", circle=True),),
-    "08.bedrock-invocations-by-model-table.png": (
+    "08.bedrock-invocations-and-latency-table.png": (
         Region(AVATAR, "signed-in user's profile photograph", circle=True),
         Region(AWS_ACCOUNT_ID, "AWS account id in the console's account tooltip", fill=AWS_TOOLTIP_BG),
     ),
-    "09.bedrock-invocations-by-model-line.png": (
+    "09.lambda-configuration.png": (
         Region(AVATAR, "signed-in user's profile photograph", circle=True),
         Region(AWS_ACCOUNT_ID, "AWS account id in the console's account tooltip", fill=AWS_TOOLTIP_BG),
     ),
-    "10.bedrock-invocations-by-model-stacked.png": (
+    "10.lambda-metrics-table.png": (
         Region(AVATAR, "signed-in user's profile photograph", circle=True),
         Region(AWS_ACCOUNT_ID, "AWS account id in the console's account tooltip", fill=AWS_TOOLTIP_BG),
+    ),
+    "11.lambda-log-stream-recovery.png": (
+        Region(AVATAR, "signed-in user's profile photograph", circle=True),
+        Region(AWS_ACCOUNT_ID_LOGS, "AWS account id in the console's account tooltip", fill=AWS_TOOLTIP_BG),
     ),
 }
 
