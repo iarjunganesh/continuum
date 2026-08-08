@@ -74,10 +74,27 @@ The cold-start line is the whole point of `13`/`14`. `REPORT ... Init Duration: 
 stream that also contains `recovered_incident_state` is Lambda telling you, in its own log, that a
 brand-new execution environment read the incident back out of CockroachDB.
 
-### Prove it as text too, not just pixels
+### Prove it as text too, not just pixels ✅ captured
 
-Screenshots can be doubted; a log query answers back. Both of these are worth saving next to the
-images as `.txt`:
+Screenshots can be doubted; a log query answers back. Both are captured, as of 2026-08-08:
+
+| # | File | What it establishes |
+| --- | --- | --- |
+| `15` | `15.lambda-cold-starts.txt` | Every invocation that began with no warm process, with its `Init Duration` and `Max Memory Used`. The `Status: timeout` lines are AWS itself killing an invocation mid-step — resilience suite B, in Lambda's own words |
+| `16` | `16.lambda-recovery-reads.txt` | `recovered_incident_state` with `last_step_index` advancing across separate cold invocations of one `correlation_id`. The recovery contract, observed on the real runtime |
+
+> **`16` starts on 2026-08-07, and that is worth reading rather than trimming.** Nothing appears
+> before that date because the deployed function's structured logs were being *discarded*:
+> `configure_logging()` called `basicConfig()`, which does nothing when the runtime has already
+> installed a root handler, so CloudWatch held only AWS's own START/END/REPORT lines. The function
+> was correct the whole time and reported none of it. Fixed with `force=True` in `v0.9.5`. The gap
+> is left in place because it dates the fix.
+
+On Windows, run these from PowerShell rather than Git Bash — MSYS rewrites the leading `/` in
+`/aws/lambda/…` into a filesystem path and the API rejects it as an invalid log-group name. In Git
+Bash, prefix with `MSYS_NO_PATHCONV=1`.
+
+The commands, for re-capture:
 
     # every cold start, with its init duration
     aws logs filter-log-events --region eu-central-1 \

@@ -1,0 +1,34 @@
+# Lambda cold starts — /aws/lambda/continuum-orchestrator (eu-central-1)
+# Captured 2026-08-08 by: aws logs filter-log-events --filter-pattern "Init Duration"
+# Every line below is an invocation that began with NO warm process. Deployed
+# CodeSha256 at capture time: 9SwDKNSybLkaumBVSya3a8komFL1A4nrvElp2/ZuqE8= (v0.9.5, CI deploy).
+# 'Status: timeout' lines are the Lambda-timeout resilience suite: AWS itself kills
+# the invocation mid-step, with no catchable signal (docs/RESILIENCE.md suite B).
+
+REPORT RequestId: 4f83b2c0-814e-4455-94f0-f380a6df87db	Duration: 9351.07 ms	Billed Duration: 11064 ms	Memory Size: 512 MB	Max Memory Used: 129 MB	Init Duration: 1712.74 ms	
+	REPORT RequestId: eb23d8d2-e925-401b-b89e-107cb35159e8	Duration: 6192.48 ms	Billed Duration: 7894 ms	Memory Size: 512 MB	Max Memory Used: 129 MB	Init Duration: 1701.20 ms	
+	REPORT RequestId: 315db7ff-4681-4a86-8e1b-d9846b823bdd	Duration: 8109.35 ms	Billed Duration: 9890 ms	Memory Size: 512 MB	Max Memory Used: 129 MB	Init Duration: 1779.99 ms	
+	REPORT RequestId: aa586e01-8335-40fe-96cc-63547abe254f	Duration: 8309.32 ms	Billed Duration: 9968 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1657.92 ms	
+	REPORT RequestId: 6304f653-6f57-475c-beba-93eefe31fb49	Duration: 8314.49 ms	Billed Duration: 10053 ms	Memory Size: 512 MB	Max Memory Used: 129 MB	Init Duration: 1737.87 ms	
+	REPORT RequestId: 3048595f-ea11-4894-82b5-026448d695c9	Duration: 8484.50 ms	Billed Duration: 10191 ms	Memory Size: 512 MB	Max Memory Used: 129 MB	Init Duration: 1706.10 ms	
+
+REPORT RequestId: 1d1bf65f-5edd-4cb5-9e07-376a9b17f7d3	Duration: 6000.00 ms	Billed Duration: 7635 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1634.65 ms	Status: timeout
+	REPORT RequestId: b0cf233b-e5f4-48fe-9a82-e67a811e0dbd	Duration: 6000.00 ms	Billed Duration: 7736 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1735.22 ms	Status: timeout
+
+REPORT RequestId: 4d79bb48-fcf9-4055-8f6b-0317ae26669a	Duration: 6000.00 ms	Billed Duration: 7800 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1799.73 ms	Status: timeout
+	REPORT RequestId: dc876c22-5bc7-4aee-900c-62438ad1e451	Duration: 8256.47 ms	Billed Duration: 9952 ms	Memory Size: 512 MB	Max Memory Used: 129 MB	Init Duration: 1694.71 ms	
+
+REPORT RequestId: 3b58b2bc-6564-41c9-96f3-23ec80867991	Duration: 6000.00 ms	Billed Duration: 7442 ms	Memory Size: 512 MB	Max Memory Used: 129 MB	Init Duration: 1441.50 ms	Status: timeout
+
+REPORT RequestId: 5cdc9438-1d91-44df-b4fd-f5731edb18e4	Duration: 9374.31 ms	Billed Duration: 11094 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1719.44 ms	
+	REPORT RequestId: 4463920a-31ca-41da-93c5-37434036e5ff	Duration: 6000.00 ms	Billed Duration: 7707 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1706.53 ms	Status: timeout
+
+REPORT RequestId: 68bb96a1-2934-4967-ba41-dac0c15bb42c	Duration: 6000.00 ms	Billed Duration: 7647 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1646.24 ms	Status: timeout
+	REPORT RequestId: 6ada503e-0056-44c5-874b-e83e86277647	Duration: 8749.67 ms	Billed Duration: 10408 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1658.19 ms	
+	REPORT RequestId: 7b015d06-8ed4-4bf6-a0be-b998c3218d7b	Duration: 9371.98 ms	Billed Duration: 10951 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1578.46 ms	
+	REPORT RequestId: 99030419-e46c-4eae-84d7-da785380de92	Duration: 8770.78 ms	Billed Duration: 10450 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1678.26 ms	
+
+REPORT RequestId: 6a90a3c2-8468-4ce1-8425-fff8052dd40b	Duration: 2.45 ms	Billed Duration: 1618 ms	Memory Size: 512 MB	Max Memory Used: 114 MB	Init Duration: 1615.53 ms	
+
+REPORT RequestId: 96215568-66c9-45c4-bfc2-a50d7612ee61	Duration: 8620.55 ms	Billed Duration: 10427 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1806.10 ms	
+

@@ -41,9 +41,10 @@ box here is the honest state, not an oversight.
         database rather than assumed — the deploy smoke test returned `bedrock` for both
   - [x] **AWS Lambda** — deployed from `infra/template.yaml` via SAM:
         `arn:aws:lambda:eu-central-1:504804196134:function:continuum-orchestrator`, stack
-        `continuum`. No provisioned concurrency (ADR 002), so every invocation is a cold start —
-        1719 ms init, 130 MB of a 512 MB allocation (measured 2026-08-07 on `CodeSha256` `cfj/1z90…`;
-        the function has been redeployed since and this was not re-sampled)
+        `continuum`. No provisioned concurrency (ADR 002) — cold start 1806 ms init, 130 MB of a
+        512 MB allocation, sampled 2026-08-08 on the current build. Since `v0.9.5` the function is
+        deployed by CI on a version tag via GitHub OIDC (ADR 010), so the live function and the
+        newest tag cannot drift apart
 
 ## Submission Materials
 

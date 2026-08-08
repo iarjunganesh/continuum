@@ -210,7 +210,7 @@ Judging-criteria mapping and full submission narrative: [`submission/DEVPOST.md`
 | | |
 | --- | --- |
 | **App** | [https://huggingface.co/spaces/iarjunganesh/continuum](https://huggingface.co/spaces/iarjunganesh/continuum) *(deploys on push to `main`)* |
-| **Orchestrator** | Live on AWS Lambda — `continuum-orchestrator`, eu-central-1 (stack `continuum`, deployed via SAM). No provisioned concurrency, so every invocation is a genuine cold start: **1719 ms init, 130 MB / 512 MB** (measured 2026-08-07 on `CodeSha256` `cfj/1z90…`). The function has been redeployed several times since and the figure has not been re-sampled — the deployment log in [`docs/DEPLOY.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/DEPLOY.md) is the authority on what is currently live |
+| **Orchestrator** | Live on AWS Lambda — `continuum-orchestrator`, eu-central-1 (stack `continuum`), deployed from CI on a version tag ([ADR 010](https://github.com/iarjunganesh/continuum/blob/main/docs/adr/010-deploy-on-tag-from-ci.md)). No provisioned concurrency: **cold start 1806 ms init, 130 MB / 512 MB** (sampled 2026-08-08 on the current build). Warm environments *are* reused between back-to-back invocations, and it doesn't matter — the orchestrator re-reads CockroachDB first either way, so the guarantee never rests on the container being new. [`docs/DEPLOY.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/DEPLOY.md) is the authority on what is currently live |
 | **Demo Video** | *Not yet recorded.* Recording script: [`submission/DEMO_SCRIPT.md`](https://github.com/iarjunganesh/continuum/blob/main/submission/DEMO_SCRIPT.md) |
 | **Try It Now** | `make chaos-demo` — kill the agent mid-incident, watch it resume from CockroachDB |
 

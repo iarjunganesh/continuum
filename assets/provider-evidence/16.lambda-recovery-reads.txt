@@ -1,0 +1,20 @@
+# Lambda recovery reads — /aws/lambda/continuum-orchestrator (eu-central-1)
+# Captured 2026-08-08 by: aws logs filter-log-events --filter-pattern "recovered_incident_state"
+#
+# This is the orchestrator's FIRST action on every invocation (ADR 002): read
+# CockroachDB for open incident state before any new reasoning. last_step_index
+# advancing across separate cold invocations of the same correlation_id is the
+# recovery contract, observed on the real runtime rather than in a test.
+#
+# NOTE ON THE DATE RANGE: nothing appears here before 2026-08-07. That is not
+# because the function did not run — it is because configure_logging() called
+# basicConfig(), which is a no-op when the runtime has already installed a root
+# handler, so every structured log the deployed function emitted was discarded.
+# Fixed with force=True and shipped in v0.9.5. See CHANGELOG.md.
+
+{"correlation_id": "demo-incident-001", "state": "remediating", "last_step_index": 0, "last_step_status": "executed", "event": "recovered_incident_state", "timestamp": "2026-08-07T18:44:28.826491Z", "level": "info"}
+	{"correlation_id": "demo-incident-001", "state": "remediating", "last_step_index": 1, "last_step_status": "executed", "event": "recovered_incident_state", "timestamp": "2026-08-07T18:44:37.779038Z", "level": "info"}
+
+{"correlation_id": "demo-incident-001", "state": "remediating", "last_step_index": 0, "last_step_status": "executed", "event": "recovered_incident_state", "timestamp": "2026-08-08T11:35:20.344039Z", "level": "info"}
+	{"correlation_id": "demo-incident-001", "state": "remediating", "last_step_index": 1, "last_step_status": "executed", "event": "recovered_incident_state", "timestamp": "2026-08-08T11:35:29.119818Z", "level": "info"}
+

@@ -334,15 +334,27 @@ Kept because a stale function is invisible from the repo, and the one thing that
 | 2026-08-07 | `cfj/1z90…` → `r8pbqNx1…` | not re-measured | `make deploy-restart-drill` re-run on current code — code swapped under an open incident, resumed exactly once (`assets/deploy-restart-run/dba642ed/`) |
 | 2026-08-07 18:33 UTC | `r8pbqNx1…` → `amvfjds9…` | not re-measured | Manual deploy of `v0.9.4` from the clean clone, so the live function matched the tag |
 | 2026-08-07 18:44 UTC | `amvfjds9…` → *(recorded by the next deploy's summary)* | not re-measured | Manual deploy of `fb1c1e8` — the structlog `force=True` fix, without which the function wrote **no** application log lines at all |
+| 2026-08-07 19:30 UTC | *(previous)* → `9SwDKNSy…` | **1806 ms / 130 MB** | **First CI deploy** — tag `v0.9.5`, [run 31211694477](https://github.com/iarjunganesh/continuum/actions/runs/31211694477). OIDC role assumed, artifact 61 MB of 250 MB, hash asserted moved, empty-payload smoke test returned the expected `KeyError` from `handle_alert`. Cold start re-sampled 2026-08-08 on this build |
 
 **From `v0.9.5` onward this table is written by the CI deploy**, which prints the before and after
 hashes into the workflow run summary ([ADR 010](adr/010-deploy-on-tag-from-ci.md)). The hand-kept
-rows above are the manual era, and the gap in the last one is exactly why: a hash nobody recorded at
-the time cannot be recovered afterwards, only overwritten by the next deploy.
+rows above are the manual era, and the gap in the second-to-last one is exactly why: a hash nobody
+recorded at the time cannot be recovered afterwards, only overwritten by the next deploy. The
+`v0.9.5` row's *after* hash was read back live from
+`aws lambda get-function-configuration`; its *before* is the row above it.
 
-The cold-start figure of **1719 ms / 130 MB** was measured on `cfj/1z90…` and has not been
-re-sampled on any build since. `Max Memory Used` has held at 129–130 MB across every build measured,
-so that half is stable; the init time is the part that is genuinely unverified on current code.
+**Cold start on the current build: 1806 ms init, 130 MB of 512 MB** (`9SwDKNSy…`, sampled
+2026-08-08). The long-published **1719 ms** figure was measured on `cfj/1z90…`; both are within the
+1578–1806 ms spread every sampled build has shown, and `Max Memory Used` has held at 129–130 MB
+throughout. Raw REPORT lines: [`../assets/provider-evidence/15.lambda-cold-starts.txt`](../assets/provider-evidence/15.lambda-cold-starts.txt).
+
+**A filtered `Init Duration` query returns only cold starts, so it cannot tell you how often one
+happens.** Back-to-back invocations *do* reuse a warm environment — three ticks driven on
+2026-08-08 produced one `INIT_START`, not three. That costs this project nothing, because the
+orchestrator re-reads CockroachDB first on every invocation whether the environment is warm or not
+(ADR 002); the guarantee does not depend on the container being new. Don't narrate "every
+invocation is a cold start" over this data — the honest claim is *no provisioned concurrency, and
+state is re-read regardless*.
 
 **Redeploy before recording.** Recording #1 resumes via `--via-lambda`, so a stale function puts a Lambda on camera that behaves differently from the repo — and nothing in the demo would reveal it.
 
