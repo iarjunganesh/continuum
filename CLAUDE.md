@@ -9,9 +9,9 @@ Continuum — an agentic incident-response system built for the CockroachDB × A
 
 **The Bedrock account quota clamp (ADR 008) was LIFTED on 2026-08-01** via an AWS Support eligibility review — `make probe-bedrock` returns OK for every candidate region × both models. **Both live Bedrock paths were then verified end to end on 2026-08-01**: `embed()` returns 1024 floats matching the schema, and `_propose_via_bedrock()` parses real Claude output correctly. That code is now proven, not merely unthrottled. Quotas remain *dynamic*, so re-probe immediately before recording rather than trusting a days-old green run — and note `make probe-bedrock` makes its **own** boto3 calls, so it proves account access only; verifying Continuum's own response handling means exercising the agents.
 
-**The orchestrator is deployed and the recovery guarantee is proven on the real runtime** (first proven 2026-08-01): stack `continuum` in eu-central-1, `arn:aws:lambda:eu-central-1:504804196134:function:continuum-orchestrator`. Four cold `sam remote invoke` calls drove one incident 0 → 1 → 2 → `resolved`, each reporting `correlation_source`/`reasoning_source` of `bedrock`, so Bedrock and the vector search demonstrably ran inside Lambda under the function's own role.
+**The orchestrator is deployed and the recovery guarantee is proven on the real runtime** (first proven 2026-08-01): stack `continuum` in eu-central-1, `arn:aws:lambda:eu-central-1:<account-id>:function:continuum-orchestrator`. Four cold `sam remote invoke` calls drove one incident 0 → 1 → 2 → `resolved`, each reporting `correlation_source`/`reasoning_source` of `bedrock`, so Bedrock and the vector search demonstrably ran inside Lambda under the function's own role.
 
-**Redeployed repeatedly on 2026-08-07** — `docs/DEPLOY.md` carries the log, which is the authority; don't restate hashes here, they go stale within the hour. Cold start **1719 ms init, 130 MB of 512 MB** was measured on `cfj/1z90…` and has not been re-sampled since. Before that day the function had gone **five days stale**, still running the 2026-08-02 build: it predated the KPI fix, `_stack_detail`, the Titan reseed and the current alert text. That matters beyond tidiness — Recording #1 resumes via `--via-lambda`, so filming against a stale function shows a Lambda behaving differently from the repo. **This is what ADR 010 exists to stop**; the manual rule stands for untagged builds: redeploy before recording, and check `CodeSha256` actually moved.
+**Redeployed repeatedly on 2026-08-07** — `docs/DEPLOY.md` carries the log, which is the authority; don't restate hashes here, they go stale within the hour. Cold start **1806 ms init, 130 MB of 512 MB**, sampled 2026-08-08 on the current build. **Do not write "every invocation is a cold start"** — a filtered `Init Duration` query returns only cold starts, so it cannot measure how often one happens, and back-to-back invocations demonstrably reuse a warm environment. The honest claim is *no provisioned concurrency, and state is re-read regardless*, which is what ADR 002 actually guarantees. Before that day the function had gone **five days stale**, still running the 2026-08-02 build: it predated the KPI fix, `_stack_detail`, the Titan reseed and the current alert text. That matters beyond tidiness — Recording #1 resumes via `--via-lambda`, so filming against a stale function shows a Lambda behaving differently from the repo. **This is what ADR 010 exists to stop**; the manual rule stands for untagged builds: redeploy before recording, and check `CodeSha256` actually moved.
 
 **Every failure mode in the Never-Miss table is now closed** (first 2026-08-02, re-proven on current code 2026-08-07): the last one, *deployment restart mid-incident*, is proven by `make deploy-restart-drill` — an incident held in a durable `executing` row while a real `sam build` + `sam deploy` swaps the function's code, then resumed exactly once on the new build (evidence `assets/deploy-restart-run/dba642ed/`, `cfj/1z90…` → `r8pbqNx1…`). The drill asserts `CodeSha256` actually moved; a no-op deploy would otherwise pass while proving nothing.
 
@@ -68,7 +68,7 @@ CockroachDB tools used: **Distributed Vector Indexing** + **Managed MCP Server**
   `make chaos-capture`, `make load-test` and `pytest tests/integration` all write real incidents or
   drive sustained load — they go to `make local-cluster`, never to `$COCKROACH_DATABASE_URL` when
   that points at `*.cockroachlabs.cloud`. The cost is not Request Units (the whole project has used
-  3.42M of a 50M/month allowance); it is that an N=200 bench left **665 incidents, 431 frozen in
+  5.72M against a 50M/month allowance as of 2026-08-08, and that already includes the heaviest day the project has run); it is that an N=200 bench left **665 incidents, 431 frozen in
   `remediating`**, on the cluster judges open. The `--allow-cloud-burn` guard in `resilience_bench.py`
   is a backstop, not permission. Published *latency* is the one exception and must come from Cloud.
   Full guidance: `docs/CLUSTER_OPS.md`.
@@ -82,6 +82,28 @@ CockroachDB tools used: **Distributed Vector Indexing** + **Managed MCP Server**
   that reached `submission/COSTS.md`. **Read the billing page before writing down a cause.**
 - **A UI badge reads a durable column, or it does not render.** The console's provenance badges (`⟲ resumed after kill`, `⌖ recalled #N of M`, embedding/reasoning model, `λ runtime`) each come from a field in `remediation_steps.detail` or `incident_embeddings.embedding_model` — never inferred from which code path exists, never defaulted, never prettified into something friendlier than the column says. Three consequences that look like bugs and are not: a step that fell back to precedent replay names **no** model (both Bedrock paths degrade silently, so an absent model id is the only signal the fallback ran); a `precedent_distance` renders **only** alongside the `embedding_model_id` that produced it (distances are not comparable across embedding models — this corpus's moved from ~1.40 to ~0.64 on reseed); and `runtime` comes from Lambda's own `AWS_LAMBDA_FUNCTION_NAME`, never from config, so a locally-run step cannot claim Lambda. `tests/unit/test_ui_kpis.py` pins all of it.
 - **KPI tiles count the table; the card feed is paginated.** `FEED_LIMIT` caps the feed for layout only. Never derive the tiles from the feed rows — that made "durable in CockroachDB" a function of the CSS grid width and, worse, made the totals *drop* when unrelated rows were written.
+- **Never print a secret, and never run a command that returns one.** Terminal output is not
+  ephemeral: it lands in scrollback, in session transcripts, and in anything the user later
+  pastes into an issue or shares for help. A secret shown once is a secret to rotate.
+  - The trap is not `echo $PASSWORD` — nobody writes that. It is a **broad read of a store that
+    happens to contain one**. `aws lambda get-function-configuration --query
+    "Environment.Variables"` returns the whole environment, and this function's environment holds
+    the live CockroachDB DSN *with its password*. Same shape: `aws secretsmanager get-secret-value`,
+    `aws ssm get-parameter --with-decryption`, `sam deploy` echoing `--parameter-overrides`,
+    `cat .env`, `printenv`, `docker inspect`, `git config --list`, `gh secret list` on a verbose
+    flag, a `psql` connection string in an error trace.
+  - **Ask for the one field you need.** `--query "Environment.Variables.BEDROCK_REGION"` returns a
+    region. `--query "Environment.Variables"` returns a credential. The narrow query is not merely
+    tidier — it is the whole control.
+  - When a command's output *might* contain a secret, pipe it through a filter before it is
+    displayed, or write it to a file under the scratchpad and grep that file for the specific key.
+  - `.env` is gitignored and `samconfig.toml` deliberately omits `CockroachDatabaseUrl` (the
+    comment there explains why). Those defences stop a secret reaching **git**; they do nothing
+    about a secret reaching **stdout**. This rule is the second half.
+  - **If it happens anyway, say so immediately and plainly** — name what leaked, where it is now,
+    what to rotate and every place the new value must be updated. A quietly-exposed credential the
+    user does not know about is far worse than an awkward correction.
+
 - **`config.Settings` must tolerate unknown env vars** (`extra="ignore"`) — it is not the only consumer of the process environment (boto3 reads `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` itself). Reintroducing `extra="forbid"` breaks app startup for anyone with ordinary AWS credentials exported.
 
 ## Release & repo-sync discipline (do this on EVERY change, not at release time)
