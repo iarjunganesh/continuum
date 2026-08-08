@@ -68,7 +68,7 @@ CockroachDB tools used: **Distributed Vector Indexing** + **Managed MCP Server**
   `make chaos-capture`, `make load-test` and `pytest tests/integration` all write real incidents or
   drive sustained load — they go to `make local-cluster`, never to `$COCKROACH_DATABASE_URL` when
   that points at `*.cockroachlabs.cloud`. The cost is not Request Units (the whole project has used
-  3.42M of a 50M/month allowance); it is that an N=200 bench left **665 incidents, 431 frozen in
+  5.72M against a 50M/month allowance as of 2026-08-08, and that already includes the heaviest day the project has run); it is that an N=200 bench left **665 incidents, 431 frozen in
   `remediating`**, on the cluster judges open. The `--allow-cloud-burn` guard in `resilience_bench.py`
   is a backstop, not permission. Published *latency* is the one exception and must come from Cloud.
   Full guidance: `docs/CLUSTER_OPS.md`.
