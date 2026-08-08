@@ -11,7 +11,7 @@ default and reads as stock TTS to anyone who has watched an AWS tutorial.
 
 ## Files
 
-- `vo_00-problem … vo_12-close.mp3` — one clip per beat, **2:27.7 total** (147.7 s measured
+- `vo_00-problem … vo_12-close.mp3` — one clip per beat, **2:31.4 total** (151.4 s measured
   via ffprobe). Per-beat files rather than one track: the timeline stays deterministic, and
   re-cutting a single beat doesn't force a full re-record.
 - `speech-marks.json` — committed sentence timings, keyed by voice + text + clip duration.

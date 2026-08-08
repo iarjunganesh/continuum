@@ -3,7 +3,8 @@
 > **Target 2:50–2:55** (hard cap **3:00**, disqualifying if over) · **public** on YouTube · 1920×1080 / 30 fps ·
 > no copyrighted music · synthetic data only (ADR 005).
 > **Status: not yet shot.** Ready and committed: narration (13 clips), captions, charts, cards,
-> both diagrams, and `s03` under `assets/provider-evidence/`. Outstanding: **8 stills, Recording #1
+> both diagrams, and the re-captured CockroachDB/Space frames under `assets/provider-evidence/`
+> (2026-08-08). Outstanding: **9 stills, Recording #1
 > (the take that matters), Recording #2 (optional), Session C (evidence capture — not filmed), and
 > the cut.** Nothing here is blocked on anything — see the time budget below.
 
@@ -468,12 +469,12 @@ shooting anything. `s03` is done; `s09` is one screenshot away.
 | --- | --- | --- | --- | --- | --- |
 | `s01-readme-top` | 2 | A | 1280 | README from the banner through "The Problem" | pan down |
 | `s02-console-idle` | 3 | A | 1920 | Gradio console, incidents listed, nothing in flight | static |
-| ~~`s03-space-url`~~ ✅ | 3 | B | — | **Already captured** — use `assets/provider-evidence/1080p/01.space-console-executing-banner.png` (1920×1080, live URL in frame) | static |
+| `s03-space-url` | 3 | B | — | Space at its real URL, **address bar in frame**, ideally with a step in-flight. The frame that used to satisfy this was deleted on 2026-08-08 as stale — its KPI tiles and cards predated the provenance badges, so beside the current console it read as a different app. No frame in `assets/provider-evidence/` now shows the address bar either, so this one screenshot closes both gaps | static |
 | `s04-timeline-executing` | 5 | A | 1920 | Recovery timeline, a step mid-flight, `correlation_source: bedrock` visible | slow push-in |
 | `s05-explain-plan` | 11 | A | 1280 | `EXPLAIN` showing `vector search … prefix spans` | static |
 | `s06-mcp-panel` | 12 | A | 1920 | Gradio "Ask via MCP" with a live answer — **fallback if Recording #2 is skipped** | static |
 | `s07-ci-badges` | 13 | A | 1280 | README badge rows — CI green, coverage, versions | static |
-| `s08-adr-list` | 13 | A | 1280 | The nine-row ADR table | pan down |
+| `s08-adr-list` | 13 | A | 1280 | The ten-row ADR table | pan down |
 | `s09-lambda-console` | 10 | B | — | AWS console: `continuum-orchestrator`, no provisioned concurrency. **Capture steps: `assets/provider-evidence/README.md` shot `12`** | static |
 
 ### Already captured: provider evidence
@@ -483,26 +484,20 @@ own UIs** — screens this project cannot fake. They were captured as repo evide
 have no beat and belong in the README and on Devpost rather than in a 3-minute video. Three of them
 do earn screen time, and one closes a still outright.
 
-`make obs-assets` renders the OBS-ready set into `assets/provider-evidence/1080p/`. **Use that
-folder on the timeline, not the parent** — everything in it is exactly 1920×1080, and nothing in it
-was downscaled: short captures are padded, and anything taller than a frame became a pan video
-instead of a shrunken still.
+`assets/provider-evidence/` was re-captured on **2026-08-08** and the browser-chrome frames are
+already exactly **1920×1080**, so they drop straight onto the timeline with no intermediate step.
+The generated `1080p/` folder was deleted for that reason — it duplicated frames that no longer
+needed normalising. Two files still do, because they are full-page captures rather than viewport
+ones: `01.space-console-full-page.png` (1920×**5412**) and `00.space-first-paint.png`
+(1920×**2728**). Run `python scripts/build_obs_assets.py` to regenerate the folder when you need
+those as pans; it pads short captures and pans tall ones, and never downscales.
 
-| Asset (`1080p/`) | Use | Why it earns the time |
+| Asset | Use | Why it earns the time |
 | --- | --- | --- |
-| `01.space-console-executing-banner.png` | **Beat 3** — replaces `s03-space-url` | The live Space URL and a step sitting in `executing`, in one 1080p frame. Nothing to shoot |
-| `03.crdb-cluster-overview-eu-central-1.png` | **Beat 13**, after `s07-ci-badges` | `Plan Basic · Cloud AWS · Region Frankfurt (eu-central-1) PRIMARY`, in Cockroach Labs' own UI. The "CockroachDB deployed on AWS" requirement, corroborated by a screen we don't control. Hold static, it's exactly 1920×1080 |
-| `06.crdb-sql-activity-fingerprints.png` | **Beat 13** alternative | Real statement fingerprints — `INSERT INTO incidents`, `remediation_steps`, `incident_embeddings` with execution counts. The single write path visible as actual traffic |
-| `00.space-console-full-page.pan.mp4` | **Beat 3** alternative to `s02-console-idle` | A 24.8 s pan down the whole console at native scale. Trim to the 16 s the beat has; it moves, so it can replace a static still if beat 3 feels flat. **Note it shows a step in flight**, so it reads as beat 3 *or* beat 5, not as "idle" |
-| `05.crdb-metrics-full-page.pan.mp4` | optional B-roll | 7 s pan over the Metrics dashboard. No beat needs it — use only if a gap opens in the cut |
-| `02`, `04`, `07`, `08` | **not in the video** | Trial state, month-scale traffic, job history, the MCP service account. Repo and Devpost evidence; none of them advances the one sentence this video exists to land |
-
-**The Bedrock and Lambda console captures are still to take**, and they matter more than the ones
-above: `assets/provider-evidence/README.md` has exact click-paths as shots `09`–`14`. Shot `12`
-*is* `s09-lambda-console` for beat 10. Shot `10` — CloudWatch `AWS/Bedrock` invocation counts per
-model — has no beat but is the only artifact that proves, from AWS's side, that the live Bedrock
-path ran rather than the silent fallback; capture it right after a run, because the graph is
-time-windowed.
+| `03.crdb-cluster-overview-eu-central-1.png` | **Beat 13**, after `s07-ci-badges` | `Plan Basic · Cloud AWS · Region Frankfurt (eu-central-1) PRIMARY · v26.2.5`, with the cluster's creation date and live RU burn, in Cockroach Labs' own UI. The "CockroachDB deployed on AWS" requirement corroborated by a screen we don't control. Exactly 1920×1080 — hold static |
+| `05.crdb-sql-activity-fingerprints.png` | **Beat 13** alternative | Real statement fingerprints with execution counts — the single write path as actual traffic — and the correlation query visible in its `WITH nearest AS (… embedding <->…)` CTE form. Contention time 0.0 ns on every row |
+| `01.space-console-full-page.png` | **Beat 3** alternative to `s02-console-idle` | The entire console in one tall image. Needs a pan (or a crop) — it is 5412 px tall. **It shows a step in flight**, so it reads as beat 3 *or* beat 5, not as "idle" |
+| `00`, `04`, `06`, `07` | **not in the video** | The blank first paint, the Metrics dashboard, job history and the MCP service account. Repo and Devpost evidence; none advances the one sentence this video exists to land |
 
 **Do not put any of these inside beats 6–8.** They are stills and pans of pages, and those three
 beats are one continuous take for a reason.
@@ -559,20 +554,20 @@ the measured durations.
 | Clip | Text | Words | Measured | Starts at |
 | --- | --- | --- | --- | --- |
 | `vo_00-problem` | The conditions that cause a production incident — a node failure, a bad deploy, memory exhaustion — are the same conditions that kill the agent responding to it. And an agent that holds its state in memory doesn't degrade gracefully. It stops. Then a human restarts the incident from zero, with no idea which remediation actions already ran. | 58 | 20.1s | 0:03 |
-| `vo_01-reveal` | Continuum is an incident-response agent whose memory lives in CockroachDB instead of in the process. It runs on AWS Lambda with no provisioned concurrency, so every invocation starts cold. Which means the process is allowed to die. | 37 | 15.0s | 0:24 |
-| `vo_02-architecture` | Five agents, one write path. Before any reasoning, the orchestrator's first action is always a recovery read against CockroachDB. If an incident is already open, it picks up from the durable state — never from scratch. | 36 | 13.4s | 0:40 |
-| `vo_03-normal` | An alert fires. Bedrock embeds it. CockroachDB's vector index finds the closest past incident, and Claude proposes the next step. That step is committed as executing — before it runs. | 30 | 12.5s | 0:54 |
-| `vo_04-kill` | Now watch. The process is killed mid-step. No graceful shutdown. No checkpoint. Nothing gets a chance to clean up. | 19 | 7.9s | 1:08 |
-| `vo_05-survives` | The process is gone. The step is still there — sitting in executing, with nothing alive that owns it. That row is the agent's memory, and it outlived the agent. | 30 | 9.9s | 1:21 |
-| `vo_06-resume` | A cold Lambda invocation. It reads CockroachDB first, finds the interrupted step, and re-runs that exact step. Not from scratch. Not skipped. Not duplicated. | 24 | 11.6s | 1:35 |
-| `vo_07-scale` | That isn't one lucky take. Fifty interrupted incidents. Fifty clean resumes. Zero duplicated actions, zero lost steps — counted from the durable rows, not from a log. | 27 | 11.7s | 1:48 |
-| `vo_08-aws` | And it isn't only our own kill switch. Here, AWS terminates the function itself, mid-step, with no signal the process can catch. All fifteen recovered, exactly once. | 27 | 11.5s | 2:01 |
-| `vo_09-vector` | The memory layer scales with it. From one hundred incidents to ten thousand, CockroachDB's vector index stays flat while a full scan climbs away from it — six times faster at the top end. | 34 | 11.4s | 2:13 |
-| `vo_10-mcp` | The same memory is queryable live, through CockroachDB's managed MCP server — read-only, called by the application itself. | 18 | 8.6s | 2:25 |
-| `vo_11-production` | Type-checked, linted and gated in CI, with the recovery contract pinned by tests that hard-kill a real process on every push. | 21 | 8.4s | 2:35 |
-| `vo_12-close` | Agents will keep dying mid-task. Continuum is the one that picks up exactly where it left off. | 17 | 5.7s | 2:44 |
+| `vo_01-reveal` | Continuum is an incident-response agent whose memory lives in CockroachDB, not in the process. On AWS Lambda, it never trusts what's in memory — every invocation re-reads its state from the database first. So the process is allowed to die. | 40 | 15.5s | 0:24 |
+| `vo_02-architecture` | Five agents, and only one of them is allowed to write. Every fact about an incident goes through a single module into one database — so whatever picks that incident up next can trust everything it reads. | 37 | 11.5s | 0:41 |
+| `vo_03-normal` | An alert fires. Bedrock turns it into a vector, CockroachDB finds the closest incident it's seen before, Claude proposes the next step. And here's what matters — the step is written down as executing before it runs, not after. | 39 | 14.6s | 0:53 |
+| `vo_04-kill` | Now watch. The process is killed mid-step. No graceful shutdown. No checkpoint. Nothing gets a chance to clean up. | 19 | 7.9s | 1:09 |
+| `vo_05-survives` | The process is gone. The step is still there — sitting in executing, with nothing alive that owns it. That row is the agent's memory, and it outlived the agent. | 30 | 9.9s | 1:22 |
+| `vo_06-resume` | A cold Lambda invocation — a different machine, in a different region, with no memory of this. It reads CockroachDB first, finds the interrupted step, and re-runs it. Not from scratch. Not skipped. Not duplicated. | 35 | 14.3s | 1:35 |
+| `vo_07-scale` | That isn't one lucky take. Fifty interrupted incidents. Fifty clean resumes. Zero duplicated actions, zero lost steps — counted from the durable rows, not from a log. | 27 | 11.7s | 1:52 |
+| `vo_08-aws` | And it isn't only our own kill switch. Here, AWS terminates the function itself, mid-step, with no signal the process can catch. All fifteen recovered, exactly once. | 27 | 11.5s | 2:04 |
+| `vo_09-vector` | And the memory scales with it. From one hundred incidents to ten thousand, CockroachDB's vector index stays flat while a full scan climbs away — seven and a half times faster. | 31 | 11.2s | 2:16 |
+| `vo_10-mcp` | And because it's all one database, you can simply ask it — the app querying its own memory, live, through CockroachDB's managed MCP server. | 24 | 9.1s | 2:28 |
+| `vo_11-production` | Type-checked, linted and gated in CI, with the recovery contract pinned by tests that hard-kill a real process on every push. | 21 | 8.4s | 2:38 |
+| `vo_12-close` | Agents will keep dying mid-task. Continuum is the one that picks up exactly where it left off. | 17 | 5.7s | 2:47 |
 
-**Narration spine 2:27.7** (147.7 s measured via ffprobe).
+**Narration spine 2:31.4** (151.4 s measured via ffprobe).
 
 `vo_00-problem` spends the video's most valuable twenty seconds on the *problem*, not the product —
 a judge who doesn't feel the problem won't care about the guarantee. It names no sponsor technology
@@ -592,18 +587,18 @@ video.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Opening card | silent | `demo-cards/banner-{dark,light}.png` | **static** — exactly 1920×1080 | none | 3.0s | 0:03 |
 | 2 | The problem | `vo_00-problem` (20.1s) | `s01-readme-top` | pan down | none | 21.5s | 0:24 |
-| 3 | Reveal | `vo_01-reveal` (15.0s) | `s02-console-idle` → `s03-space-url` | static ×2 | `huggingface.co/spaces/iarjunganesh/continuum · live` | 16.0s | 0:40 |
-| 4 | Architecture | `vo_02-architecture` (13.4s) | `architecture-diagram-*-16x9.png` | **static** | `5 agents · 1 write path · recovery read first` | 14.4s | 0:54 |
-| 5 | Normal operation | `vo_03-normal` (12.5s) | `s04-timeline-executing` | slow push-in | `Titan embed → C-SPANN search → Claude` | 13.5s | 1:08 |
-| 6 | **The kill** | `vo_04-kill` (7.9s) | **#1 live** — terminal dying mid-line | native, no move | `chaos_kill.py — SIGKILL, no graceful shutdown` | 12.9s | 1:21 |
+| 3 | Reveal | `vo_01-reveal` (15.5s) | `s02-console-idle` → `s03-space-url` | static ×2 | `huggingface.co/spaces/iarjunganesh/continuum · live` | 16.5s | 0:41 |
+| 4 | Architecture | `vo_02-architecture` (11.5s) | `architecture-diagram-*-16x9.png` | **static** | `5 agents · 1 write path · recovery read first` | 12.5s | 0:53 |
+| 5 | Normal operation | `vo_03-normal` (14.6s) | `s04-timeline-executing` | slow push-in | `Titan embed → C-SPANN search → Claude` | 15.6s | 1:09 |
+| 6 | **The kill** | `vo_04-kill` (7.9s) | **#1 live** — terminal dying mid-line | native, no move | `chaos_kill.py — SIGKILL, no graceful shutdown` | 12.9s | 1:22 |
 | 7 | **State survived** | `vo_05-survives` (9.9s) | **#1 live** — the row in `executing` | native, **hold 3s+** | `status: executing — and nothing is alive` | 13.9s | 1:35 |
-| 8 | **The resume** | `vo_06-resume` (11.6s) | **#1 live** — cold invocation resuming that step | native, no move | `resumed: true · same step_index · executed once` | 13.6s | 1:48 |
-| 9 | Not once — fifty times | `vo_07-scale` (11.7s) | `chart-kill-storm-*-16x9.png` | **static** | `50 kills · 0 duplicated · 0 lost` | 12.5s | 2:01 |
-| 10 | AWS kills it | `vo_08-aws` (11.5s) | `chart-lambda-timeout-*` → `s09-lambda-console` | static ×2 | `AWS terminated the function — it still resumed` | 12.3s | 2:13 |
-| 11 | The index earns its place | `vo_09-vector` (11.4s) | `chart-vector-scale-*` → `s05-explain-plan` | static ×2 | `100 → 10,000 vectors · C-SPANN stays flat` | 12.2s | 2:25 |
-| 12 | Live query over MCP | `vo_10-mcp` (8.6s) | **#2 live** — `mcp-query-take.mp4` (or `s06` still) | native, no move | `Managed MCP Server · read-only` | 9.4s | 2:35 |
-| 13 | Production | `vo_11-production` (8.4s) | `s07-ci-badges` → `s08-adr-list` → `chart-throughput-*` | static, pan, static | `100% coverage · 10 ADRs · CI on every push` | 9.2s | 2:44 |
-| 14 | Close | `vo_12-close` (5.7s) | `demo-cards/signoff-{dark,light}.png` | **static** | `The memory outlived the failure.` | 8.7s | **2:53** |
+| 8 | **The resume** | `vo_06-resume` (14.3s) | **#1 live** — cold invocation resuming that step | native, no move | `resumed: true · same step_index · executed once` | 16.3s | 1:52 |
+| 9 | Not once — fifty times | `vo_07-scale` (11.7s) | `chart-kill-storm-*-16x9.png` | **static** | `50 kills · 0 duplicated · 0 lost` | 12.3s | 2:04 |
+| 10 | AWS kills it | `vo_08-aws` (11.5s) | `chart-lambda-timeout-*` → `s09-lambda-console` | static ×2 | `AWS terminated the function — it still resumed` | 12.1s | 2:16 |
+| 11 | The index earns its place | `vo_09-vector` (11.2s) | `chart-vector-scale-*` → `s05-explain-plan` | static ×2 | `100 → 10,000 vectors · C-SPANN stays flat` | 11.8s | 2:28 |
+| 12 | Live query over MCP | `vo_10-mcp` (9.1s) | **#2 live** — `mcp-query-take.mp4` (or `s06` still) | native, no move | `Managed MCP Server · read-only` | 9.7s | 2:38 |
+| 13 | Production | `vo_11-production` (8.4s) | `s07-ci-badges` → `s08-adr-list` → `chart-throughput-*` | static, pan, static | `100% coverage · 10 ADRs · CI on every push` | 9.0s | 2:47 |
+| 14 | Close | `vo_12-close` (5.7s) | `demo-cards/signoff-{dark,light}.png` | **static** | `The memory outlived the failure.` | 7.7s | **2:55** |
 
 **Never hold a single static frame longer than ~15 s** under continuous narration — that's the real
 ceiling on how long any still can sit on screen, moving or not. If the cut runs short, extend beats
@@ -732,10 +727,11 @@ These matter more than polish. A judge who catches one overstatement discounts e
       terminal stays in frame. If the resume fell back to `--via-api`, `vo_06-resume` was re-recorded
       to match
 - [ ] Recording #2 shot, or beat 12 consciously falls back to the `s06` still
-- [ ] The remaining **8** stills captured at the right type and viewport into
-      `assets/demo-video/statics/` — `s03` is already satisfied by
-      `assets/provider-evidence/1080p/01.space-console-executing-banner.png`
-- [ ] `make obs-assets` run, so anything used from `assets/provider-evidence/` is the 1080p variant
+- [ ] The remaining **9** stills captured at the right type and viewport into
+      `assets/demo-video/statics/` — `s03` is no longer pre-satisfied; the frame that covered it was
+      deleted as stale on 2026-08-08
+- [ ] `python scripts/build_obs_assets.py` run **only if** beat 3 uses the full-page
+      `01.space-console-full-page.png`; the browser-chrome frames are already 1920×1080
 - [ ] One theme held throughout — UI, cards, diagram, charts
 
 **Session C — evidence capture (not filmed)**
