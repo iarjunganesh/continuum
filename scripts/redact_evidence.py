@@ -48,6 +48,19 @@ EVIDENCE = REPO_ROOT / "assets" / "provider-evidence"
 PLACEHOLDER = (199, 199, 204)
 
 
+AVATAR = (1752, 47, 1777, 72)
+# Edge's toolbar avatar sits on identical pixels in every 1920x1080 capture, so the box is
+# named once rather than repeated per file and drifting.
+
+# The AWS console's account tooltip: "iarjunganesh (504804196134) v" in the top-right nav.
+# Only the parenthesised account id is covered — the username is the same public handle as the
+# GitHub org and the Hugging Face Space, so hiding it would be theatre. Filled with the
+# tooltip's own background colour, sampled from the frame, so the result reads as a tooltip
+# that simply shows a username.
+AWS_ACCOUNT_ID = (1778, 82, 1878, 101)
+AWS_TOOLTIP_BG = (125, 137, 152)
+
+
 @dataclass(frozen=True)
 class Region:
     """One rectangle to mask. `circle` draws an ellipse inscribed in it instead."""
@@ -55,24 +68,29 @@ class Region:
     box: tuple[int, int, int, int]  # left, top, right, bottom
     why: str
     circle: bool = False
+    fill: tuple[int, int, int] | None = None  # defaults to PLACEHOLDER
 
 
 # Keyed by filename. Edge renders its toolbar at a fixed position in a 1920x1080 window, so the
 # avatar lands on the same pixels in every capture taken that way — verified per file rather
 # than assumed, by cropping the region out of each before writing this.
 REDACTIONS: dict[str, tuple[Region, ...]] = {
-    "03.crdb-cluster-overview-eu-central-1.png": (
-        Region((1752, 47, 1777, 72), "signed-in user's profile photograph", circle=True),
+    "03.crdb-cluster-overview-eu-central-1.png": (Region(AVATAR, "signed-in user's profile photograph", circle=True),),
+    "04.crdb-metrics-full-page.png": (Region(AVATAR, "signed-in user's profile photograph", circle=True),),
+    "05.crdb-sql-activity-fingerprints.png": (Region(AVATAR, "signed-in user's profile photograph", circle=True),),
+    "06.crdb-jobs-history.png": (Region(AVATAR, "signed-in user's profile photograph", circle=True),),
+    "07.crdb-service-account-mcp.png": (Region(AVATAR, "signed-in user's profile photograph", circle=True),),
+    "08.bedrock-invocations-by-model-table.png": (
+        Region(AVATAR, "signed-in user's profile photograph", circle=True),
+        Region(AWS_ACCOUNT_ID, "AWS account id in the console's account tooltip", fill=AWS_TOOLTIP_BG),
     ),
-    "04.crdb-metrics-full-page.png": (
-        Region((1752, 47, 1777, 72), "signed-in user's profile photograph", circle=True),
+    "09.bedrock-invocations-by-model-line.png": (
+        Region(AVATAR, "signed-in user's profile photograph", circle=True),
+        Region(AWS_ACCOUNT_ID, "AWS account id in the console's account tooltip", fill=AWS_TOOLTIP_BG),
     ),
-    "05.crdb-sql-activity-fingerprints.png": (
-        Region((1752, 47, 1777, 72), "signed-in user's profile photograph", circle=True),
-    ),
-    "06.crdb-jobs-history.png": (Region((1752, 47, 1777, 72), "signed-in user's profile photograph", circle=True),),
-    "07.crdb-service-account-mcp.png": (
-        Region((1752, 47, 1777, 72), "signed-in user's profile photograph", circle=True),
+    "10.bedrock-invocations-by-model-stacked.png": (
+        Region(AVATAR, "signed-in user's profile photograph", circle=True),
+        Region(AWS_ACCOUNT_ID, "AWS account id in the console's account tooltip", fill=AWS_TOOLTIP_BG),
     ),
 }
 
@@ -87,13 +105,14 @@ def _is_flat(im: Image.Image, region: Region) -> bool:
     colours = patch.getcolors(maxcolors=1 << 16)
     if colours is None:  # more distinct colours than the cap — definitely not flat
         return False
+    want = region.fill or PLACEHOLDER
     if region.circle:
-        # An inscribed ellipse leaves the four corners untouched, so expect the placeholder
+        # An inscribed ellipse leaves the four corners untouched, so expect the fill colour
         # to dominate rather than to be alone.
         total = sum(count for count, _ in colours)
         top = max(count for count, _ in colours)
-        return top / total > 0.6 and any(colour == PLACEHOLDER for _, colour in colours)
-    return len(colours) == 1
+        return top / total > 0.6 and any(colour == want for _, colour in colours)
+    return len(colours) == 1 and colours[0][1] == want
 
 
 def apply(check_only: bool) -> int:
@@ -117,10 +136,11 @@ def apply(check_only: bool) -> int:
             if check_only:
                 missing.append(f"{name}: {region.why} at {region.box}")
                 continue
+            fill = region.fill or PLACEHOLDER
             if region.circle:
-                draw.ellipse(region.box, fill=PLACEHOLDER)
+                draw.ellipse(region.box, fill=fill)
             else:
-                draw.rectangle(region.box, fill=PLACEHOLDER)
+                draw.rectangle(region.box, fill=fill)
             touched = True
 
         if touched:

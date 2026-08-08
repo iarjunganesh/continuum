@@ -47,46 +47,58 @@ deploy-mid-incident tile and the five-tile Proven-Under-Failure panel.
 | `06` | `06.crdb-jobs-history.png` | 61 jobs since 25 Jul, including `ALTER DATABASE system PRIMARY REGION "aws-eu-central-1"` and a full `26.1 → 26.2` upgrade sequence — provenance that this is a long-lived managed cluster that has been version-upgraded underneath the project, not one spun up for a screenshot |
 | `07` | `07.crdb-service-account-mcp.png` | The `continuum-mcp` service account with **Cluster Operator** role — the identity behind ADR 003's Managed MCP Server integration |
 
+## Amazon Bedrock
+
+Captured **2026-08-08** in `eu-central-1`, the region the deployed function actually calls
+(`BEDROCK_REGION` on the Lambda). All three are the same query — `Invocations`, `Sum`, 1-day
+period, a 2-week window, grouped **By ModelId** — drawn three ways, because the table proves and
+the charts persuade.
+
+| # | File | What it establishes |
+| --- | --- | --- |
+| `08` | `08.bedrock-invocations-by-model-table.png` | **The strongest AWS frame.** Exact per-day invocation counts for both models: `amazon.titan-embed-text-v2:0` totalling **1.66k**, `eu.anthropic.claude-sonnet-4-5-20250929-v1:0` totalling **220**. Numbers rather than a shape, dated, from AWS's own console |
+| `09` | `09.bedrock-invocations-by-model-line.png` | The same fortnight as a time series, with the 994-invocation embedding peak on 08/02 legible against a readable axis |
+| `10` | `10.bedrock-invocations-by-model-stacked.png` | Stacked area — the clearest view of the two models' relative volumes, and of the two-day hole in the middle |
+
+### Why this frame matters more than "Bedrock is configured"
+
+Both Bedrock paths in Continuum **degrade silently by design**: a throttled account produces a demo
+that looks entirely normal while never calling Bedrock at all (ADR 008). Every internal signal —
+the console, the logs, the durable `correlation_source` column — is written by code this repo
+controls. These three frames are the outside check: AWS counting the calls itself.
+
+### The timeline corroborates two documented incidents
+
+The per-day columns in `08` are not just volume. Read against this project's own history they
+independently confirm two things a judge would otherwise have to take on trust:
+
+| Date | Titan | Claude | What the repo says happened |
+| --- | --- | --- | --- |
+| 07/30 | 1 | 1 | first probe |
+| 07/31 | – | – | |
+| **08/01** | **476** | **71** | **the account-level Bedrock quota clamp lifted** ([ADR 008](../../docs/adr/008-bedrock-region-split.md)) |
+| 08/02 | 994 | 92 | Titan reseed of the corpus, plus the vector-scale benchmark |
+| 08/03 | 8 | 8 | |
+| **08/04** | **–** | **–** | **CockroachDB trial expired 08/03 — the demo was down** |
+| **08/05** | **–** | **–** | still down |
+| **08/06** | **166** | **34** | **cluster restored by adding a payment method** |
+| 08/07 | 14 | 14 | |
+
+Usage in `eu-central-1` begins on the day AWS granted access and stops for exactly the two days the
+cluster was disabled. The empty first week is therefore **evidence, not a gap** — without it, "AWS
+Support had this account clamped until 2026-08-01" is an assertion in a markdown file rather than
+something AWS's own metrics agree with.
+
+**Titan runs ~7.5× Claude's volume, and that is expected.** Reasoning is one Claude call per
+remediation step; embedding happens in bulk, a whole corpus at a time. The 994 on 08/02 is a
+reseed, not 994 incidents.
+
+Nothing before 2026-08-01 appears here because, under the clamp, the only region accepting calls
+was `eu-north-1` — which is why that region still has a populated `AWS/Bedrock` namespace.
+
 ## Still to capture — the AWS side
 
-The CockroachDB half is done; the AWS half is not. These are the frames that prove **Bedrock and
-Lambda actually ran**, in AWS's own console, rather than being asserted by our logs.
-
-> **Before you start:** sign in to the console as an identity that can see CloudFormation/Lambda.
-> The shell gotcha does not apply to the browser, but it does to every CLI command below — `.env`
-> exports static `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` for the Bedrock-only user, and boto3
-> ranks static keys **above** `AWS_PROFILE`. Unset both first or you get `AccessDenied` that looks
-> like a config error:
->
->     unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
->     export AWS_PROFILE=continuum-admin
->
-> **Set the region to Europe (Frankfurt) `eu-central-1` in the top-right switcher before every
-> capture.** Everything below is invisible in any other region, and an empty graph in `us-east-1`
-> looks exactly like a system that never ran.
-
-### Bedrock
-
-| # | Where to go | What to capture |
-| --- | --- | --- |
-| `09` | **Bedrock console** → left nav **Model access** (under *Bedrock configurations*) | `Amazon Titan Text Embeddings V2` and `Claude Sonnet 4.5` showing **Access granted**. This is the visual end of the ADR 008 quota story — the clamp that shaped the whole fallback design, resolved |
-| `10` | **CloudWatch** → **Metrics** → **All metrics** → **AWS/Bedrock** → **By Model ID** → tick `amazon.titan-embed-text-v2:0` and `eu.anthropic.claude-sonnet-4-5-…` → metric `Invocations` → set range to **Last 3 hours** | Non-zero invocation counts for **both** models. This is the one that matters: it proves Continuum called Bedrock, from AWS's side. Both Bedrock paths degrade silently, so without this a fallback run and a live run look identical |
-| `11` | Same screen, metric **InvocationLatency** | Real per-model latency, corroborating `docs/BENCHMARKS.md` |
-
-Capture `10` right after a run while the data is fresh — the graph is time-windowed, and a
-capture taken tomorrow at "Last 3 hours" is empty.
-
-### Lambda
-
-| # | Where to go | What to capture |
-| --- | --- | --- |
-| `12` | **Lambda console** → **Functions** → **continuum-orchestrator** → **Configuration → General configuration** | Runtime `python3.14`, memory, timeout `60s`, region. Proves the deployed function is the code in this repo, on the runtime the README claims |
-| `13` | Same function → **Monitor** tab → **Metrics** | Invocations, Duration and **Error count of 0** across the runs |
-| `14` | **Monitor → View CloudWatch logs** → log group `/aws/lambda/continuum-orchestrator` → open **two different log streams** | Two *separate* invocations, the second showing an `INIT_START` / `Init Duration` line — a genuine **cold start**. This is shot `09` in the chaos-run plan: statelessness is real, because the second invocation began with no process and no memory, and still resumed |
-
-The cold-start line is the whole point of `13`/`14`. `REPORT ... Init Duration: 1721.94 ms` in a
-stream that also contains `recovered_incident_state` is Lambda telling you, in its own log, that a
-brand-new execution environment read the incident back out of CockroachDB.
+Bedrock invocation counts are done. What remains is Bedrock's access page and the Lambda console.
 
 ### Prove it as text too, not just pixels ✅ captured
 
@@ -94,10 +106,10 @@ Screenshots can be doubted; a log query answers back. Both are captured, as of 2
 
 | # | File | What it establishes |
 | --- | --- | --- |
-| `15` | `15.lambda-cold-starts.txt` | Every invocation that began with no warm process, with its `Init Duration` and `Max Memory Used`. The `Status: timeout` lines are AWS itself killing an invocation mid-step — resilience suite B, in Lambda's own words |
-| `16` | `16.lambda-recovery-reads.txt` | `recovered_incident_state` with `last_step_index` advancing across separate cold invocations of one `correlation_id`. The recovery contract, observed on the real runtime |
+| `16` | `16.lambda-cold-starts.txt` | Every invocation that began with no warm process, with its `Init Duration` and `Max Memory Used`. The `Status: timeout` lines are AWS itself killing an invocation mid-step — resilience suite B, in Lambda's own words |
+| `17` | `17.lambda-recovery-reads.txt` | `recovered_incident_state` with `last_step_index` advancing across separate cold invocations of one `correlation_id`. The recovery contract, observed on the real runtime |
 
-> **`16` starts on 2026-08-07, and that is worth reading rather than trimming.** Nothing appears
+> **`17` starts on 2026-08-07, and that is worth reading rather than trimming.** Nothing appears
 > before that date because the deployed function's structured logs were being *discarded*:
 > `configure_logging()` called `basicConfig()`, which does nothing when the runtime has already
 > installed a root handler, so CloudWatch held only AWS's own START/END/REPORT lines. The function
@@ -145,17 +157,23 @@ shots depends on the account being legible.
 Checked against `submission/SUBMISSION.md`'s "no credentials or account IDs in any frame" rule:
 
 - **No credentials, API keys, connection strings or passwords appear in any file.**
-- **One thing is masked, and it is declared.** The browser toolbar in `03`–`07` carried the
+- **Two things are masked, and both are declared.** The browser toolbar in `03`–`10` carried the
   signed-in user's profile photograph — a picture of a real person, in material that goes to
   judges. It is replaced by a neutral grey disc, a flat placeholder rather than a blur, because a
   blur reads as *something was hidden here* and invites the question of what. The regions are
   committed as data in [`../../scripts/redact_evidence.py`](../../scripts/redact_evidence.py) with
   a reason each, the script is idempotent, and `--check` fails if a declared region is ever
   unmasked. It is 24×24 pixels in the window chrome and touches nothing the console rendered.
+- **The AWS account id** in the console's account tooltip is covered in `08`–`10`, filled with the
+  tooltip's own background colour so the frame reads as a tooltip showing a username. Only the
+  parenthesised number is hidden — the username `iarjunganesh` is the same public handle as the
+  GitHub repository and the Hugging Face Space, so hiding that would be theatre. The same id was
+  also removed from the function ARN quoted in `SUBMISSION.md` and `CLAUDE.md`, because masking it
+  in pictures while printing it in prose is a policy that only looks like one.
 - **Nothing else is altered.** No metric, count, axis, legend, timestamp, status, query text or
   identifier has been changed in any frame. That rule is written into the redaction script itself,
   because masking a number to make it agree with a document would turn evidence into decoration.
-- Cluster ID (`620162fd-…`) and service-account ID (`30413d2e-…`) are visible in `03`–`07`. These
+- Cluster ID (`620162fd-…`) and service-account ID (`30413d2e-…`) are visible in `03`–`07`. The **AWS account id** in `08`–`10` is masked (see below) These
   are **identifiers, not secrets** — useless without the API key or SQL credentials, which are not
   here. Kept because redacting them would weaken the corroboration these files exist to provide.
 - The Cockroach org and Hugging Face owner are both `iarjunganesh`, which is already public on the
