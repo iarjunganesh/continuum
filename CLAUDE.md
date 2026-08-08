@@ -33,6 +33,7 @@ make demo               # one remediation tick, in-process
 make chaos-demo         # the kill-and-recover sequence — see submission/DEMO_SCRIPT.md
 make probe-bedrock      # is live Bedrock open today? quotas are dynamic — run before recording
 make benchmark          # latency benchmarks → docs/BENCHMARKS.md
+make redact-evidence    # mask declared regions in assets/provider-evidence/ (--check gates it)
 make export-memory      # snapshot incidents/steps/embeddings → data/snapshots/*.jsonl
 make restore-memory SNAPSHOT=<path>   # put a snapshot back (idempotent, ON CONFLICT DO NOTHING)
 make deploy-restart-drill CLONE_DIR=<clean checkout>  # redeploy under an open incident, prove the resume
@@ -261,7 +262,7 @@ Commit subjects carry no version numbers — the tag and CHANGELOG carry the ver
 - Architecture spec: `docs/ARCHITECTURE.md`. **Two diagrams, both source-of-truth `.mmd` files in `assets/architecture/`**: `architecture-diagram.mmd` (components — *what talks to what*) and `recovery-sequence.mmd` (the two-cold-invocation handoff — *what survives*). Neither is duplicated as an inline ```mermaid``` fence anywhere; `README.md` and `docs/ARCHITECTURE.md` embed the rendered SVGs. Edit the `.mmd` and re-render — never hand-edit an SVG/PNG.
 - Demo script: `submission/DEMO_SCRIPT.md` — the kill-and-recover sequence is the thing being graded, treat changes to that flow as high-risk
 - Judge-facing packet: `submission/` — `SUBMISSION.md` (rules checklist), `DEVPOST.md` (hackathon facts + judging-criteria mapping), `DEVPOST_README.md` (**generated** paste mirror of `README.md`), `DEMO_SCRIPT.md` (the recording script — owns the graded kill-and-recover flow), `COSTS.md`. These moved out of `docs/`; don't recreate them there.
-- Judge-facing evidence: `assets/` — `assets/README.md` is the curated index and carries the capture plan for `assets/chaos-run/`
+- Judge-facing evidence: `assets/` — `assets/README.md` is the curated index and carries the capture plan for `assets/chaos-run/`. **Never hand-edit a frame in `assets/provider-evidence/`.** Masking is declared as data in `scripts/redact_evidence.py` with a reason per region, is idempotent, and `--check` fails on an unmasked declared region. It may cover a real person's photograph and an AWS account id, and nothing else — masking a metric, timestamp or identifier that a document cites would turn evidence into decoration. A region's coordinates are *measured off the capture*, never eyeballed: an eyeballed box once left a crescent of the photograph showing, and the account tooltip sits ~16px further right on CloudWatch's log-events page than on its metrics pages, which is why two boxes exist
 - Model prompts: `prompts/` — loaded at import time by the owning agent, deliberately (see `prompts/README.md`)
 
 ## When adding a CockroachDB or AWS integration

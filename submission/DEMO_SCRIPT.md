@@ -3,8 +3,9 @@
 > **Target 2:50–2:55** (hard cap **3:00**, disqualifying if over) · **public** on YouTube · 1920×1080 / 30 fps ·
 > no copyrighted music · synthetic data only (ADR 005).
 > **Status: not yet shot.** Ready and committed: narration (13 clips), captions, charts, cards,
-> both diagrams, and the re-captured CockroachDB/Space frames under `assets/provider-evidence/`
-> (2026-08-08). Outstanding: **9 stills, Recording #1
+> both diagrams, and the re-captured CockroachDB, Space, Bedrock and Lambda frames under
+> `assets/provider-evidence/` (2026-08-08) — one of which, `09.lambda-configuration.png`, satisfies
+> the `s09` beat outright. Outstanding: **8 stills, Recording #1
 > (the take that matters), Recording #2 (optional), Session C (evidence capture — not filmed), and
 > the cut.** Nothing here is blocked on anything — see the time budget below.
 
@@ -15,8 +16,9 @@ on the day. Plan roughly: OBS + desktop setup **30 min** · Step 0 prep **20 min
 assembly and export **90 min**. That is one
 focused day with slack, and it fits several times over in the time remaining — but only if it
 starts. **If you are running long, cut in this order**: Recording #2 (beat 12 falls back to the
-`s06` still, explicitly sanctioned below) → the `s09` Lambda console still (beat 10 runs on the
-chart alone) → beat 13's third still. **Never cut, shorten, or re-shoot-in-pieces beats 6–8.**
+`s06` still, explicitly sanctioned below) → beat 13's third still. **`s09` is no longer a cut
+candidate** — it costs nothing, because `09.lambda-configuration.png` is already captured and
+committed. **Never cut, shorten, or re-shoot-in-pieces beats 6–8.**
 A rough cut of beats 6–8 with everything else missing is a submittable video; a polished everything
 else without beats 6–8 is not.
 
@@ -155,6 +157,24 @@ This is most of what separates footage that reads as polished from footage that 
 
 ## Step 0 — one-time prep, before recording anything
 
+> **Set `AWS_PROFILE` in the recording shell, before anything else.** `--via-lambda` calls
+> `lambda:InvokeFunction`, and the **default identity in `~/.aws/credentials` is
+> `continuum-bedrock`, which is Bedrock-invoke-only by design** — it gets
+> `AccessDeniedException: not authorized to perform: lambda:InvokeFunction`. That command is the
+> **resume in Recording #1**, so the failure lands on camera in the one take that must not be cut,
+> and it reads as the recovery itself failing. Hit this for real on 2026-08-08.
+>
+> ```powershell
+> Remove-Item Env:AWS_ACCESS_KEY_ID     -ErrorAction SilentlyContinue
+> Remove-Item Env:AWS_SECRET_ACCESS_KEY -ErrorAction SilentlyContinue
+> $env:AWS_PROFILE = "continuum-admin"
+> python scripts/demo_run.py --tick --via-lambda --new   # throwaway — must print runtime lambda
+> ```
+>
+> Clearing the static keys first is not optional: `.env` exports them for the Bedrock-only user and
+> **boto3 ranks static environment keys above a named profile**, so setting the profile alone leaves
+> you on the identity that cannot invoke. Same trap as `docs/DEPLOY.md`, different command.
+
 Run this whole block and read the output. It regenerates every generated asset from current
 evidence, so nothing on screen can be stale:
 
@@ -199,7 +219,7 @@ python scripts/generate_demo_voiceover.py   # 4. narration + captions (only if w
 > `*.cockroachlabs.cloud` DSN without `--allow-cloud-burn` ([`scripts/resilience_bench.py`](../scripts/resilience_bench.py)),
 > so the command aborts mid-prep — and overriding the guard is worse: an N=200 run once left 665
 > incidents, 431 frozen in `remediating`, on the cluster judges open. The charts for beats 9–11 are
-> **already generated and committed** from evidence run `1f98a6fc`; they cannot drift, because
+> **already generated and committed** from evidence run `e765a3c5`; they cannot drift, because
 > `make charts` derives them from that folder. Regenerating buys nothing and risks the demo surface.
 > If you genuinely need fresh numbers, do it days ahead against `make local-cluster`, per
 > [`docs/CLUSTER_OPS.md`](../docs/CLUSTER_OPS.md), then re-run `make charts` and commit.
@@ -469,20 +489,21 @@ shooting anything. `s03` is done; `s09` is one screenshot away.
 | --- | --- | --- | --- | --- | --- |
 | `s01-readme-top` | 2 | A | 1280 | README from the banner through "The Problem" | pan down |
 | `s02-console-idle` | 3 | A | 1920 | Gradio console, incidents listed, nothing in flight | static |
-| `s03-space-url` | 3 | B | — | Space at its real URL, **address bar in frame**, ideally with a step in-flight. The frame that used to satisfy this was deleted on 2026-08-08 as stale — its KPI tiles and cards predated the provenance badges, so beside the current console it read as a different app. No frame in `assets/provider-evidence/` now shows the address bar either, so this one screenshot closes both gaps | static |
+| `s03-space-url` | 3 | B | — | Space at its real URL, **address bar in frame**, ideally with a step in-flight. The frame that used to satisfy this was deleted on 2026-08-08 as stale — its KPI tiles and cards predated the provenance badges, so beside the current console it read as a different app. No frame in `assets/provider-evidence/` shows the **Space's** URL in an address bar either — the AWS and CockroachDB frames show their own consoles' URLs, not this one — so this single screenshot closes both gaps | static |
 | `s04-timeline-executing` | 5 | A | 1920 | Recovery timeline, a step mid-flight, `correlation_source: bedrock` visible | slow push-in |
 | `s05-explain-plan` | 11 | A | 1280 | `EXPLAIN` showing `vector search … prefix spans` | static |
 | `s06-mcp-panel` | 12 | A | 1920 | Gradio "Ask via MCP" with a live answer — **fallback if Recording #2 is skipped** | static |
 | `s07-ci-badges` | 13 | A | 1280 | README badge rows — CI green, coverage, versions | static |
 | `s08-adr-list` | 13 | A | 1280 | The ten-row ADR table | pan down |
-| `s09-lambda-console` | 10 | B | — | AWS console: `continuum-orchestrator`, no provisioned concurrency. **Capture steps: `assets/provider-evidence/README.md` shot `12`** | static |
+| `s09-lambda-console` | 10 | B | — | AWS console: `continuum-orchestrator`, no provisioned concurrency. **Already captured** — use `assets/provider-evidence/09.lambda-configuration.png` | static |
 
 ### Already captured: provider evidence
 
-`assets/provider-evidence/` holds console captures taken from **Cockroach Labs' and Hugging Face's
-own UIs** — screens this project cannot fake. They were captured as repo evidence first, so most
-have no beat and belong in the README and on Devpost rather than in a 3-minute video. Three of them
-do earn screen time, and one closes a still outright.
+`assets/provider-evidence/` holds console captures taken from **Cockroach Labs', Hugging Face's and
+AWS's own UIs** — screens this project cannot fake. They were captured as repo evidence first, so
+most have no beat and belong in the README and on Devpost rather than in a 3-minute video. Four of
+them earn screen time, and `09` closes the `s09-lambda-console` still outright — that beat needs no
+new capture.
 
 `assets/provider-evidence/` was re-captured on **2026-08-08** and the browser-chrome frames are
 already exactly **1920×1080**, so they drop straight onto the timeline with no intermediate step.
@@ -497,7 +518,9 @@ those as pans; it pads short captures and pans tall ones, and never downscales.
 | `03.crdb-cluster-overview-eu-central-1.png` | **Beat 13**, after `s07-ci-badges` | `Plan Basic · Cloud AWS · Region Frankfurt (eu-central-1) PRIMARY · v26.2.5`, with the cluster's creation date and live RU burn, in Cockroach Labs' own UI. The "CockroachDB deployed on AWS" requirement corroborated by a screen we don't control. Exactly 1920×1080 — hold static |
 | `05.crdb-sql-activity-fingerprints.png` | **Beat 13** alternative | Real statement fingerprints with execution counts — the single write path as actual traffic — and the correlation query visible in its `WITH nearest AS (… embedding <->…)` CTE form. Contention time 0.0 ns on every row |
 | `01.space-console-full-page.png` | **Beat 3** alternative to `s02-console-idle` | The entire console in one tall image. Needs a pan (or a crop) — it is 5412 px tall. **It shows a step in flight**, so it reads as beat 3 *or* beat 5, not as "idle" |
-| `00`, `04`, `06`, `07` | **not in the video** | The blank first paint, the Metrics dashboard, job history and the MCP service account. Repo and Devpost evidence; none advances the one sentence this video exists to land |
+| `09.lambda-configuration.png` | **Beat 10**, satisfies `s09-lambda-console` | `Provisioned concurrency (0) — No configurations`, in AWS's own console. ADR 002's guarantee rests on an absence, and this is the only page that states it. Exactly 1920×1080 — hold static |
+| `11.lambda-log-stream-recovery.png` | **Beat 10** alternative | One CloudWatch log stream: `INIT_START` on `python:3.14`, then `recovered_incident_state` reads carrying `last_step_index`. A cold environment reading incident state back out of CockroachDB, in Lambda's own log. Dense — only use it if you can hold it long enough to read one JSON block |
+| `00`, `04`, `06`, `07`, `08`, `10` | **not in the video** | The blank first paint, the Metrics dashboard, job history, the MCP service account, and the two CloudWatch data tables (Bedrock invocations/latency, Lambda invocations/errors). Repo and Devpost evidence; the tables in particular are unreadable at video scale — the generated charts carry those numbers instead |
 
 **Do not put any of these inside beats 6–8.** They are stills and pans of pages, and those three
 beats are one continuous take for a reason.
@@ -707,9 +730,12 @@ These matter more than polish. A judge who catches one overstatement discounts e
 
 **Prep**
 
+- [ ] **`$env:AWS_PROFILE = "continuum-admin"` set in the recording shell, static keys cleared** —
+      then `python scripts/demo_run.py --tick --via-lambda --new` prints `runtime: lambda`. The
+      default identity cannot invoke the function, and the failure would land inside Recording #1
 - [ ] `make probe-bedrock` green, `reasoning_source` reads `bedrock` on screen, output saved to evidence
 - [ ] `make check-drift` clean — nothing stale can appear in beat 13
-- [ ] Charts present and committed (`assets/charts/*-16x9.png`, from evidence run `1f98a6fc`) —
+- [ ] Charts present and committed (`assets/charts/*-16x9.png`, from evidence run `e765a3c5`) —
       **do not run `make resilience-bench` today**; it aborts on a Cloud DSN and burns the demo
       cluster if forced
 - [ ] `make voiceover` current — narration table in this doc matches the committed MP3s
@@ -727,7 +753,7 @@ These matter more than polish. A judge who catches one overstatement discounts e
       terminal stays in frame. If the resume fell back to `--via-api`, `vo_06-resume` was re-recorded
       to match
 - [ ] Recording #2 shot, or beat 12 consciously falls back to the `s06` still
-- [ ] The remaining **9** stills captured at the right type and viewport into
+- [ ] The remaining **8** stills captured at the right type and viewport into
       `assets/demo-video/statics/` — `s03` is no longer pre-satisfied; the frame that covered it was
       deleted as stale on 2026-08-08
 - [ ] `python scripts/build_obs_assets.py` run **only if** beat 3 uses the full-page

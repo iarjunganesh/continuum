@@ -246,9 +246,9 @@ Judge-facing evidence — real runs with raw CockroachDB snapshots, structured l
 
 Captured by `make chaos-capture`, which performs the kill *and* records it, and marks the folder `FAIL` rather than emitting evidence if the kill misses the execution window or a step runs twice. `correlation_source` and `reasoning_source` both read `bedrock`, so the live AWS path is provable from the rows rather than assumed.
 
-Alongside it: [`assets/resilience-run/`](assets/resilience-run/) (kill storms, AWS-initiated Lambda timeouts, exactly-once under 50-way concurrency, vector search to 10,000 vectors), [`assets/deploy-restart-run/`](assets/deploy-restart-run/) (the function's code replaced under an open incident), and [`assets/provider-evidence/`](assets/provider-evidence/) — the same facts in Cockroach Labs' and Hugging Face's own consoles, screens this project cannot fake.
+Alongside it: [`assets/resilience-run/`](assets/resilience-run/) (kill storms, AWS-initiated Lambda timeouts, exactly-once under 50-way concurrency, vector search to 10,000 vectors), [`assets/deploy-restart-run/`](assets/deploy-restart-run/) (the function's code replaced under an open incident), and [`assets/provider-evidence/`](assets/provider-evidence/) — the same facts in Cockroach Labs', Hugging Face's and AWS's own consoles, screens this project cannot fake.
 
-> **Still pending:** console screenshots for the chaos run, and an equivalent capture driven by cold Lambda invocations rather than a local process. Recovery on the deployed function is already evidenced **five** other ways: the deploy-restart drill, the AWS-timeout suite where AWS performs the kill, cold-invocation latencies in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md), durable steps recording `runtime: lambda` alongside the model ids that produced them, and — since 2026-08-08 — the function's own CloudWatch logs, where `recovered_incident_state` shows `last_step_index` advancing across separate cold invocations of one `correlation_id` ([`assets/provider-evidence/13.lambda-recovery-reads.txt`](assets/provider-evidence/13.lambda-recovery-reads.txt)). Open gaps are tracked in [`submission/SUBMISSION.md`](submission/SUBMISSION.md).
+> **Still pending:** console screenshots for the chaos run, and an equivalent capture driven by cold Lambda invocations rather than a local process. Recovery on the deployed function is already evidenced **six** other ways: the deploy-restart drill, the AWS-timeout suite where AWS performs the kill, cold-invocation latencies in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md), durable steps recording `runtime: lambda` alongside the model ids that produced them, and — since 2026-08-08 — the function's own CloudWatch logs in both forms: as text ([`assets/provider-evidence/13.lambda-recovery-reads.txt`](assets/provider-evidence/13.lambda-recovery-reads.txt)) and as a console frame ([`assets/provider-evidence/11.lambda-log-stream-recovery.png`](assets/provider-evidence/11.lambda-log-stream-recovery.png)), both showing `recovered_incident_state` with `last_step_index` across cold invocations of one `correlation_id`. Open gaps are tracked in [`submission/SUBMISSION.md`](submission/SUBMISSION.md).
 
 ---
 
@@ -414,7 +414,7 @@ continuum/
 │   ├── architecture/          # mermaid source + brand-themed SVG/PNG renders
 │   ├── charts/                # generated benchmark charts (make charts) — never screenshots
 │   ├── chaos-run/             # captured kill-and-recover runs (evidence/ + screenshots/)
-│   ├── provider-evidence/     # the same facts in Cockroach Labs' and Hugging Face's own consoles
+│   ├── provider-evidence/     # the same facts in Cockroach Labs', Hugging Face's and AWS's own consoles
 │   ├── resilience-run/        # kill storms, Lambda timeouts, exactly-once, vector scale
 │   ├── deploy-restart-run/    # the code swapped under an open incident, and the resume
 │   ├── demo-cards/            # banner + sign-off cards (SVG source, 16:9 video PNGs)

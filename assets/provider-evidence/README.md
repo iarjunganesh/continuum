@@ -214,6 +214,12 @@ The commands, for re-capture:
 To drive fresh invocations first — each call is a separate cold invocation, and four of them take
 one incident `0 → 1 → 2 → resolved`:
 
+    # AWS_PROFILE must name an identity with lambda:InvokeFunction. The default
+    # credentials file identity is continuum-bedrock, which is Bedrock-invoke-only
+    # and fails with AccessDeniedException. Clear the static keys first — boto3
+    # ranks them above a named profile, so setting the profile alone is not enough.
+    #   PowerShell: Remove-Item Env:AWS_ACCESS_KEY_ID, Env:AWS_SECRET_ACCESS_KEY
+    #               $env:AWS_PROFILE = "continuum-admin"
     python scripts/demo_run.py --tick --via-lambda
 
 **Without `--new`.** The default alert carries the fixed correlation id `demo-incident-001`, which

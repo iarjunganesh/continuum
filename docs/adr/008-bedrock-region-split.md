@@ -161,9 +161,9 @@ Three consequences, none of which change the decision:
 - **There is no "Access granted" screenshot to take.** `assets/provider-evidence/`
   had a slot reserved for one. It is removed rather than left pending, because a
   checklist item nobody can ever complete is worse than an honest absence. What
-  replaces it is better evidence anyway: frames `08`–`10` are CloudWatch counting
-  **1.66k Titan and 220 Claude invocations**, and a model that cannot be accessed
-  cannot be invoked. Access is proven by use.
+  replaces it is better evidence anyway: frame `08` is CloudWatch counting
+  **1.66k Titan and 224 Claude invocations** and timing them, and a model that
+  cannot be accessed cannot be invoked. Access is proven by use.
 - **The clamp this ADR describes was never the per-model toggle.** It was
   account-level eligibility, resolved through an AWS Support review on 2026-08-01
   (addendum 2). Automatic enablement does not retroactively explain it, and does not

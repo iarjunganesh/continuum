@@ -47,6 +47,13 @@ comments, test fixtures, and captured evidence.
   function's whole environment, including the live database URL. Query the single field instead.
   The rule and its worked examples are in `CLAUDE.md` under Non-negotiable constraints, so agents
   working in this repo inherit it.
+- **The rule exists because the failure happened.** On 2026-08-08 exactly that broad read printed
+  the live CockroachDB DSN, password included, to a terminal. Nothing reached the repository. The
+  SQL credential was **rotated the same day** across every consumer — the local `.env`, the Hugging
+  Face Space secret, the GitHub Actions secret, the machine-scope environment variable the deploy
+  shell reads, and the deployed function's SAM parameter — and connectivity was re-verified against
+  the cluster afterwards. Recorded here rather than quietly fixed: a rotation nobody can find the
+  record of is indistinguishable from a rotation that never happened.
 
 - The `.mcp.json` MCP server config uses `${COCKROACH_MCP_API_KEY}` environment expansion, so no
   secret is committed even though the config is.

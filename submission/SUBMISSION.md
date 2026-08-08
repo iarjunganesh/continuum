@@ -49,17 +49,22 @@ box here is the honest state, not an oversight.
 ## Submission Materials
 
 - [x] **Public GitHub repo** with MIT `LICENSE`
-  - [ ] License visible in the repo's **About** sidebar (GitHub must detect it — verify on the
-        rendered repo page, not just that the file exists)
+  - [x] License visible in the repo's **About** sidebar — GitHub detects it as `MIT` / *MIT
+        License*, confirmed 2026-08-08 against the repository API's `license.spdx_id`, which is the
+        same field that renders the sidebar. Checking that the file exists would not have proven
+        this; an undetected licence file shows nothing in About
 - [x] **README** with setup/run instructions, dependencies, and example config (`.env.example`)
-- [ ] **Functional demo app URL**
+- [x] **Functional demo app URL**
   - [x] Deployed to Hugging Face Spaces (`docs/DEPLOY.md`) — free, cardless, auto-synced on push
   - [x] Space secrets `COCKROACH_DATABASE_URL` + `COCKROACH_MCP_CLUSTER_ID` set; Space builds
   - [x] **Unblocked 2026-08-06:** the cluster's 30-day free trial expired on 2026-08-03 and was
         restored by adding a payment method — no data lost, same cluster id. Verified live:
         connect 360 ms, `EXPLAIN` still plans `• vector search` on the C-SPANN index, embeddings
         intact. See the first row of Known Gaps and [`../docs/CLUSTER_OPS.md`](../docs/CLUSTER_OPS.md)
-  - [ ] URL confirmed publicly accessible in a private/incognito window before submitting
+  - [x] URL confirmed publicly accessible — `https://iarjunganesh-continuum.hf.space/` returns
+        **HTTP 200** to an unauthenticated request carrying no cookies or session at all, which is
+        a stricter test than an incognito window. Re-check on submission day; a Space can be made
+        private by an account setting long after it was verified public
   - [x] **Populated with seeded synthetic incidents, on real Titan vectors (2026-08-07).** 49
         incidents, 139 remediation steps, 40 embeddings — all `amazon.titan-embed-text-v2:0`.
         Counts read off the live console on 2026-08-08 (`assets/provider-evidence/01`); they grow
@@ -127,7 +132,7 @@ drift and the stale one is always the one a judge reads.
 | ~~**Live Bedrock path never executed**~~ — **resolved 2026-08-01** | Titan/Claude response handling was unproven; every run to date had used silent fallbacks | Both paths verified end to end: `embed()` returns 1024 floats matching `VECTOR(1024)`, `_propose_via_bedrock()` parsed real Claude output 3/3. Every step now records `reasoning_source` / `correlation_source` so the mode is visible rather than inferred |
 | **No demo video** | A required submission material | Scripted in `DEMO_SCRIPT.md`, unrecorded |
 | ~~**No captured evidence runs**~~ — **partly resolved 2026-08-03** | `assets/chaos-run/` was scaffolding — capture plan and shot list only | `make chaos-capture` now performs the kill *and* records it. `assets/chaos-run/local-4789422d/` holds a real run: a live orchestrator hard-killed mid-step, the frozen `executing` row read back out of CockroachDB with no process alive to own it, and the cold resume of that exact step, with `correlation_source`/`reasoning_source` both `bedrock`. **Still open:** the console screenshots for that run. The Lambda half narrowed on 2026-08-07 — a cold invoke of the deployed function persisted `runtime: lambda` alongside both model ids into a durable step — but that is a *provenance* proof, not a kill-and-resume capture, so the folder in the next row stays open |
-| **Lambda-side recovery has no `chaos-run` folder of its own** | The captured run is a local process kill | Recovery on the deployed function is nonetheless evidenced **five** independent ways: the deploy-restart drill (`assets/deploy-restart-run/dba642ed/`), the Lambda-timeout suite where **AWS** performs the kill, the cold-invocation latencies in `docs/BENCHMARKS.md`, a durable step written by the deployed function recording `runtime: lambda`, `reasoning_model_id` and `embedding_model_id` under its own IAM role, and — as of 2026-08-08 — the function's **own CloudWatch logs**: `recovered_incident_state` with `last_step_index` advancing across separate cold invocations of one `correlation_id` (`assets/provider-evidence/13.lambda-recovery-reads.txt`). That last one only became possible with `v0.9.5`; before it, `basicConfig()` was a no-op under the runtime's pre-installed root handler and every application log line the function emitted was discarded. A dedicated capture would re-prove the same contract, so it stays deprioritised rather than forgotten |
+| **Lambda-side recovery has no `chaos-run` folder of its own** | The captured run is a local process kill | Recovery on the deployed function is nonetheless evidenced **six** independent ways: the deploy-restart drill (`assets/deploy-restart-run/dba642ed/`), the Lambda-timeout suite where **AWS** performs the kill, the cold-invocation latencies in `docs/BENCHMARKS.md`, a durable step written by the deployed function recording `runtime: lambda`, `reasoning_model_id` and `embedding_model_id` under its own IAM role, and — as of 2026-08-08 — the function's **own CloudWatch logs** in two forms: as text (`assets/provider-evidence/13.lambda-recovery-reads.txt`) and as a console frame (`assets/provider-evidence/11.lambda-log-stream-recovery.png`), both showing `recovered_incident_state` with `last_step_index` across cold invocations of one `correlation_id`, the frame with `INIT_START` on `python:3.14` immediately above it. That last one only became possible with `v0.9.5`; before it, `basicConfig()` was a no-op under the runtime's pre-installed root handler and every application log line the function emitted was discarded. A dedicated capture would re-prove the same contract, so it stays deprioritised rather than forgotten |
 | **Container / process-restart not proven separately** | One row of the failure-mode matrix has no dedicated harness | Deliberately subsumed: a Lambda timeout *is* the execution environment being taken away mid-step, under stricter conditions than a container restart — AWS delivers the kill, with no catchable signal. Stated rather than quietly folded away |
 | **Bedrock quotas are dynamic and account-level** | Both Bedrock paths degrade *silently* by design, so a throttled account produces a demo that looks fine while never calling Bedrock | `make probe-bedrock` before any recording, and every step persists `reasoning_source` / `correlation_source` so the mode is visible in the durable row rather than inferred. Since 2026-08-07 a step that *did* reach Bedrock also records **which model** (`reasoning_model_id`, `embedding_model_id`, `bedrock_region`), and one that fell back records none — so the console can name the model rather than assert it. ADR 008 has the history |
 | **HF Space can't self-trigger an incident** | A first-time judge sees state but can't create any | Read-only by design (single write path); an incident-start CTA is not currently in scope |
