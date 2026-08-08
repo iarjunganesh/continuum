@@ -20,6 +20,18 @@ went stale at least once:
   7. The Lambda manifest has not drifted from requirements.txt
   8. README's Project Structure names every real path, and every enumerated
      directory names all of its children
+  9. Repo paths written in prose (backticks, not links) resolve — this is how
+     references to renumbered evidence frames survived a whole release
+ 10. README embeds binaries by absolute URL, never relative: README.md is also
+     the Hugging Face Space's landing page and the sync strips every binary, so
+     a relative PNG renders on GitHub and 404s on the public demo
+ 11. Docs crediting the generated charts name the run they actually regenerate
+     from, recomputed rather than trusted
+
+Every check here has been run against the bug it was written for and watched to
+fail. Two of these three did not fire on first write — one regex could not cross
+a `.` in a glob — and a gate that has only ever been seen passing is indis-
+tinguishable from one that does nothing.
 
 Exit code 0 only when everything agrees, so CI can gate on it.
 
@@ -416,6 +428,163 @@ def check_project_tree() -> list[Failure]:
     return fails
 
 
+# --------------------------------------------------------------------------
+# Paths named in prose, not as links. `check_links` only sees markdown link
+# targets, so a path written as `assets/provider-evidence/15.foo.txt` inside
+# backticks was invisible to it — which is how references to renumbered evidence
+# files survived a rename. Anything that looks like a repo path and sits in
+# inline code has to resolve.
+_INLINE_PATH = re.compile(r"`([A-Za-z0-9_.][A-Za-z0-9_./-]*\.[A-Za-z0-9]{1,6})`")
+
+# Prefixes worth policing: directories whose contents get renumbered, renamed or
+# regenerated. Deliberately not "any path" — prose is full of `foo.py` examples,
+# `*.jsonl` globs and filenames belonging to other projects.
+_INLINE_PATH_ROOTS = ("assets/", "scripts/", "docs/", "infra/", "agents/", "submission/", "prompts/", "tests/")
+
+# CHANGELOG.md is exempt, and that is not a loophole. Its entire job is to
+# describe states the repo used to be in — "moved docs/SUBMISSION.md to
+# submission/" names a path that must no longer exist for the entry to be true.
+# Enforcing existence there would force history to be rewritten every time a
+# file moves, which is the opposite of what a changelog is for.
+_INLINE_PATH_EXEMPT_FILES = {"CHANGELOG.md"}
+
+# A single line may opt out when it deliberately names something absent — a file
+# that was removed, or one that does not exist yet. Mirrors the
+# `drift-allow-future` marker above: the escape hatch is per-line and has to be
+# typed on purpose, so it cannot silently cover a genuine stale reference on the
+# next line.
+_ALLOW_PATH_MARKER = "drift-allow-path"
+
+
+def check_inline_paths() -> list[Failure]:
+    """Repo paths written in backticks must exist, not just linked ones.
+
+    `check_links` reads markdown link targets. A path mentioned in prose is
+    invisible to it, so when the provider-evidence frames were renumbered the
+    references to `15.lambda-cold-starts.txt` in three documents stayed green
+    through a full release.
+    """
+    fails: list[Failure] = []
+    for path in _markdown_files():
+        rel = path.relative_to(REPO_ROOT).as_posix()
+        if rel in _INLINE_PATH_EXEMPT_FILES:
+            continue
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if _ALLOW_PATH_MARKER in line:
+                continue
+            for token in _INLINE_PATH.findall(line):
+                if not token.startswith(_INLINE_PATH_ROOTS):
+                    continue
+                if "*" in token or (REPO_ROOT / token).exists():
+                    continue
+                fails.append(
+                    (
+                        "inline-paths",
+                        f"{rel}:{line_no} names `{token}`, which does not exist. If it was removed "
+                        f"or does not exist yet, add a `{_ALLOW_PATH_MARKER}` comment to that line",
+                    )
+                )
+    return fails
+
+
+# --------------------------------------------------------------------------
+# README.md is ALSO the Hugging Face Space's landing page, and
+# .github/workflows/sync-to-hf-space.yml git-rm's every binary before pushing to
+# the Hub. So a relative PNG renders on GitHub and 404s on the live demo — the
+# first page a judge opens after the repo. SVGs are not stripped.
+_HF_STRIPPED = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".mp4", ".mov", ".webm", ".mp3", ".wav", ".m4a")
+
+
+def check_readme_binaries_are_absolute() -> list[Failure]:
+    """Binary assets in README.md must use absolute URLs, or the Space breaks.
+
+    Nothing else catches this: GitHub renders the relative path perfectly, CI is
+    green, and the only symptom is a broken image on the public demo.
+    """
+    fails: list[Failure] = []
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    targets = re.findall(r"!\[[^\]]*\]\(([^)\s]+)\)", readme)
+    targets += re.findall(r'\b(?:src|srcset)="([^"]+)"', readme)
+    for target in targets:
+        if target.startswith(("http://", "https://", "data:")):
+            continue
+        if target.lower().endswith(_HF_STRIPPED):
+            fails.append(
+                (
+                    "readme-binaries",
+                    f"README.md embeds {target} by relative path — the HF sync strips binaries, "
+                    "so this renders on GitHub and breaks on the Space. Use the raw.githubusercontent URL",
+                )
+            )
+    return fails
+
+
+# --------------------------------------------------------------------------
+# The charts are generated from the newest resilience run. Docs that name which
+# run they came from go stale the moment a newer run lands, and the number they
+# attribute is then attached to the wrong evidence.
+
+
+_ALLOW_RUN_MARKER = "drift-allow-run"
+
+
+def check_chart_provenance() -> list[Failure]:
+    """A doc naming the charts' source run must name the run they'd regenerate from.
+
+    `submission/DEMO_SCRIPT.md` credited run `1f98a6fc` for a day after the
+    charts had been rebuilt from `e765a3c5`. Both ids are real, both folders are
+    committed, and every link resolved — only recomputing the source catches it.
+    """
+    runs_dir = REPO_ROOT / "assets" / "resilience-run"
+    if not runs_dir.is_dir():
+        return []
+    known = {p.name for p in runs_dir.iterdir() if p.is_dir()}
+    if not known:
+        return []
+    try:
+        sys.path.insert(0, str(REPO_ROOT / "scripts"))
+        from build_charts import newest_run  # type: ignore[import-not-found]
+
+        newest = newest_run().name
+    except Exception as exc:  # noqa: BLE001 — a broken builder is its own failure, reported not raised
+        return [("chart-provenance", f"could not resolve the newest resilience run: {type(exc).__name__}")]
+
+    fails: list[Failure] = []
+    # Scoped to lines about charts, plus the line before. Run ids are cited
+    # legitimately elsewhere — COSTS.md attributes Request Unit spend to a
+    # specific bench, and that stays true when a newer run lands. Only the
+    # charts are *regenerated*, so only they can be miscredited.
+    #
+    # The first version of this pattern required the id within 80 non-dot
+    # characters of "charts". It never fired: the real sentence is "Charts
+    # present and committed (`assets/charts/*-16x9.png`, from evidence run
+    # `…`)", and the `.` in the glob stopped the match dead. Found by testing
+    # the check against the bug it was written for, which is the only way to
+    # know a gate works.
+    pattern = re.compile(r"evidence run `([0-9a-f]{8})`", re.I)
+    for path in _markdown_files():
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for line_no, line in enumerate(lines, 1):
+            # Prose that *narrates* a past miscrediting has to name the wrong run
+            # to make sense — CLAUDE.md documents this very failure. Same
+            # per-line, typed-on-purpose escape hatch as the other two checks.
+            if _ALLOW_RUN_MARKER in line:
+                continue
+            context = (lines[line_no - 2] if line_no >= 2 else "") + line
+            if "chart" not in context.lower():
+                continue
+            for cited in pattern.findall(line):
+                if cited in known and cited != newest:
+                    rel = path.relative_to(REPO_ROOT).as_posix()
+                    fails.append(
+                        (
+                            "chart-provenance",
+                            f"{rel}:{line_no} credits the charts to run `{cited}`, but they regenerate from `{newest}`",
+                        )
+                    )
+    return fails
+
+
 CHECKS = [
     ("version fields agree", check_versions),
     ("no future-dated references", check_no_future_dates),
@@ -426,6 +595,9 @@ CHECKS = [
     ("resilience report has every suite", check_resilience_suites),
     ("lambda manifest in sync", check_lambda_manifest),
     ("README project tree matches the repo", check_project_tree),
+    ("paths named in prose exist", check_inline_paths),
+    ("README binaries use absolute URLs", check_readme_binaries_are_absolute),
+    ("charts credited to the run they came from", check_chart_provenance),
 ]
 
 

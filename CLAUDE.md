@@ -122,6 +122,37 @@ manifest in sync, and the README's Project Structure naming every real path. It 
 release date four days in the future shipped on page one of the changelog, and a stale test count
 survived several sweeps because each one checked whichever places came to mind.
 
+**Four rules that are cheap to follow and expensive to rediscover** — each cost real time before it
+was written down, and the first three are now mechanically enforced:
+
+- **Renaming or renumbering a file is a repo-wide grep, in the same commit.** Not just markdown
+  links — paths get written in prose inside backticks, and `check_links` never saw those. Renumbering
+  `assets/provider-evidence/` left three documents pointing at `15.lambda-cold-starts.txt` through an
+  entire release. `check_inline_paths` now covers it; a path that is *deliberately* absent (removed,
+  or not created yet) takes a `<!-- drift-allow-path: reason -->` on that line rather than a
+  weakened check.
+- **A binary embedded in `README.md` must use an absolute `raw.githubusercontent.com` URL.**
+  `README.md` is *also* the Hugging Face Space's landing page, and `sync-to-hf-space.yml` runs
+  `git rm` on every PNG/MP4/MP3 before pushing to the Hub. A relative path therefore renders
+  perfectly on GitHub, passes CI, and shows a **broken image on the public demo** — the page a judge
+  opens straight after the repo. SVGs are not stripped, which is why the banner and both diagrams
+  stay relative. Do not "tidy" an absolute asset URL into a relative one.
+- **Anything generated names the run it was generated from, and that claim is recomputed.**
+  `submission/DEMO_SCRIPT.md` credited the charts to evidence run `1f98a6fc` for a day after they were rebuilt from a newer one. <!-- drift-allow-run: narrates the miscredit, so it must name the wrong run -->
+  Both ids were real, both folders committed, every link resolved — only re-deriving the source
+  catches it.
+- **A checkbox is evidence, not decoration.** Before ticking one, verify it the way the item means:
+  the licence check reads the API field that *renders* the About sidebar (a file GitHub fails to
+  detect shows nothing there), and the public-URL check is an unauthenticated request with no
+  cookies. Record *how* it was verified next to the tick. Leave genuinely unverifiable items
+  unticked — "runs from a clean clone" cannot be proven on the machine that already has everything
+  installed.
+
+**When you add a check here, watch it fail first.** Two of the three above did not fire when first
+written — one regex could not cross the `.` in `assets/charts/*-16x9.png` — and both looked green.
+Break the thing deliberately, confirm the gate reports it, then restore. A check that has only ever
+been observed passing is indistinguishable from one that does nothing.
+
 Two rules that keep the gate worth having:
 
 - **A new future date must be justified.** Deadlines are legitimately ahead of today, so they live

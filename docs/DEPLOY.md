@@ -27,7 +27,7 @@ The Space runs **Gradio 6** (pinned via `sdk_version` in the README frontmatter 
    > The sync workflow therefore strips binaries onto a throwaway commit before pushing. Nothing
    > the Space renders is binary — `README.md` embeds only SVGs — so the Space is unaffected, and
    > the binaries stay on GitHub where the judge-facing evidence lives. This will matter more once
-   > `assets/demo-video/continuum.mp4` exists.
+   > `assets/demo-video/continuum.mp4` exists. <!-- drift-allow-path: names the final cut, which is deliberately not created yet -->
 
 4. **Add secrets on the Space itself** (not GitHub — this is separate)
    - Space page → Settings → Repository secrets → New secret

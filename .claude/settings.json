@@ -6,9 +6,18 @@
       "Bash(python -m pytest*)",
       "Bash(python -m ruff*)",
       "Bash(ruff*)",
+      "Bash(mypy*)",
+      "Bash(python scripts/check_drift.py*)",
+      "Bash(python scripts/build_devpost_readme.py*)",
+      "Bash(python scripts/redact_evidence.py*)",
+      "Bash(python scripts/probe_bedrock.py*)",
+      "Bash(python scripts/preflight_deploy.py*)",
       "Bash(git status)",
       "Bash(git diff*)",
       "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git describe*)",
+      "Bash(git ls-files*)",
       "Bash(uvicorn*)",
       "Bash(curl -X GET http://localhost*)",
       "Bash(curl -X POST http://localhost*)",
@@ -36,6 +45,13 @@
             "command": "grep -q '\"file_path\".*README\\.md' <<<\"$(cat)\" && python scripts/build_devpost_readme.py >/dev/null 2>&1; true",
             "statusMessage": "Regenerating Devpost README mirror...",
             "async": true
+          },
+          {
+            "_comment": "Evidence frames mask a real person's photograph and an AWS account id via declared regions in scripts/redact_evidence.py. A re-captured frame lands unredacted and looks completely normal, so this reports it at the moment the folder is touched rather than leaving it to CI or to nobody. Synchronous and non-async on purpose: it is a sub-second pixel check, and the whole point is that the warning arrives before the next action.",
+            "type": "command",
+            "shell": "bash",
+            "command": "grep -q 'assets/provider-evidence' <<<\"$(cat)\" && python scripts/redact_evidence.py --check 2>&1 | grep -E 'Unredacted|^  [a-z0-9]' ; true",
+            "statusMessage": "Checking evidence redaction..."
           }
         ]
       }

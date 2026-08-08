@@ -257,6 +257,25 @@ Captured by `make chaos-capture`, which performs the kill *and* records it, and 
 
 Alongside it: [`assets/resilience-run/`](https://github.com/iarjunganesh/continuum/tree/main/assets/resilience-run/) (kill storms, AWS-initiated Lambda timeouts, exactly-once under 50-way concurrency, vector search to 10,000 vectors), [`assets/deploy-restart-run/`](https://github.com/iarjunganesh/continuum/tree/main/assets/deploy-restart-run/) (the function's code replaced under an open incident), and [`assets/provider-evidence/`](https://github.com/iarjunganesh/continuum/tree/main/assets/provider-evidence/) — the same facts in Cockroach Labs', Hugging Face's and AWS's own consoles, screens this project cannot fake.
 
+### The providers, saying it themselves
+
+Four of those frames, one per claim. Every number is rendered by a console this project does not
+control — click any image for the full-resolution capture, and see
+[`assets/provider-evidence/README.md`](https://github.com/iarjunganesh/continuum/blob/main/assets/provider-evidence/README.md) for what each one does
+and does not establish.
+
+<!-- These four are PNGs and are deliberately referenced by ABSOLUTE raw.githubusercontent URL,
+     not by relative path. This file is also the Hugging Face Space's landing page, and
+     .github/workflows/sync-to-hf-space.yml git-rm's every binary before pushing to the Hub — so a
+     relative PNG path renders on GitHub and shows a broken image on the live demo. SVGs are not
+     stripped, which is why the banner and diagrams above can stay relative. Do not "tidy" these
+     into relative paths. -->
+
+| | |
+| --- | --- |
+| [<img src="https://raw.githubusercontent.com/iarjunganesh/continuum/main/assets/provider-evidence/03.crdb-cluster-overview-eu-central-1.png" alt="CockroachDB Cloud console — cluster settings drawer showing Plan Basic, Cloud AWS, Region Frankfurt eu-central-1 PRIMARY, v26.2.5, and live Request Unit and storage usage"/>](https://raw.githubusercontent.com/iarjunganesh/continuum/main/assets/provider-evidence/03.crdb-cluster-overview-eu-central-1.png)<br/>**CockroachDB runs on AWS, in the claimed region** — `Plan Basic · Cloud AWS · Region Frankfurt (eu-central-1) PRIMARY`, in Cockroach Labs' own UI (ADR 007) | [<img src="https://raw.githubusercontent.com/iarjunganesh/continuum/main/assets/provider-evidence/05.crdb-sql-activity-fingerprints.png" alt="CockroachDB SQL Activity page — statement fingerprints with execution counts for inserts and updates against incidents and remediation_steps, the vector correlation CTE, and zero contention time on every row"/>](https://raw.githubusercontent.com/iarjunganesh/continuum/main/assets/provider-evidence/05.crdb-sql-activity-fingerprints.png)<br/>**The single write path as real traffic** — statement fingerprints with execution counts, the `<->` correlation query in its CTE form, and **0.0 ns contention** on every row (ADR 001/009) |
+| [<img src="https://raw.githubusercontent.com/iarjunganesh/continuum/main/assets/provider-evidence/08.bedrock-invocations-and-latency-table.png" alt="Amazon CloudWatch data table of Bedrock invocations and per-call latency for Titan Embed v2 and Claude Sonnet 4.5 over a two-week window"/>](https://raw.githubusercontent.com/iarjunganesh/continuum/main/assets/provider-evidence/08.bedrock-invocations-and-latency-table.png)<br/>**Bedrock counting its own calls** — 1.66k Titan at 89.5 ms, 224 Claude at 2.27 s. Both paths degrade *silently*, so only AWS's own count proves they ran (ADR 008) | [<img src="https://raw.githubusercontent.com/iarjunganesh/continuum/main/assets/provider-evidence/11.lambda-log-stream-recovery.png" alt="CloudWatch log stream for the continuum-orchestrator Lambda showing INIT_START on python 3.14 followed by recovered_incident_state entries carrying last_step_index"/>](https://raw.githubusercontent.com/iarjunganesh/continuum/main/assets/provider-evidence/11.lambda-log-stream-recovery.png)<br/>**The whole thesis, in Lambda's own log** — `INIT_START` on `python:3.14`, then `recovered_incident_state` with `last_step_index`. A cold environment reading its state back out of CockroachDB (ADR 002) |
+
 > **Still pending:** console screenshots for the chaos run, and an equivalent capture driven by cold Lambda invocations rather than a local process. Recovery on the deployed function is already evidenced **six** other ways: the deploy-restart drill, the AWS-timeout suite where AWS performs the kill, cold-invocation latencies in [`docs/BENCHMARKS.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/BENCHMARKS.md), durable steps recording `runtime: lambda` alongside the model ids that produced them, and — since 2026-08-08 — the function's own CloudWatch logs in both forms: as text ([`assets/provider-evidence/13.lambda-recovery-reads.txt`](https://github.com/iarjunganesh/continuum/blob/main/assets/provider-evidence/13.lambda-recovery-reads.txt)) and as a console frame ([`assets/provider-evidence/11.lambda-log-stream-recovery.png`](https://raw.githubusercontent.com/iarjunganesh/continuum/main/assets/provider-evidence/11.lambda-log-stream-recovery.png)), both showing `recovered_incident_state` with `last_step_index` across cold invocations of one `correlation_id`. Open gaps are tracked in [`submission/SUBMISSION.md`](https://github.com/iarjunganesh/continuum/blob/main/submission/SUBMISSION.md).
 
 ---
@@ -430,7 +449,10 @@ continuum/
 │   ├── demo-voiceover/        # generated Polly narration, one clip per beat
 │   ├── demo-video/            # final cut, captions, per-beat takes
 │   └── logo.svg
-├── notebooks/DEMO_RUNBOOK.ipynb   # run the recovery demo against a live cluster, no local setup
+├── notebooks/
+│   ├── DEMO_RUNBOOK.ipynb     # run the recovery demo against a live cluster, no local setup
+│   └── README.md              # setup notes and notebook conventions
+├── .claude/settings.json      # PostToolUse hook — regenerates the Devpost mirror on README edits
 ├── Makefile                   # source of truth for how to run anything
 ├── samconfig.toml             # checked in, minus the cluster credential — reproducible deploys
 ├── pyproject.toml             # version, ruff + mypy config, coverage gate

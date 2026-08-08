@@ -54,6 +54,15 @@ jobs:
       - name: Documentation agrees with the repo
         run: python scripts/check_drift.py
 
+      # Judge-facing evidence frames carry a real person's photograph and an AWS
+      # account id, both masked by declared regions. Nothing else notices if a
+      # re-captured frame lands unredacted: the image renders fine, every other
+      # gate is green, and the only symptom is a face shipping to judges. This
+      # is a pure-Python pixel check with no cluster or AWS dependency, so it
+      # costs a second and runs on every push.
+      - name: Evidence frames are redacted
+        run: python scripts/redact_evidence.py --check
+
       # Ephemeral, insecure, single-node — CI-only, never how a real cluster
       # is run. This is what lets tests/integration exercise the recovery
       # guarantee (ARCHITECTURE.md §3) against a real CockroachDB instance

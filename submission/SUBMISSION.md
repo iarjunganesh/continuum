@@ -121,7 +121,7 @@ box here is the honest state, not an oversight.
 
 Open as of `v0.9.3`; **resolved rows are struck through and kept**, because a gap that quietly disappears reads worse than one that was closed with evidence. Listing them is deliberate: a judge who finds
 them unlisted reads the whole checklist as unreliable. This table is the **single** place open
-gaps are tracked — `docs/DEMO_READINESS_CHECKLIST.md` previously duplicated it and was removed
+gaps are tracked — `docs/DEMO_READINESS_CHECKLIST.md` previously duplicated it and was removed <!-- drift-allow-path: names a deleted file on purpose -->
 once its findings were either closed with evidence or folded in here, because two gap lists
 drift and the stale one is always the one a judge reads.
 
