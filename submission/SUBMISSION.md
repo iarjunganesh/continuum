@@ -81,6 +81,12 @@ box here is the honest state, not an oversight.
   - [ ] No credentials or account IDs in any frame
 - [x] **Text description of features and functionality** — [`DEVPOST.md`](DEVPOST.md) +
       [`DEVPOST_README.md`](DEVPOST_README.md) (paste-ready mirror with absolute URLs)
+- [x] **Every field on the Devpost submission form answered** — [`DEVPOST.md` § Devpost Form
+      Answers](DEVPOST.md#devpost-form-answers) carries paste-ready text for each one: project name,
+      elevator pitch, the 25 Built-with tags, demo URL and testing instructions, repo and license
+      URLs, the CockroachDB/AWS tool selections, the meaningful-integration explanation, start date,
+      pre-existing-code disclosure, and AI-tool disclosure. **Video link is the one field still
+      open** — see the demo-video block above
 - [x] **Explicit list: which CockroachDB tools used + how** — README § CockroachDB Tools Used,
       expanded in `DEVPOST.md`
 - [x] **Explicit list: which AWS services used + how** — README § AWS Services Used
