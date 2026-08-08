@@ -145,3 +145,35 @@ deployed system favours eu-central-1 by more than this table shows.
 - `make probe-bedrock` stays a pre-recording step. eu-central-1 being open today
   says nothing about tomorrow.
 - The deterministic fallbacks stay, for the reasons in addendum 2 point 3.
+
+## Addendum 4 — 2026-08-08: AWS retired the Model access page
+
+While capturing judge-facing evidence, the Bedrock console's **Model access** page —
+the screen this ADR's story is about, and the one an operator would open to check
+whether a model is usable — was found replaced by a notice:
+
+> *Model access page has been retired. Serverless foundation models are now
+> automatically enabled across all AWS commercial regions when first invoked in your
+> account.*
+
+Three consequences, none of which change the decision:
+
+- **There is no "Access granted" screenshot to take.** `assets/provider-evidence/`
+  had a slot reserved for one. It is removed rather than left pending, because a
+  checklist item nobody can ever complete is worse than an honest absence. What
+  replaces it is better evidence anyway: frames `08`–`10` are CloudWatch counting
+  **1.66k Titan and 220 Claude invocations**, and a model that cannot be accessed
+  cannot be invoked. Access is proven by use.
+- **The clamp this ADR describes was never the per-model toggle.** It was
+  account-level eligibility, resolved through an AWS Support review on 2026-08-01
+  (addendum 2). Automatic enablement does not retroactively explain it, and does not
+  mean it could not recur — quota and eligibility remain account-scoped and dynamic.
+- **`make probe-bedrock` becomes more important, not less.** With no console page
+  stating access, an actual `InvokeModel` call is now the *only* way to know whether
+  a region is open. The probe was already the pre-recording step; it is now the sole
+  one.
+
+Anthropic models retain a first-use gate — the notice says first-time users may need
+to submit use-case details — so a fresh account reproducing this project could still
+hit a wall on Claude that Titan would not show. That is precisely the asymmetry
+addendum 2 point 3 kept the deterministic fallbacks for.

@@ -1,0 +1,26 @@
+[
+  {
+    "incident_id": "b440051e-47df-4274-b584-bec8f974a845",
+    "service": "checkout-api",
+    "state": "remediating",
+    "opened_at": "2026-08-07T18:33:57.627862Z"
+  },
+  {
+    "incident_id": "67740a62-416e-4f38-9769-2914211ad016",
+    "service": "checkout-api",
+    "state": "remediating",
+    "opened_at": "2026-08-07T12:25:53.454661Z"
+  },
+  {
+    "incident_id": "43595020-9d06-4237-b2da-1663566b156d",
+    "service": "checkout-api",
+    "state": "remediating",
+    "opened_at": "2026-08-07T12:18:39.34369Z"
+  },
+  {
+    "incident_id": "f7bc15e3-2042-4dea-b02b-7eeabb1bdbae",
+    "service": "auth-service",
+    "state": "remediating",
+    "opened_at": "2026-07-07T17:46:35.956452Z"
+  }
+]

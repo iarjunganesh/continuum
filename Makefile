@@ -1,4 +1,4 @@
-.PHONY: chaos-capture-pause charts voiceover obs-assets check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo chaos-capture benchmark resilience-bench local-cluster local-cluster-down local-cluster-status probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
+.PHONY: chaos-capture-pause charts voiceover obs-assets redact-evidence check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo chaos-capture benchmark resilience-bench local-cluster local-cluster-down local-cluster-status probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -68,6 +68,13 @@ chaos-capture-pause:
 # video instead, so evidence text stays legible. Needs ffmpeg.
 obs-assets:
 	python scripts/build_obs_assets.py
+
+# Mask a person's photograph or an AWS account id in assets/provider-evidence/.
+# Narrow and declared by design — the regions live in the script with a reason
+# each, and it must never touch a metric, timestamp or identifier that any
+# document cites. Idempotent; --check exits 1 if a declared region is unmasked.
+redact-evidence:
+	python scripts/redact_evidence.py
 
 # Latency benchmarks against $COCKROACH_DATABASE_URL — writes docs/BENCHMARKS.md.
 benchmark:

@@ -54,8 +54,10 @@ per-incident costs of about a cent.
 
 **CockroachDB: the constraint that bound was a calendar, not a meter.** On **2026-08-03** the
 cluster stopped accepting connections — `max connections = 0`, with an error naming a Request Unit
-limit. The obvious reading was that the workload had spent the allowance. It had not. The console,
-captured live before the cutoff (`assets/provider-evidence/02`, `03`):
+limit. The obvious reading was that the workload had spent the allowance. It had not. Read live
+off the console before the cutoff — the screenshots that carried these figures were deleted on
+2026-08-08 once they had gone stale against the live cluster, so the billing console is now the
+authority and this table is the record:
 
 | Reading | Value |
 | --- | --- |
@@ -99,20 +101,26 @@ same cluster with no data loss, and the org moved from a one-off trial credit on
 | | Value |
 | --- | --- |
 | Free allowance | **50M Request Units + 10 GiB**, reset monthly |
-| Measured monthly usage | **3.42M RU · 19.51 MiB** — 6.8% of RU, 0.2% of storage (console reading, **2026-08-03**) |
+| Measured usage, current cycle | **5.72M RU · 28.69 MiB** — 11% of the free RU allowance, 0.3% of storage (console reading, **2026-08-08**) |
 | Resource limits set | **100M RU/mo · 10 GiB/mo** |
 | Gross ceiling in console | **$25.00/mo** (100M × $0.20/M + 10 GiB × $0.50/GiB) |
 | Net worst case after the credit | **≈ $10/mo** |
 | Expected invoice | **$0** |
 
-**The usage figure is dated on purpose.** It was read from the console on 2026-08-03 and does
-**not** include the 2026-08-07 runs against Cloud — the full resilience bench (run `e765a3c5`:
-50 injected interrupts, 10 real `SIGKILL`s, 15 Lambda timeouts, 100 exactly-once trials, a corpus
-grown to 10,000 vectors) or the deploy-restart drill (`dba642ed`). Those are the largest single
-day of consumption this project has had. The headroom is wide enough that the conclusion is
-unlikely to change, but the number is a *reading*, not an estimate, and this file exists partly
-because a cluster outage was once misdiagnosed from an error message instead of the billing page.
-Re-read the console before citing it.
+**The usage figure is dated on purpose**, and it has now absorbed the worst day this project has
+had. The earlier reading of **3.42M RU** was taken on 2026-08-03 and predated the 2026-08-07 runs
+against Cloud — the full resilience bench (run `e765a3c5`: 50 injected interrupts, 10 real
+`SIGKILL`s, 15 Lambda timeouts, 100 exactly-once trials, a corpus grown to 10,000 vectors) and the
+deploy-restart drill (`dba642ed`). The 2026-08-08 reading of **5.72M RU** includes both. So the
+single heaviest day of consumption in the project's life cost roughly **2.3M Request Units**,
+about 4.6% of one month's free allowance, and the conclusion the old figure supported survives
+contact with the data rather than merely being assumed to.
+
+The console displays this against the **100M resource limit**, not the 50M free allowance — the
+two are different numbers and it is worth knowing which one you are reading. It remains a
+*reading*, not an estimate, and this file exists partly because a cluster outage was once
+misdiagnosed from an error message instead of the billing page. Re-read the console before citing
+it.
 
 The cap is set at 2× the free allowance rather than exactly at it, deliberately. Reaching an RU
 limit **disables the cluster** until the limit is raised or the cycle rolls over — it is a kill

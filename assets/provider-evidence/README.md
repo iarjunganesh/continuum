@@ -16,68 +16,188 @@ file.
 
 ## The app, on its intended platform
 
+Captured **2026-08-08**, so these show the console as it is now — with the provenance badges, the
+deploy-mid-incident tile and the five-tile Proven-Under-Failure panel.
+
 | # | File | What it establishes |
 | --- | --- | --- |
-| `00` | `00.space-console-full-page.png` | The whole console in one frame: live banner, the in-flight `executing` step, incident memory read live from CockroachDB, the recovery timeline with *"the process died here"*, the Proven-Under-Failure panel, and the MCP query answering over the protocol. If a judge opens one file, this is the one |
-| `01` | `01.space-console-executing-banner.png` | Above-the-fold view at the Space's real URL, showing `1 remediation step in-flight (status = executing)` — the state a kill lands in |
+| `00` | `00.space-first-paint.png` | **What a judge sees first.** The Space at rest, panels empty. Not a broken screenshot: auto-refresh is off because the polling timer cost ~50 RU per refresh per open browser tab, so the console loads on demand. Listed first because it is the actual first frame of the visitor's experience, and a set that opens on the populated view misrepresents what arriving feels like |
+| `01` | `01.space-console-full-page.png` | **The same page after one click of Refresh — if a judge opens one file, this is the one.** The whole console at 1920×5412: live banner, an in-flight `executing` step, 49 incidents read live from CockroachDB, every card carrying the model ids and C-SPANN recall rank it was produced with, the badge legend, a recovery timeline showing a step *recalled from memory* at `distance 0.7902`, all five Proven-Under-Failure tiles, and the MCP panel answering over the protocol |
+| `02` | `02.mcp-open-incidents.json` | The exact payload behind `01`'s MCP panel — four open incidents with `incident_id`, `service`, `state` and `opened_at`, returned through the Managed MCP Server rather than a direct SQL connection |
+
+> **No frame here shows the Space's URL in a browser address bar.** One did — an above-the-fold
+> capture taken 2026-08-03 — and it was deleted on 2026-08-08 because it had gone stale: its KPI
+> tiles read 3/1/21/66 against today's 4/1/45/139, and its cards predate the provenance badges
+> entirely, so beside `01` it read as a different application. `00` and `01` are viewport captures
+> beginning at the Hugging Face header, which names the owner and the Space but is not proof of a
+> live URL. **One 1920×1080 window capture with the address bar in frame is still owed** —
+> [`../../submission/DEMO_SCRIPT.md`](../../submission/DEMO_SCRIPT.md) beat 3 needs exactly the
+> same shot, so it is one screenshot serving two purposes.
 
 ## CockroachDB Cloud console
 
+`03`, `04`, `05` and `06` were re-captured **2026-08-08** and are each a single, unedited
+1920×1080 screenshot with the URL bar in frame.
+
 | # | File | What it establishes |
 | --- | --- | --- |
-| `02` | `02.crdb-cluster-list-trial-expiring.png` | Cluster `continuum` **AVAILABLE**, plan Basic, v26.2.1. Also dates the trial: `$399/400` credits, expiring `2026-08-03` |
-| `03` | `03.crdb-cluster-overview-eu-central-1.png` | The best single CockroachDB frame, with the **Cluster settings** drawer open: `Plan Basic` · `Cloud AWS` · `Region Frankfurt (eu-central-1) PRIMARY` · `Compute 400 million RUs` · `Cluster created 4 Jul 2026`. The requirement that CockroachDB runs on AWS in the region ADR 007 claims, stated by Cockroach Labs' own UI — plus live throughput, latency and RU burn |
-| `04` | `04.crdb-cluster-overview-past-month.png` | Same panel over a month: sustained development traffic, with the benchmark runs visible as the late spike. Kept from an earlier capture, so it still shows browser chrome where `02`/`03` don't |
-| `05` | `05.crdb-metrics-full-page.png` | The whole Metrics dashboard in one frame: SQL connections, statement mix (select/update/insert/delete), service latency P99/P90, **zero blocked statements**, Request Units and storage growth |
-| `06` | `06.crdb-sql-activity-fingerprints.png` | The strongest of these: real statement fingerprints — `INSERT INTO incidents`, `INSERT INTO remediation_steps`, `INSERT INTO incident_embeddings` — with execution counts (27k / 1k / 24k) and contention time. The single write path (ADR 001) is visible as actual traffic |
-| `07` | `07.crdb-jobs-history.png` | Cluster job history — provenance that this is a long-lived managed cluster, not one spun up for a screenshot |
-| `08` | `08.crdb-service-account-mcp.png` | The `continuum-mcp` service account with **Cluster Operator** role — the identity behind ADR 003's Managed MCP Server integration |
+| `03` | `03.crdb-cluster-overview-eu-central-1.png` | The best single CockroachDB frame, **Cluster settings** drawer open: `Plan Basic` · `Cloud AWS` · `Region Frankfurt (eu-central-1) PRIMARY` · `v26.2.5` · `Compute 100 million RUs` · `Storage 10 GiB` · `Cluster created on 4 Jul 2026, 17:56 UTC`. The requirement that CockroachDB runs on AWS in the region ADR 007 claims, stated by Cockroach Labs' own UI — alongside `5.72 million / 100 million` Request Units and `28.69 MiB / 10 GiB` storage, and two months of throughput and p99 latency |
+| `04` | `04.crdb-metrics-full-page.png` | The whole Metrics dashboard over two months: SQL connections, statement mix (select/update/insert/delete), service latency P99/P90, **zero blocked statements**, Request Units, and storage climbing as memory accumulates |
+| `05` | `05.crdb-sql-activity-fingerprints.png` | **The strongest of these.** Real statement fingerprints with execution counts and contention: `INSERT INTO remediation_steps` (228), `UPDATE remediation_steps SET status` (107 + 48), `UPDATE incidents SET state` (159), `INSERT INTO incident_embeddings` (40), `INSERT INTO incidents` (52 + 40) — the single write path (ADR 001) visible as actual traffic. It also shows the correlation query as `WITH nearest AS (SELECT incident_id, embedding <->…)`: the CTE form that keeps the planner on the C-SPANN index instead of falling back to a full scan. **Contention time 0.0 ns on every row**, which is what `SERIALIZABLE` under this workload actually costs |
+| `06` | `06.crdb-jobs-history.png` | 61 jobs since 25 Jul, including `ALTER DATABASE system PRIMARY REGION "aws-eu-central-1"` and a full `26.1 → 26.2` upgrade sequence — provenance that this is a long-lived managed cluster that has been version-upgraded underneath the project, not one spun up for a screenshot |
+| `07` | `07.crdb-service-account-mcp.png` | The `continuum-mcp` service account with **Cluster Operator** role — the identity behind ADR 003's Managed MCP Server integration |
 
-## Still to capture — the AWS side
+## Amazon Bedrock
 
-The CockroachDB half is done; the AWS half is not. These are the frames that prove **Bedrock and
-Lambda actually ran**, in AWS's own console, rather than being asserted by our logs.
+Captured **2026-08-08** in `eu-central-1`, the region the deployed function actually calls
+(`BEDROCK_REGION` on the Lambda). One frame: `Invocations` and `InvocationLatency` for both models,
+1-day period over a 2-week window, grouped **By ModelId**.
 
-> **Before you start:** sign in to the console as an identity that can see CloudFormation/Lambda.
-> The shell gotcha does not apply to the browser, but it does to every CLI command below — `.env`
-> exports static `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` for the Bedrock-only user, and boto3
-> ranks static keys **above** `AWS_PROFILE`. Unset both first or you get `AccessDenied` that looks
-> like a config error:
->
->     unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
->     export AWS_PROFILE=continuum-admin
->
-> **Set the region to Europe (Frankfurt) `eu-central-1` in the top-right switcher before every
-> capture.** Everything below is invisible in any other region, and an empty graph in `us-east-1`
-> looks exactly like a system that never ran.
-
-### Bedrock
-
-| # | Where to go | What to capture |
+| # | File | What it establishes |
 | --- | --- | --- |
-| `09` | **Bedrock console** → left nav **Model access** (under *Bedrock configurations*) | `Amazon Titan Text Embeddings V2` and `Claude Sonnet 4.5` showing **Access granted**. This is the visual end of the ADR 008 quota story — the clamp that shaped the whole fallback design, resolved |
-| `10` | **CloudWatch** → **Metrics** → **All metrics** → **AWS/Bedrock** → **By Model ID** → tick `amazon.titan-embed-text-v2:0` and `eu.anthropic.claude-sonnet-4-5-…` → metric `Invocations` → set range to **Last 3 hours** | Non-zero invocation counts for **both** models. This is the one that matters: it proves Continuum called Bedrock, from AWS's side. Both Bedrock paths degrade silently, so without this a fallback run and a live run look identical |
-| `11` | Same screen, metric **InvocationLatency** | Real per-model latency, corroborating `docs/BENCHMARKS.md` |
+| `08` | `08.bedrock-invocations-and-latency-table.png` | **The strongest AWS frame.** Per-day invocation counts *and* per-call latency for both models: `amazon.titan-embed-text-v2:0` totalling **1.66k** calls at **89.5 ms** mean (64.4–107 ms), `eu.anthropic.claude-sonnet-4-5-20250929-v1:0` totalling **224** calls at **2.27 s** mean (1.84–2.61 s). Numbers rather than a shape, dated, from AWS's own console |
 
-Capture `10` right after a run while the data is fresh — the graph is time-windowed, and a
-capture taken tomorrow at "Last 3 hours" is empty.
+**Why one frame and not four.** Earlier captures of this data as a line chart and a stacked area
+were discarded. Adding latency to a counts chart puts two units on one unlabelled Y axis — the same
+`2.61K` gridline means *994 invocations* for one series and *2610 milliseconds* for another — and
+the stacked form is worse still, because it adds a latency to a count to compute the band height.
+Only a data table renders units per row, and the table already carries the timeline: its per-day
+columns show the same gaps as explicit `–` entries. A chart that says less than the table it sits
+beside is decoration.
 
-### Lambda
+**The statistic is per row, and it has to be.** `Invocations` is `Sum`; `InvocationLatency` is
+`Average`. A first pass summed the latency too, which produced a `3.2 min` axis — a judge reads that
+as a three-minute Bedrock call. Summed latency is not a quantity anything has.
 
-| # | Where to go | What to capture |
+### Why this frame matters more than "Bedrock is configured"
+
+Both Bedrock paths in Continuum **degrade silently by design**: a throttled account produces a demo
+that looks entirely normal while never calling Bedrock at all (ADR 008). Every internal signal —
+the console, the logs, the durable `correlation_source` column — is written by code this repo
+controls. This frame is the outside check: AWS counting the calls itself, and timing them.
+
+The latency columns cross-check [`../../docs/BENCHMARKS.md`](../../docs/BENCHMARKS.md) from outside
+the process. Continuum measures its own Bedrock round trips with a stopwatch in code it wrote; AWS
+measures the same calls at the service boundary and agrees.
+
+### The timeline corroborates two documented incidents
+
+The per-day columns in `08` are not just volume. Read against this project's own history they
+independently confirm two things a judge would otherwise have to take on trust:
+
+| Date | Titan | Claude | What the repo says happened |
+| --- | --- | --- | --- |
+| 07/30 | 1 | 1 | first probe |
+| 07/31 | – | – | |
+| **08/01** | **476** | **71** | **the account-level Bedrock quota clamp lifted** ([ADR 008](../../docs/adr/008-bedrock-region-split.md)) |
+| 08/02 | 994 | 92 | Titan reseed of the corpus, plus the vector-scale benchmark |
+| 08/03 | 8 | 8 | |
+| **08/04** | **–** | **–** | **CockroachDB trial expired 08/03 — the demo was down** |
+| **08/05** | **–** | **–** | still down |
+| **08/06** | **166** | **34** | **cluster restored by adding a payment method** |
+| 08/07 | 18 | 18 | |
+
+Usage in `eu-central-1` begins on the day AWS granted access and stops for exactly the two days the
+cluster was disabled. The empty first week is therefore **evidence, not a gap** — without it, "AWS
+Support had this account clamped until 2026-08-01" is an assertion in a markdown file rather than
+something AWS's own metrics agree with.
+
+**Titan runs ~7.4× Claude's volume, and that is expected.** Reasoning is one Claude call per
+remediation step; embedding happens in bulk, a whole corpus at a time. The 994 on 08/02 is a
+reseed, not 994 incidents.
+
+Nothing before 2026-08-01 appears here because, under the clamp, the only region accepting calls
+was `eu-north-1` — which is why that region still has a populated `AWS/Bedrock` namespace.
+
+> **There is no Model access frame, and there never will be.** A slot was reserved for one —
+> `Titan Text Embeddings V2` and `Claude Sonnet 4.5` showing *Access granted*, the visual close of
+> the ADR 008 quota story. On 2026-08-08 the page was found replaced by *"Model access page has
+> been retired. Serverless foundation models are now automatically enabled across all AWS
+> commercial regions when first invoked in your account."* The slot is removed rather than left
+> pending, because a checklist item nobody can complete is worse than an honest absence — and
+> `08` is better evidence regardless: **a model that cannot be accessed cannot be invoked
+> 1.66k times.** See [ADR 008 addendum 4](../../docs/adr/008-bedrock-region-split.md).
+
+## AWS Lambda
+
+Three frames captured **2026-08-08**, in the order a reader needs them: what the function *is*, how
+it *behaved*, and what one invocation actually *did*.
+
+| # | File | What it establishes |
 | --- | --- | --- |
-| `12` | **Lambda console** → **Functions** → **continuum-orchestrator** → **Configuration → General configuration** | Runtime `python3.14`, memory, timeout `60s`, region. Proves the deployed function is the code in this repo, on the runtime the README claims |
-| `13` | Same function → **Monitor** tab → **Metrics** | Invocations, Duration and **Error count of 0** across the runs |
-| `14` | **Monitor → View CloudWatch logs** → log group `/aws/lambda/continuum-orchestrator` → open **two different log streams** | Two *separate* invocations, the second showing an `INIT_START` / `Init Duration` line — a genuine **cold start**. This is shot `09` in the chaos-run plan: statelessness is real, because the second invocation began with no process and no memory, and still resumed |
+| `09` | `09.lambda-configuration.png` | Configuration → **Concurrency and recursion detection**: `Provisioned concurrency (0)` — **No configurations**, and `Function concurrency: Use unreserved account concurrency`. ADR 002's guarantee rests on an *absence*, and this is the only page where AWS states it. Runtime, memory and timeout are deliberately not here — `11` prints the runtime and `12` prints `Memory Size` on every REPORT line, so a General-configuration frame would be a third copy of things already proven |
+| `10` | `10.lambda-metrics-table.png` | CloudWatch data table, `FunctionName: continuum-orchestrator`, 2-week window, 1-day period: **109 invocations** (`Sum`), **51 errors** (`Sum`, every one deliberate — see below), **0 throttles**, **6.78 s** mean `Duration` (`Average`, range 6.21–7.78 s) |
+| `11` | `11.lambda-log-stream-recovery.png` | **The single strongest frame in this folder.** One log stream, filtered to `?INIT_START ?recovered_incident_state`: a cold execution environment starting on `python:3.14.mainline.v59`, then **three** `recovered_incident_state` reads carrying `last_step_index` and `last_step_status: executed`. A brand-new process reading its own incident state back out of CockroachDB, in AWS's log, under the function's own role |
 
-The cold-start line is the whole point of `13`/`14`. `REPORT ... Init Duration: 1721.94 ms` in a
-stream that also contains `recovered_incident_state` is Lambda telling you, in its own log, that a
-brand-new execution environment read the incident back out of CockroachDB.
+**`Invocations` is `Sum`, not `Average`.** A first pass left it on `Average`, which renders `1` in
+every column and tells a reader the orchestrator ran once a day. `ConcurrentExecutions` was dropped
+from the graph — a gauge that is always 1 here, costing a row of legibility for nothing.
 
-### Prove it as text too, not just pixels
+**The day columns are bucketed 15:00–15:00 UTC**, so they will not line up with a
+`get-metric-statistics` query run at local midnight. The frame reads 57 · 18 · 16 · 18 across 08/01,
+08/02, 08/06 and 08/07; a midnight-bucketed CLI query over the same range returns 39 · 36 · 25 · 9.
+Both total **109**. Worth knowing before someone treats the difference as a discrepancy.
 
-Screenshots can be doubted; a log query answers back. Both of these are worth saving next to the
-images as `.txt`:
+### The 51 errors on that frame are the chaos experiment
+
+`Errors` sums to **51** against 109 invocations. Unexplained beside the counts that is a 47% failure
+rate and the worst number in this folder. It is not one.
+
+Every error in the log group is `Status: timeout`, and **all 50 timeout `REPORT` lines record
+`Duration: 6000.00 ms`** — exactly six seconds, against a function whose configured timeout is 60.
+Six seconds is `lambda_timeout_storm` in
+[`../../scripts/resilience_bench.py`](../../scripts/resilience_bench.py), suite **A3** of
+[`../../docs/RESILIENCE.md`](../../docs/RESILIENCE.md): the drill lowers the deployed function's
+`Timeout` below the step execution window so **AWS itself** kills the invocation mid-step — no
+signal, no `finally`, no cleanup — then restores the original in a `finally`. `Throttles` is **0**
+across the full fortnight, and there is no error of any other type.
+
+So CloudWatch is corroborating suite A3 from outside the project's code, in AWS's own metrics. That
+is stronger evidence than a clean zero would have been — but only with this paragraph beside it.
+The restoration is verifiable: the function reads `Timeout: 60` today.
+
+### Reading `11`: why `last_step_index` goes 1 → 0 → 1
+
+The three recovery reads in `11` are not one incident losing its place. They span an incident
+boundary, and the log line prints `correlation_id` but not `incident_id`, so the frame cannot show
+that on its own. From the cluster:
+
+| incident_id | opened | resolved |
+| --- | --- | --- |
+| `10ea0cee…` | 13:38:44 | **14:16:16** |
+| `41506226…` | **14:16:17** | 14:16:42 |
+
+The `14:16:08` read at `last_step_index: 1` belongs to `10ea0cee`, which that invocation drove to
+`resolved` eight seconds later. One second after that a **new** incident opened under the same
+correlation id — `demo-incident-001` is a fixed correlation id by design, which is what lets
+successive `--via-lambda` calls resume the same incident — and the `14:16:25` and `14:16:34` reads at
+index 0 then 1 are that second incident advancing. Two incidents, each monotonic.
+
+Left in frame rather than trimmed to a single tidy incident: three cold recoveries inside thirty
+seconds is better evidence than one, and cropping evidence to remove a question is how a folder like
+this stops being trustworthy.
+
+### Prove it as text too, not just pixels ✅ captured
+
+Screenshots can be doubted; a log query answers back. Both are captured, as of 2026-08-08:
+
+| # | File | What it establishes |
+| --- | --- | --- |
+| `12` | `12.lambda-cold-starts.txt` | Every invocation that began with no warm process, with its `Init Duration` and `Max Memory Used`. The `Status: timeout` lines are AWS itself killing an invocation mid-step — resilience suite A3, in Lambda's own words |
+| `13` | `13.lambda-recovery-reads.txt` | `recovered_incident_state` with `last_step_index` advancing across separate cold invocations of one `correlation_id`. The recovery contract, observed on the real runtime |
+
+> **`13` starts on 2026-08-07, and that is worth reading rather than trimming.** Nothing appears
+> before that date because the deployed function's structured logs were being *discarded*:
+> `configure_logging()` called `basicConfig()`, which does nothing when the runtime has already
+> installed a root handler, so CloudWatch held only AWS's own START/END/REPORT lines. The function
+> was correct the whole time and reported none of it. Fixed with `force=True` in `v0.9.5`. The gap
+> is left in place because it dates the fix.
+
+On Windows, run these from PowerShell rather than Git Bash — MSYS rewrites the leading `/` in
+`/aws/lambda/…` into a filesystem path and the API rejects it as an invalid log-group name. In Git
+Bash, prefix with `MSYS_NO_PATHCONV=1`.
+
+The commands, for re-capture:
 
     # every cold start, with its init duration
     aws logs filter-log-events --region eu-central-1 \
@@ -102,36 +222,47 @@ it every time opens four unrelated incidents frozen at step 0 and demonstrates n
 There is no flag to continue an incident `--new` created, so reach for it only when you deliberately
 want a fresh one.
 
-### One thing to redact
+### A note for anyone re-capturing these
 
-The Lambda **ARN contains the AWS account ID** (`arn:aws:lambda:eu-central-1:<account>:function:…`)
-and it is displayed at the top of the function page. `submission/SUBMISSION.md` requires no account
-IDs in any video frame; the same care is cheap here. Blur it, or crop above it — nothing in these
-shots depends on the account being legible.
+**The Lambda function page does not print the ARN**, which was the thing this section originally
+warned about. It offers a *Copy ARN* button instead, so `09` needs no redaction beyond the account
+tooltip every AWS page carries. Worth stating because the opposite was assumed, and an assumption
+about where a secret appears is worth replacing with a look.
 
-## One composite, declared
+**The account tooltip is not a hover artifact.** It renders persistently in the top-right of every
+AWS console page, so moving the cursor away does not remove it — a re-capture taken on that theory
+came back identical. It has to be masked, not avoided.
 
-`05.crdb-metrics-full-page.png` is the only image here that is **not** a single screenshot. The
-Metrics dashboard is taller than a viewport, so it was captured in two scrolled passes and stitched
-into one page. Declared rather than left to be noticed:
-
-- Both captures are of the **same page over the same window** (`21:40–22:30`), taken seconds apart,
-  so no panel is shown against a different time range than its neighbours.
-- The overlap — *Service Latency* and *Blocked Statements* appeared in both passes — is included
-  **once**, from the capture where the row is complete.
-- Two cosmetic artifacts of stitching were removed, and nothing else: the position-fixed sidebar,
-  which would otherwise render its menu twice, and the scrollbar thumb, which would appear at two
-  heights at once. **No chart, axis, legend or value was altered.**
-
-Reproduce it by scrolling the Metrics page yourself; the panels and numbers are the ones the
-console renders.
+**Its position is not the same on every page.** The CloudWatch *log-events* page renders it about
+16 px right of where the *Metrics* pages do. Reusing the Metrics box there clipped the username and
+left the closing paren showing, so
+[`../../scripts/redact_evidence.py`](../../scripts/redact_evidence.py) declares two boxes, both
+measured off the unredacted capture rather than eyeballed. If you add a frame from a console page
+not already represented here, measure before trusting either box — and note that `--check` only
+verifies regions that have been *declared*, so an unmasked id on an undeclared page passes silently.
 
 ## On what's in frame
 
 Checked against `submission/SUBMISSION.md`'s "no credentials or account IDs in any frame" rule:
 
 - **No credentials, API keys, connection strings or passwords appear in any file.**
-- Cluster ID (`620162fd-…`) and service-account ID (`30413d2e-…`) are visible in `03`–`08`. These
+- **Two things are masked, and both are declared.** The browser toolbar in `03`–`11` carried the
+  signed-in user's profile photograph — a picture of a real person, in material that goes to
+  judges. It is replaced by a neutral grey disc, a flat placeholder rather than a blur, because a
+  blur reads as *something was hidden here* and invites the question of what. The regions are
+  committed as data in [`../../scripts/redact_evidence.py`](../../scripts/redact_evidence.py) with
+  a reason each, the script is idempotent, and `--check` fails if a declared region is ever
+  unmasked. It is 24×24 pixels in the window chrome and touches nothing the console rendered.
+- **The AWS account id** in the console's account tooltip is covered in `08`–`11`, filled with the
+  tooltip's own background colour so the frame reads as a tooltip showing a username. Only the
+  parenthesised number is hidden — the username `iarjunganesh` is the same public handle as the
+  GitHub repository and the Hugging Face Space, so hiding that would be theatre. The same id was
+  also removed from the function ARN quoted in `SUBMISSION.md` and `CLAUDE.md`, because masking it
+  in pictures while printing it in prose is a policy that only looks like one.
+- **Nothing else is altered.** No metric, count, axis, legend, timestamp, status, query text or
+  identifier has been changed in any frame. That rule is written into the redaction script itself,
+  because masking a number to make it agree with a document would turn evidence into decoration.
+- Cluster ID (`620162fd-…`) and service-account ID (`30413d2e-…`) are visible in `03`–`07`. The **AWS account id** in `08`–`11` is masked (see above). These
   are **identifiers, not secrets** — useless without the API key or SQL credentials, which are not
   here. Kept because redacting them would weaken the corroboration these files exist to provide.
 - The Cockroach org and Hugging Face owner are both `iarjunganesh`, which is already public on the
@@ -139,20 +270,28 @@ Checked against `submission/SUBMISSION.md`'s "no credentials or account IDs in a
 
 ## The trial expiry, stated plainly
 
-`02` shows the free trial expiring **2026-08-03**, and it did: on that date the cluster stopped
-accepting connections, `max connections = 0`. The trial was time-boxed to 30 days from the cluster
-creation date `03` records (4 Jul 2026, 17:56 UTC) — it lapsed on schedule, and these two frames
-are also what disproves the tempting alternative explanation. `02` reads **$399 of $400 credits
-remaining** and `03` reads **3.42 million of 400 million Request Units**: the entitlement expired
-with 99% of it unspent. The error the cluster returns afterwards names a Request Unit limit, which
-is the post-expiry limit rather than a record of consumption — and reading it as exhaustion is
-exactly the mistake `../../submission/COSTS.md` made until these screenshots were checked against
-it. These captures were taken while the cluster was live and are left exactly as they were — a
-screenshot dated before an outage is evidence, and back-dating one would be the opposite.
-**Resolved 2026-08-06** by adding a payment method to the same organization: service resumed on the
-cluster id these frames show, with no data lost, so `03` still describes the live cluster in every
-respect except the trial-era capacity figures. That is a real constraint this project hit and
-recorded, not something to crop out — see the Known Gaps table in
-[`../../submission/SUBMISSION.md`](../../submission/SUBMISSION.md) and
-[`../../submission/COSTS.md`](../../submission/COSTS.md). The memory layer is snapshot-covered
-(`make export-memory` / `make restore-memory`), so the data survives the cluster.
+The cluster's free trial lapsed on **2026-08-03** and it stopped accepting connections,
+`max connections = 0`. The trial was time-boxed to 30 days from the creation date `03` still
+records — `4 Jul 2026, 17:56 UTC` — so it expired on schedule.
+
+It was **not** exhaustion. The console read `3.42 million` Request Units used against the
+`400 million` the trial provisioned — the entitlement expired with roughly 99% of it unspent. The
+error the cluster returns afterwards names a Request Unit limit, which is the *post-expiry* limit
+rather than a record of consumption, and reading it as overuse is exactly the mistake
+[`../../submission/COSTS.md`](../../submission/COSTS.md) made until the console was checked
+against it.
+
+**No screenshot of that state is retained here.** The two frames that held it — the cluster list
+with `$399/400` credits and the trial-era overview with `3.42M / 400M` RUs — were deleted on
+2026-08-08 as stale, because both contradicted `03` on capacity, version and plan, and a reader
+comparing them would have had to be told which one described the live cluster. The billing console
+is the authority on the figures, and the write-up in `COSTS.md` is the record. Stated here rather
+than left as a gap: this is the one claim in this folder that rests on prose instead of a frame.
+
+**Resolved 2026-08-06** by adding a payment method to the same organization. Service resumed on the
+same cluster id with no data lost, which is why `03` — same cluster, same region, same creation
+date, now reading `5.72 million / 100 million` RUs — describes the live cluster in every respect
+except the trial-era capacity figures. A real constraint this project hit and recorded, not
+something to crop out; see the Known Gaps table in
+[`../../submission/SUBMISSION.md`](../../submission/SUBMISSION.md). The memory layer is
+snapshot-covered (`make export-memory` / `make restore-memory`), so the data survives the cluster.

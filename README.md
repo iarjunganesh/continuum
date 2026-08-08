@@ -93,7 +93,7 @@ Continuum treats that as a design constraint rather than an edge case. The recov
 ## How It Works
 
 1. A **synthetic alert** fires (latency spike, error-rate breach, connection saturation)
-2. The **Orchestrator** (AWS Lambda) starts cold — its *first action, always*, is a CockroachDB recovery read for open incident state matching this alert
+2. The **Orchestrator** (AWS Lambda) does the same thing whether its execution environment is brand new or reused — its *first action, always*, is a CockroachDB recovery read for open incident state matching this alert
 3. The **Correlation Agent** embeds the alert via **Amazon Bedrock** (Titan v2, 1024-dim) and queries CockroachDB's **C-SPANN vector index** for semantically similar past incidents — structured filters and semantic ranking in one SQL round trip
 4. The **Remediation Agent** reasons over the matched precedent (Claude on Bedrock) and proposes the next step
 5. The **Memory Agent** — the *only* module allowed to write state — commits each step in explicit `SERIALIZABLE` transactions: the proposed action and `executing` status together (a forward step is claimed exactly once, `ON CONFLICT DO NOTHING`), then `executed`, with `resolved` committed atomically alongside the final step
@@ -201,7 +201,7 @@ Judging-criteria mapping and full submission narrative: [`submission/DEVPOST.md`
 | | |
 | --- | --- |
 | **App** | [https://huggingface.co/spaces/iarjunganesh/continuum](https://huggingface.co/spaces/iarjunganesh/continuum) *(deploys on push to `main`)* |
-| **Orchestrator** | Live on AWS Lambda — `continuum-orchestrator`, eu-central-1 (stack `continuum`, deployed via SAM). No provisioned concurrency, so every invocation is a genuine cold start: **1719 ms init, 130 MB / 512 MB** (measured 2026-08-07 on `CodeSha256` `cfj/1z90…`). The function has been redeployed several times since and the figure has not been re-sampled — the deployment log in [`docs/DEPLOY.md`](docs/DEPLOY.md) is the authority on what is currently live |
+| **Orchestrator** | Live on AWS Lambda — `continuum-orchestrator`, eu-central-1 (stack `continuum`), deployed from CI on a version tag ([ADR 010](docs/adr/010-deploy-on-tag-from-ci.md)). No provisioned concurrency: **cold start 1806 ms init, 130 MB / 512 MB** (sampled 2026-08-08 on the current build). Warm environments *are* reused between back-to-back invocations, and it doesn't matter — the orchestrator re-reads CockroachDB first either way, so the guarantee never rests on the container being new. [`docs/DEPLOY.md`](docs/DEPLOY.md) is the authority on what is currently live |
 | **Demo Video** | *Not yet recorded.* Recording script: [`submission/DEMO_SCRIPT.md`](submission/DEMO_SCRIPT.md) |
 | **Try It Now** | `make chaos-demo` — kill the agent mid-incident, watch it resume from CockroachDB |
 
@@ -248,7 +248,7 @@ Captured by `make chaos-capture`, which performs the kill *and* records it, and 
 
 Alongside it: [`assets/resilience-run/`](assets/resilience-run/) (kill storms, AWS-initiated Lambda timeouts, exactly-once under 50-way concurrency, vector search to 10,000 vectors), [`assets/deploy-restart-run/`](assets/deploy-restart-run/) (the function's code replaced under an open incident), and [`assets/provider-evidence/`](assets/provider-evidence/) — the same facts in Cockroach Labs' and Hugging Face's own consoles, screens this project cannot fake.
 
-> **Still pending:** console screenshots for the chaos run, and an equivalent capture driven by cold Lambda invocations rather than a local process. Recovery on the deployed function is already evidenced three other ways (the deploy-restart drill, the AWS-timeout suite, and cold-invocation latencies in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md)) — open gaps are tracked in [`submission/SUBMISSION.md`](submission/SUBMISSION.md).
+> **Still pending:** console screenshots for the chaos run, and an equivalent capture driven by cold Lambda invocations rather than a local process. Recovery on the deployed function is already evidenced **five** other ways: the deploy-restart drill, the AWS-timeout suite where AWS performs the kill, cold-invocation latencies in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md), durable steps recording `runtime: lambda` alongside the model ids that produced them, and — since 2026-08-08 — the function's own CloudWatch logs, where `recovered_incident_state` shows `last_step_index` advancing across separate cold invocations of one `correlation_id` ([`assets/provider-evidence/13.lambda-recovery-reads.txt`](assets/provider-evidence/13.lambda-recovery-reads.txt)). Open gaps are tracked in [`submission/SUBMISSION.md`](submission/SUBMISSION.md).
 
 ---
 
@@ -392,6 +392,7 @@ continuum/
 │   ├── evidence.py            # run-scoped evidence folders + provenance manifest
 │   ├── build_charts.py        # theme-aware charts from the newest evidence run
 │   ├── build_obs_assets.py    # 1080p OBS sources from provider-evidence (pans, never downscales)
+│   ├── redact_evidence.py     # mask a face or an account id in evidence PNGs — declared, idempotent
 │   │                          # — release gates —
 │   ├── check_drift.py         # docs vs repo: versions, counts, links, generated files
 │   ├── build_devpost_readme.py           # regenerates the Devpost paste mirror from README.md

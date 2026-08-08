@@ -40,10 +40,11 @@ box here is the honest state, not an oversight.
         `reasoning_source` / `correlation_source`, so "Bedrock actually ran" is checkable in the
         database rather than assumed — the deploy smoke test returned `bedrock` for both
   - [x] **AWS Lambda** — deployed from `infra/template.yaml` via SAM:
-        `arn:aws:lambda:eu-central-1:504804196134:function:continuum-orchestrator`, stack
-        `continuum`. No provisioned concurrency (ADR 002), so every invocation is a cold start —
-        1719 ms init, 130 MB of a 512 MB allocation (measured 2026-08-07 on `CodeSha256` `cfj/1z90…`;
-        the function has been redeployed since and this was not re-sampled)
+        `arn:aws:lambda:eu-central-1:<account-id>:function:continuum-orchestrator`, stack
+        `continuum`. No provisioned concurrency (ADR 002) — cold start 1806 ms init, 130 MB of a
+        512 MB allocation, sampled 2026-08-08 on the current build. Since `v0.9.5` the function is
+        deployed by CI on a version tag via GitHub OIDC (ADR 010), so the live function and the
+        newest tag cannot drift apart
 
 ## Submission Materials
 
@@ -59,8 +60,10 @@ box here is the honest state, not an oversight.
         connect 360 ms, `EXPLAIN` still plans `• vector search` on the C-SPANN index, embeddings
         intact. See the first row of Known Gaps and [`../docs/CLUSTER_OPS.md`](../docs/CLUSTER_OPS.md)
   - [ ] URL confirmed publicly accessible in a private/incognito window before submitting
-  - [x] **Populated with seeded synthetic incidents, on real Titan vectors (2026-08-07).** 46
-        incidents, 131 remediation steps, 40 embeddings — all `amazon.titan-embed-text-v2:0`.
+  - [x] **Populated with seeded synthetic incidents, on real Titan vectors (2026-08-07).** 49
+        incidents, 139 remediation steps, 40 embeddings — all `amazon.titan-embed-text-v2:0`.
+        Counts read off the live console on 2026-08-08 (`assets/provider-evidence/01`); they grow
+        by design as evidence runs and Lambda ticks are driven against the demo cluster.
         The cluster had been seeded with `--no-embeddings` deterministic vectors, which
         [`scripts/synthetic_vectors.py`](../scripts/synthetic_vectors.py) states are "deliberately
         NOT semantically meaningful": measured **precision@1 of 55%**, and that only because
@@ -81,6 +84,12 @@ box here is the honest state, not an oversight.
   - [ ] No credentials or account IDs in any frame
 - [x] **Text description of features and functionality** — [`DEVPOST.md`](DEVPOST.md) +
       [`DEVPOST_README.md`](DEVPOST_README.md) (paste-ready mirror with absolute URLs)
+- [x] **Every field on the Devpost submission form answered** — [`DEVPOST.md` § Devpost Form
+      Answers](DEVPOST.md#devpost-form-answers) carries paste-ready text for each one: project name,
+      elevator pitch, the 25 Built-with tags, demo URL and testing instructions, repo and license
+      URLs, the CockroachDB/AWS tool selections, the meaningful-integration explanation, start date,
+      pre-existing-code disclosure, and AI-tool disclosure. **Video link is the one field still
+      open** — see the demo-video block above
 - [x] **Explicit list: which CockroachDB tools used + how** — README § CockroachDB Tools Used,
       expanded in `DEVPOST.md`
 - [x] **Explicit list: which AWS services used + how** — README § AWS Services Used
@@ -113,12 +122,12 @@ drift and the stale one is always the one a judge reads.
 
 | Gap | Impact | Status |
 | --- | --- | --- |
-| ~~**The CockroachDB cluster is disabled — 30-day free trial expired, 2026-08-03**~~ — **resolved 2026-08-06** | For three days the cluster refused every connection with *"reached its Request Unit limit for the month"*, `max connections = 0`, taking the public demo down. The error names a Request Unit limit and was initially recorded here as overuse. It was not: the console read **$399 of $400 credits remaining and 3.42M of 400M RUs used** (`assets/provider-evidence/02`, `03`). The trial was time-boxed to 30 days from cluster creation on 4 Jul and lapsed on schedule — a clock, not a meter | Resolved by adding a payment method to the existing org, which restored service on the **same cluster id shown in `assets/provider-evidence/`** and moved it to Basic's recurring $15/month allowance (50M RU + 10 GiB, against a measured 3.42M RU and 19.51 MiB — so still $0). Resource limits are capped at 100M RU / 10 GiB, a $25 gross ceiling that nets to ≈$10 after the free credit. **No data was lost**; verified live on 2026-08-06 — 360 ms connect, 40 embeddings intact, `EXPLAIN` still planning `• vector search` on the C-SPANN index. Operating rules that keep it up are in [`../docs/CLUSTER_OPS.md`](../docs/CLUSTER_OPS.md); the misdiagnosis is written up in [`COSTS.md`](COSTS.md) |
+| ~~**The CockroachDB cluster is disabled — 30-day free trial expired, 2026-08-03**~~ — **resolved 2026-08-06** | For three days the cluster refused every connection with *"reached its Request Unit limit for the month"*, `max connections = 0`, taking the public demo down. The error names a Request Unit limit and was initially recorded here as overuse. It was not: the console read **3.42M of 400M RUs used** against $399 of $400 credits remaining. The trial was time-boxed to 30 days from cluster creation on 4 Jul and lapsed on schedule — a clock, not a meter | Resolved by adding a payment method to the existing org, which restored service on the **same cluster id shown in `assets/provider-evidence/`** and moved it to Basic's recurring $15/month allowance (50M RU + 10 GiB, against a measured 5.72M RU and 28.69 MiB on 2026-08-08 — so still $0). Resource limits are capped at 100M RU / 10 GiB, a $25 gross ceiling that nets to ≈$10 after the free credit. **No data was lost**; verified live on 2026-08-06 — 360 ms connect, 40 embeddings intact, `EXPLAIN` still planning `• vector search` on the C-SPANN index. Operating rules that keep it up are in [`../docs/CLUSTER_OPS.md`](../docs/CLUSTER_OPS.md); the misdiagnosis is written up in [`COSTS.md`](COSTS.md) |
 | ~~**Lambda never deployed**~~ — **resolved 2026-08-01** | The "deployed on AWS" requirement was not satisfiable by inspection | Deployed to `continuum` / eu-central-1. Two packaging bugs surfaced and were fixed on the way: `CodeUri: ../` pulled the root `requirements.txt` into the function (387 MB vs a 250 MB limit — now `infra/requirements-lambda.txt`), and a stray `template` key in `samconfig.toml` would have deployed the *unbuilt* template |
 | ~~**Live Bedrock path never executed**~~ — **resolved 2026-08-01** | Titan/Claude response handling was unproven; every run to date had used silent fallbacks | Both paths verified end to end: `embed()` returns 1024 floats matching `VECTOR(1024)`, `_propose_via_bedrock()` parsed real Claude output 3/3. Every step now records `reasoning_source` / `correlation_source` so the mode is visible rather than inferred |
 | **No demo video** | A required submission material | Scripted in `DEMO_SCRIPT.md`, unrecorded |
 | ~~**No captured evidence runs**~~ — **partly resolved 2026-08-03** | `assets/chaos-run/` was scaffolding — capture plan and shot list only | `make chaos-capture` now performs the kill *and* records it. `assets/chaos-run/local-4789422d/` holds a real run: a live orchestrator hard-killed mid-step, the frozen `executing` row read back out of CockroachDB with no process alive to own it, and the cold resume of that exact step, with `correlation_source`/`reasoning_source` both `bedrock`. **Still open:** the console screenshots for that run. The Lambda half narrowed on 2026-08-07 — a cold invoke of the deployed function persisted `runtime: lambda` alongside both model ids into a durable step — but that is a *provenance* proof, not a kill-and-resume capture, so the folder in the next row stays open |
-| **Lambda-side recovery has no `chaos-run` folder of its own** | The captured run is a local process kill | Recovery on the deployed function is nonetheless evidenced **four** independent ways: the deploy-restart drill (`assets/deploy-restart-run/dba642ed/`), the Lambda-timeout suite where **AWS** performs the kill, the cold-invocation latencies in `docs/BENCHMARKS.md`, and — as of 2026-08-07 — a durable step written by the deployed function recording `runtime: lambda`, `reasoning_model_id` and `embedding_model_id` under its own IAM role. A dedicated capture would re-prove the same contract, so it stays deprioritised rather than forgotten |
+| **Lambda-side recovery has no `chaos-run` folder of its own** | The captured run is a local process kill | Recovery on the deployed function is nonetheless evidenced **five** independent ways: the deploy-restart drill (`assets/deploy-restart-run/dba642ed/`), the Lambda-timeout suite where **AWS** performs the kill, the cold-invocation latencies in `docs/BENCHMARKS.md`, a durable step written by the deployed function recording `runtime: lambda`, `reasoning_model_id` and `embedding_model_id` under its own IAM role, and — as of 2026-08-08 — the function's **own CloudWatch logs**: `recovered_incident_state` with `last_step_index` advancing across separate cold invocations of one `correlation_id` (`assets/provider-evidence/13.lambda-recovery-reads.txt`). That last one only became possible with `v0.9.5`; before it, `basicConfig()` was a no-op under the runtime's pre-installed root handler and every application log line the function emitted was discarded. A dedicated capture would re-prove the same contract, so it stays deprioritised rather than forgotten |
 | **Container / process-restart not proven separately** | One row of the failure-mode matrix has no dedicated harness | Deliberately subsumed: a Lambda timeout *is* the execution environment being taken away mid-step, under stricter conditions than a container restart — AWS delivers the kill, with no catchable signal. Stated rather than quietly folded away |
 | **Bedrock quotas are dynamic and account-level** | Both Bedrock paths degrade *silently* by design, so a throttled account produces a demo that looks fine while never calling Bedrock | `make probe-bedrock` before any recording, and every step persists `reasoning_source` / `correlation_source` so the mode is visible in the durable row rather than inferred. Since 2026-08-07 a step that *did* reach Bedrock also records **which model** (`reasoning_model_id`, `embedding_model_id`, `bedrock_region`), and one that fell back records none — so the console can name the model rather than assert it. ADR 008 has the history |
 | **HF Space can't self-trigger an incident** | A first-time judge sees state but can't create any | Read-only by design (single write path); an incident-start CTA is not currently in scope |
