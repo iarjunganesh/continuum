@@ -39,6 +39,15 @@ comments, test fixtures, and captured evidence.
   this stack's role paths is recorded as outstanding in ADR 010 rather than glossed over.
 - CI runs on deliberately fake credentials — every outbound call in the unit suite is mocked at the
   import boundary, so a real key is never needed to make the suite pass.
+- **Secrets must not reach a terminal either.** Gitignoring `.env` and keeping the DSN out of
+  `samconfig.toml` stops a credential reaching the repository; neither stops one reaching stdout,
+  where it lands in scrollback and in any transcript later shared for help. The realistic failure
+  is not printing a password deliberately but running a **broad read of a store that contains
+  one** — `aws lambda get-function-configuration --query "Environment.Variables"` returns this
+  function's whole environment, including the live database URL. Query the single field instead.
+  The rule and its worked examples are in `CLAUDE.md` under Non-negotiable constraints, so agents
+  working in this repo inherit it.
+
 - The `.mcp.json` MCP server config uses `${COCKROACH_MCP_API_KEY}` environment expansion, so no
   secret is committed even though the config is.
 

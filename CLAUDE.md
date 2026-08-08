@@ -82,6 +82,28 @@ CockroachDB tools used: **Distributed Vector Indexing** + **Managed MCP Server**
   that reached `submission/COSTS.md`. **Read the billing page before writing down a cause.**
 - **A UI badge reads a durable column, or it does not render.** The console's provenance badges (`⟲ resumed after kill`, `⌖ recalled #N of M`, embedding/reasoning model, `λ runtime`) each come from a field in `remediation_steps.detail` or `incident_embeddings.embedding_model` — never inferred from which code path exists, never defaulted, never prettified into something friendlier than the column says. Three consequences that look like bugs and are not: a step that fell back to precedent replay names **no** model (both Bedrock paths degrade silently, so an absent model id is the only signal the fallback ran); a `precedent_distance` renders **only** alongside the `embedding_model_id` that produced it (distances are not comparable across embedding models — this corpus's moved from ~1.40 to ~0.64 on reseed); and `runtime` comes from Lambda's own `AWS_LAMBDA_FUNCTION_NAME`, never from config, so a locally-run step cannot claim Lambda. `tests/unit/test_ui_kpis.py` pins all of it.
 - **KPI tiles count the table; the card feed is paginated.** `FEED_LIMIT` caps the feed for layout only. Never derive the tiles from the feed rows — that made "durable in CockroachDB" a function of the CSS grid width and, worse, made the totals *drop* when unrelated rows were written.
+- **Never print a secret, and never run a command that returns one.** Terminal output is not
+  ephemeral: it lands in scrollback, in session transcripts, and in anything the user later
+  pastes into an issue or shares for help. A secret shown once is a secret to rotate.
+  - The trap is not `echo $PASSWORD` — nobody writes that. It is a **broad read of a store that
+    happens to contain one**. `aws lambda get-function-configuration --query
+    "Environment.Variables"` returns the whole environment, and this function's environment holds
+    the live CockroachDB DSN *with its password*. Same shape: `aws secretsmanager get-secret-value`,
+    `aws ssm get-parameter --with-decryption`, `sam deploy` echoing `--parameter-overrides`,
+    `cat .env`, `printenv`, `docker inspect`, `git config --list`, `gh secret list` on a verbose
+    flag, a `psql` connection string in an error trace.
+  - **Ask for the one field you need.** `--query "Environment.Variables.BEDROCK_REGION"` returns a
+    region. `--query "Environment.Variables"` returns a credential. The narrow query is not merely
+    tidier — it is the whole control.
+  - When a command's output *might* contain a secret, pipe it through a filter before it is
+    displayed, or write it to a file under the scratchpad and grep that file for the specific key.
+  - `.env` is gitignored and `samconfig.toml` deliberately omits `CockroachDatabaseUrl` (the
+    comment there explains why). Those defences stop a secret reaching **git**; they do nothing
+    about a secret reaching **stdout**. This rule is the second half.
+  - **If it happens anyway, say so immediately and plainly** — name what leaked, where it is now,
+    what to rotate and every place the new value must be updated. A quietly-exposed credential the
+    user does not know about is far worse than an awkward correction.
+
 - **`config.Settings` must tolerate unknown env vars** (`extra="ignore"`) — it is not the only consumer of the process environment (boto3 reads `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` itself). Reintroducing `extra="forbid"` breaks app startup for anyone with ordinary AWS credentials exported.
 
 ## Release & repo-sync discipline (do this on EVERY change, not at release time)
