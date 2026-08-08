@@ -497,7 +497,7 @@ those as pans; it pads short captures and pans tall ones, and never downscales.
 | `03.crdb-cluster-overview-eu-central-1.png` | **Beat 13**, after `s07-ci-badges` | `Plan Basic · Cloud AWS · Region Frankfurt (eu-central-1) PRIMARY · v26.2.5`, with the cluster's creation date and live RU burn, in Cockroach Labs' own UI. The "CockroachDB deployed on AWS" requirement corroborated by a screen we don't control. Exactly 1920×1080 — hold static |
 | `05.crdb-sql-activity-fingerprints.png` | **Beat 13** alternative | Real statement fingerprints with execution counts — the single write path as actual traffic — and the correlation query visible in its `WITH nearest AS (… embedding <->…)` CTE form. Contention time 0.0 ns on every row |
 | `01.space-console-full-page.png` | **Beat 3** alternative to `s02-console-idle` | The entire console in one tall image. Needs a pan (or a crop) — it is 5412 px tall. **It shows a step in flight**, so it reads as beat 3 *or* beat 5, not as "idle" |
-| `00`, `04`, `06`, `07`, `08` | **not in the video** | Metrics, job history, the MCP service account, the blank first paint and the trial-era overview. Repo and Devpost evidence; none advances the one sentence this video exists to land |
+| `00`, `04`, `06`, `07` | **not in the video** | The blank first paint, the Metrics dashboard, job history and the MCP service account. Repo and Devpost evidence; none advances the one sentence this video exists to land |
 
 **Do not put any of these inside beats 6–8.** They are stills and pans of pages, and those three
 beats are one continuous take for a reason.

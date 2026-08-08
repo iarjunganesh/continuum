@@ -47,21 +47,6 @@ deploy-mid-incident tile and the five-tile Proven-Under-Failure panel.
 | `06` | `06.crdb-jobs-history.png` | 61 jobs since 25 Jul, including `ALTER DATABASE system PRIMARY REGION "aws-eu-central-1"` and a full `26.1 → 26.2` upgrade sequence — provenance that this is a long-lived managed cluster that has been version-upgraded underneath the project, not one spun up for a screenshot |
 | `07` | `07.crdb-service-account-mcp.png` | The `continuum-mcp` service account with **Cluster Operator** role — the identity behind ADR 003's Managed MCP Server integration |
 
-### Trial-era frames, kept deliberately
-
-`08` is **not** current, and that is the point: it is the evidence for a misdiagnosis this project
-made and corrected, written up in [`../../submission/COSTS.md`](../../submission/COSTS.md).
-Refreshing or back-dating it would destroy the only proof that the correction was warranted.
-
-| # | File | What it establishes |
-| --- | --- | --- |
-| `08` | `08.crdb-cluster-overview-trial-era.png` | The overview panel *before* the plan change: `Compute 400 million RUs` against `3.42 million` Request Units used. Superseded as a description of the live cluster by `03`, retained because it is what disproves "we ran out of Request Units" — the entitlement lapsed with 99% of it unspent |
-
-A companion frame, `02.crdb-cluster-list-trial-expiring.png`, carried the `$399/400` credit balance
-and the `2026-08-03` expiry date. It was deleted on 2026-08-08. The billing console remains the
-authority on both figures, and `19` still carries the load-bearing half of the argument — that
-consumption was never the cause.
-
 ## Still to capture — the AWS side
 
 The CockroachDB half is done; the AWS half is not. These are the frames that prove **Bedrock and
@@ -160,7 +145,7 @@ shots depends on the account being legible.
 Checked against `submission/SUBMISSION.md`'s "no credentials or account IDs in any frame" rule:
 
 - **No credentials, API keys, connection strings or passwords appear in any file.**
-- Cluster ID (`620162fd-…`) and service-account ID (`30413d2e-…`) are visible in `03`–`08`. These
+- Cluster ID (`620162fd-…`) and service-account ID (`30413d2e-…`) are visible in `03`–`07`. These
   are **identifiers, not secrets** — useless without the API key or SQL credentials, which are not
   here. Kept because redacting them would weaken the corroboration these files exist to provide.
 - The Cockroach org and Hugging Face owner are both `iarjunganesh`, which is already public on the
@@ -172,13 +157,19 @@ The cluster's free trial lapsed on **2026-08-03** and it stopped accepting conne
 `max connections = 0`. The trial was time-boxed to 30 days from the creation date `03` still
 records — `4 Jul 2026, 17:56 UTC` — so it expired on schedule.
 
-It was **not** exhaustion, and `08` is what shows that: `3.42 million` Request Units used against
-`400 million` provisioned. The entitlement expired with roughly 99% of it unspent. The error the
-cluster returns afterwards names a Request Unit limit, which is the *post-expiry* limit rather
-than a record of consumption — and reading it as overuse is exactly the mistake
+It was **not** exhaustion. The console read `3.42 million` Request Units used against the
+`400 million` the trial provisioned — the entitlement expired with roughly 99% of it unspent. The
+error the cluster returns afterwards names a Request Unit limit, which is the *post-expiry* limit
+rather than a record of consumption, and reading it as overuse is exactly the mistake
 [`../../submission/COSTS.md`](../../submission/COSTS.md) made until the console was checked
-against it. That is the whole reason this frame is kept unrefreshed: a screenshot dated before an
-outage is evidence, and back-dating one would be the opposite.
+against it.
+
+**No screenshot of that state is retained here.** The two frames that held it — the cluster list
+with `$399/400` credits and the trial-era overview with `3.42M / 400M` RUs — were deleted on
+2026-08-08 as stale, because both contradicted `03` on capacity, version and plan, and a reader
+comparing them would have had to be told which one described the live cluster. The billing console
+is the authority on the figures, and the write-up in `COSTS.md` is the record. Stated here rather
+than left as a gap: this is the one claim in this folder that rests on prose instead of a frame.
 
 **Resolved 2026-08-06** by adding a payment method to the same organization. Service resumed on the
 same cluster id with no data lost, which is why `03` — same cluster, same region, same creation

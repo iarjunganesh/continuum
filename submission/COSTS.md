@@ -55,7 +55,7 @@ per-incident costs of about a cent.
 **CockroachDB: the constraint that bound was a calendar, not a meter.** On **2026-08-03** the
 cluster stopped accepting connections — `max connections = 0`, with an error naming a Request Unit
 limit. The obvious reading was that the workload had spent the allowance. It had not. The console,
-captured live before the cutoff (`assets/provider-evidence/08`, the trial-era overview kept unrefreshed for exactly this purpose):
+read live off the console before the cutoff (the screenshots were later deleted as stale — the billing console is the authority, and these are the figures it showed):
 
 | Reading | Value |
 | --- | --- |
