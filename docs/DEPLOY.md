@@ -367,7 +367,7 @@ python scripts/demo_run.py --tick --via-lambda --new # writes detail.runtime = "
 
 ### Driving the demo through the deployed Lambda
 
-After the smoke test passes, the alert-stream driver can target the deployed function instead of running the orchestrator in-process — this is what makes "a fresh Lambda invocation starts cold" in `submission/DEMO_SCRIPT.md` literally true:
+After the smoke test passes, the alert-stream driver can target the deployed function instead of running the orchestrator in-process. This is what makes beat 8's narration — *"a cold Lambda invocation — a different machine, in a different region, with no memory of this"* — literally true rather than a figure of speech: the kill lands on a local process, and the row it leaves behind is picked up by the deployed function in eu-central-1:
 
 ```bash
 python scripts/demo_run.py --tick --via-lambda   # invokes continuum-orchestrator in eu-central-1

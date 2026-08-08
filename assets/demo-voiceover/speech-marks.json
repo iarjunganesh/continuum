@@ -21,57 +21,49 @@
     ]
   },
   "vo_01-reveal": {
-    "key": "4f83a1d7c5c99aba9465b080866ce6358a8f97169eef5440a2c075b1520a4a5e",
+    "key": "3d56b99a26898942e229a98681e10768d663787c80556eff64cdc0f34dab313c",
     "offsets": [
       [
         0.0,
-        "Continuum is an incident-response agent whose memory lives in CockroachDB instead of in the process."
+        "Continuum is an incident-response agent whose memory lives in CockroachDB, not in the process."
       ],
       [
-        6.303112561174552,
-        "It runs on AWS Lambda with no provisioned concurrency, so every invocation starts cold."
+        6.239688958009331,
+        "On AWS Lambda, it never trusts what's in memory — every invocation re-reads its state from the database first."
       ],
       [
-        12.505448613376837,
-        "Which means the process is allowed to die."
+        13.267601866251942,
+        "So the process is allowed to die."
       ]
     ]
   },
   "vo_02-architecture": {
-    "key": "91fd1fb2a029c62a824076ccf0e9eb4ee49f6a2e86eb1ba263af5ab28001c9d8",
+    "key": "0dde6b2fb9a35e27e878dec2027a0531a9fd04765a64a9982fe08c25edf9312f",
     "offsets": [
       [
         0.0,
-        "Five agents, one write path."
+        "Five agents, and only one of them is allowed to write."
       ],
       [
-        2.0950176366843034,
-        "Before any reasoning, the orchestrator's first action is always a recovery read against CockroachDB."
-      ],
-      [
-        8.298241622574956,
-        "If an incident is already open, it picks up from the durable state — never from scratch."
+        3.442305084745763,
+        "Every fact about an incident goes through a single module into one database — so whatever picks that incident up next can trust everything it reads."
       ]
     ]
   },
   "vo_03-normal": {
-    "key": "67aad468c7f5a7145453089c218f2f7f70f35e019598f56a919db1c2fe17255f",
+    "key": "04ff2f5ea11276dfab0d845b96319e0c85c017d2e9541d0dbe02ec4fb9851815",
     "offsets": [
       [
         0.0,
         "An alert fires."
       ],
       [
-        1.5229831460674155,
-        "Bedrock embeds it."
+        1.5799933665008292,
+        "Bedrock turns it into a vector, CockroachDB finds the closest incident it's seen before, Claude proposes the next step."
       ],
       [
-        3.204387640449438,
-        "CockroachDB's vector index finds the closest past incident, and Claude proposes the next step."
-      ],
-      [
-        9.174831460674156,
-        "That step is committed as executing — before it runs."
+        9.147223880597014,
+        "And here's what matters — the step is written down as executing before it runs, not after."
       ]
     ]
   },
@@ -118,26 +110,26 @@
     ]
   },
   "vo_06-resume": {
-    "key": "612eb950399c04045912b271f2bb5534ebdd76b4f21fa97da6f20cd0398ea8f8",
+    "key": "dde2f9ab7cfe0ea95ca551b7a2d68f0d5c962a31636e9bf17b9c4447c785827e",
     "offsets": [
       [
         0.0,
-        "A cold Lambda invocation."
+        "A cold Lambda invocation — a different machine, in a different region, with no memory of this."
       ],
       [
-        2.0686942800788954,
-        "It reads CockroachDB first, finds the interrupted step, and re-runs that exact step."
+        5.438859903381642,
+        "It reads CockroachDB first, finds the interrupted step, and re-runs it."
       ],
       [
-        7.56261932938856,
+        10.23085346215781,
         "Not from scratch."
       ],
       [
-        9.190272189349113,
+        11.867214170692431,
         "Not skipped."
       ],
       [
-        10.448481262327416,
+        13.131194847020934,
         "Not duplicated."
       ]
     ]
@@ -181,24 +173,24 @@
     ]
   },
   "vo_09-vector": {
-    "key": "e8f3e5fa1d88691fe4c782104b038cd7d23e2ec48e3eed497b8f0a39331601c4",
+    "key": "3e5684d44c7fe7e7a77a3ef8c185b28419c523edf4f60a09ecde865e989dd26a",
     "offsets": [
       [
         0.0,
-        "The memory layer scales with it."
+        "And the memory scales with it."
       ],
       [
-        2.311464968152866,
-        "From one hundred incidents to ten thousand, CockroachDB's vector index stays flat while a full scan climbs away from it — six times faster at the top end."
+        2.197153674832962,
+        "From one hundred incidents to ten thousand, CockroachDB's vector index stays flat while a full scan climbs away — seven and a half times faster."
       ]
     ]
   },
   "vo_10-mcp": {
-    "key": "51c055753a95e4e78de2c17434ea7f85597b93d5efb9b6955cd91fbe12349bfa",
+    "key": "4c168fe2fd0db90d11cc7581e18c4fefb17c0287922541ff3ada84d0a243115f",
     "offsets": [
       [
         0.0,
-        "The same memory is queryable live, through CockroachDB's managed MCP server — read-only, called by the application itself."
+        "And because it's all one database, you can simply ask it — the app querying its own memory, live, through CockroachDB's managed MCP server."
       ]
     ]
   },

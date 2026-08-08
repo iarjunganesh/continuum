@@ -99,87 +99,117 @@ NARRATION: list[Beat] = [
         1,
         "reveal",
         24.5,
-        "Continuum is an incident-response agent whose memory lives in CockroachDB "
-        "instead of in the process. It runs on AWS Lambda with no provisioned concurrency, "
-        "so every invocation starts cold. Which means the process is allowed to die.",
+        # "every invocation starts cold" was here and was false: Lambda reuses a warm
+        # environment between back-to-back calls, and the filtered CloudWatch query that
+        # seemed to support the claim returns only cold starts by construction. The
+        # replacement states what ADR 002 actually guarantees — and is the stronger
+        # sentence anyway, because re-reading state is the behaviour, not a side effect
+        # of a config setting nobody in the audience can see.
+        "Continuum is an incident-response agent whose memory lives in CockroachDB, "
+        "not in the process. On AWS Lambda, it never trusts what's in memory — every "
+        "invocation re-reads its state from the database first. So the process is "
+        "allowed to die.",
     ),
     Beat(
         2,
         "architecture",
-        40.5,
-        "Five agents, one write path. Before any reasoning, the orchestrator's first action "
-        "is always a recovery read against CockroachDB. If an incident is already open, "
-        "it picks up from the durable state — never from scratch.",
+        41.0,
+        # Was "Five agents, one write path" plus a restatement of the recovery read.
+        # "One write path" is our internal shorthand and means nothing to a first-time
+        # viewer, and the recovery read now lands in vo_01 where it belongs. This beat
+        # earns its time by explaining *why* single-writer matters: it is what makes
+        # anything read back trustworthy, which is the precondition for the whole demo.
+        "Five agents, and only one of them is allowed to write. Every fact about an "
+        "incident goes through a single module into one database — so whatever picks "
+        "that incident up next can trust everything it reads.",
     ),
     Beat(
         3,
         "normal",
-        54.9,
-        "An alert fires. Bedrock embeds it. CockroachDB's vector index finds the closest "
-        "past incident, and Claude proposes the next step. That step is committed as "
-        "executing — before it runs.",
+        53.5,
+        # The last clause is the mechanism the entire video depends on, and it used to
+        # arrive as a trailing subclause after three proper nouns. Moved to its own
+        # sentence and flagged ("and here's the part that matters"), because a viewer
+        # who misses *written down before it runs* cannot understand why beat 7 works.
+        "An alert fires. Bedrock turns it into a vector, CockroachDB finds the closest "
+        "incident it's seen before, Claude proposes the next step. And here's what "
+        "matters — the step is written down as executing before it runs, not after.",
     ),
     Beat(
         4,
         "kill",
-        68.4,
+        69.1,
         "Now watch. The process is killed mid-step. No graceful shutdown. No checkpoint. "
         "Nothing gets a chance to clean up.",
     ),
     Beat(
         5,
         "survives",
-        81.3,
+        82.0,
         "The process is gone. The step is still there — sitting in executing, with nothing "
         "alive that owns it. That row is the agent's memory, and it outlived the agent.",
     ),
     Beat(
         6,
         "resume",
-        95.2,
-        "A cold Lambda invocation. It reads CockroachDB first, finds the interrupted step, "
-        "and re-runs that exact step. Not from scratch. Not skipped. Not duplicated.",
+        95.9,
+        # The take is a genuine hybrid — a local process is killed, and the deployed
+        # Lambda in eu-central-1 resumes the row it left behind. "A different machine,
+        # in a different region, with no memory of this" is the strongest true sentence
+        # in the video and it was going unsaid. Do not soften it to "a new invocation":
+        # the crossing of an execution-environment boundary is the point.
+        "A cold Lambda invocation — a different machine, in a different region, with no "
+        "memory of this. It reads CockroachDB first, finds the interrupted step, and "
+        "re-runs it. Not from scratch. Not skipped. Not duplicated.",
     ),
     Beat(
         7,
         "scale",
-        108.8,
+        112.2,
         "That isn't one lucky take. Fifty interrupted incidents. Fifty clean resumes. "
         "Zero duplicated actions, zero lost steps — counted from the durable rows, not from a log.",
     ),
     Beat(
         8,
         "aws",
-        121.3,
+        124.5,
         "And it isn't only our own kill switch. Here, AWS terminates the function itself, "
         "mid-step, with no signal the process can catch. All fifteen recovered, exactly once.",
     ),
     Beat(
         9,
         "vector",
-        133.6,
-        "The memory layer scales with it. From one hundred incidents to ten thousand, "
-        "CockroachDB's vector index stays flat while a full scan climbs away from it — "
-        "six times faster at the top end.",
+        136.6,
+        # "Six times faster" understated the measured result. docs/RESILIENCE.md and
+        # docs/BENCHMARKS.md both record 7.5x at 10,000 vectors (43 -> 77 ms against a
+        # full scan's 40 -> 582 ms). Spelled out rather than written "7.5x" so Polly
+        # reads it as words; a numeral here comes out clipped.
+        "And the memory scales with it. From one hundred incidents to ten thousand, "
+        "CockroachDB's vector index stays flat while a full scan climbs away — "
+        "seven and a half times faster.",
     ),
     Beat(
         10,
         "mcp",
-        145.8,
-        "The same memory is queryable live, through CockroachDB's managed MCP server — "
-        "read-only, called by the application itself.",
+        148.4,
+        # The weakest beat in the original: "queryable live, read-only, called by the
+        # application itself" is three facts and no reason to care. Leading with the
+        # consequence — one database, so you can just ask it — gives a viewer who has
+        # never heard of MCP something to hold on to before the proper noun arrives.
+        "And because it's all one database, you can simply ask it — the app querying "
+        "its own memory, live, through CockroachDB's managed MCP server.",
     ),
     Beat(
         11,
         "production",
-        155.2,
+        158.1,
         "Type-checked, linted and gated in CI, with the recovery contract pinned by tests "
         "that hard-kill a real process on every push.",
     ),
     Beat(
         12,
         "close",
-        164.4,
+        167.1,
         "Agents will keep dying mid-task. Continuum is the one that picks up exactly where it left off.",
     ),
 ]

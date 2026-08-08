@@ -559,20 +559,20 @@ the measured durations.
 | Clip | Text | Words | Measured | Starts at |
 | --- | --- | --- | --- | --- |
 | `vo_00-problem` | The conditions that cause a production incident — a node failure, a bad deploy, memory exhaustion — are the same conditions that kill the agent responding to it. And an agent that holds its state in memory doesn't degrade gracefully. It stops. Then a human restarts the incident from zero, with no idea which remediation actions already ran. | 58 | 20.1s | 0:03 |
-| `vo_01-reveal` | Continuum is an incident-response agent whose memory lives in CockroachDB instead of in the process. It runs on AWS Lambda with no provisioned concurrency, so every invocation starts cold. Which means the process is allowed to die. | 37 | 15.0s | 0:24 |
-| `vo_02-architecture` | Five agents, one write path. Before any reasoning, the orchestrator's first action is always a recovery read against CockroachDB. If an incident is already open, it picks up from the durable state — never from scratch. | 36 | 13.4s | 0:40 |
-| `vo_03-normal` | An alert fires. Bedrock embeds it. CockroachDB's vector index finds the closest past incident, and Claude proposes the next step. That step is committed as executing — before it runs. | 30 | 12.5s | 0:54 |
-| `vo_04-kill` | Now watch. The process is killed mid-step. No graceful shutdown. No checkpoint. Nothing gets a chance to clean up. | 19 | 7.9s | 1:08 |
-| `vo_05-survives` | The process is gone. The step is still there — sitting in executing, with nothing alive that owns it. That row is the agent's memory, and it outlived the agent. | 30 | 9.9s | 1:21 |
-| `vo_06-resume` | A cold Lambda invocation. It reads CockroachDB first, finds the interrupted step, and re-runs that exact step. Not from scratch. Not skipped. Not duplicated. | 24 | 11.6s | 1:35 |
-| `vo_07-scale` | That isn't one lucky take. Fifty interrupted incidents. Fifty clean resumes. Zero duplicated actions, zero lost steps — counted from the durable rows, not from a log. | 27 | 11.7s | 1:48 |
-| `vo_08-aws` | And it isn't only our own kill switch. Here, AWS terminates the function itself, mid-step, with no signal the process can catch. All fifteen recovered, exactly once. | 27 | 11.5s | 2:01 |
-| `vo_09-vector` | The memory layer scales with it. From one hundred incidents to ten thousand, CockroachDB's vector index stays flat while a full scan climbs away from it — six times faster at the top end. | 34 | 11.4s | 2:13 |
-| `vo_10-mcp` | The same memory is queryable live, through CockroachDB's managed MCP server — read-only, called by the application itself. | 18 | 8.6s | 2:25 |
-| `vo_11-production` | Type-checked, linted and gated in CI, with the recovery contract pinned by tests that hard-kill a real process on every push. | 21 | 8.4s | 2:35 |
-| `vo_12-close` | Agents will keep dying mid-task. Continuum is the one that picks up exactly where it left off. | 17 | 5.7s | 2:44 |
+| `vo_01-reveal` | Continuum is an incident-response agent whose memory lives in CockroachDB, not in the process. On AWS Lambda, it never trusts what's in memory — every invocation re-reads its state from the database first. So the process is allowed to die. | 40 | 15.5s | 0:24 |
+| `vo_02-architecture` | Five agents, and only one of them is allowed to write. Every fact about an incident goes through a single module into one database — so whatever picks that incident up next can trust everything it reads. | 37 | 11.5s | 0:41 |
+| `vo_03-normal` | An alert fires. Bedrock turns it into a vector, CockroachDB finds the closest incident it's seen before, Claude proposes the next step. And here's what matters — the step is written down as executing before it runs, not after. | 39 | 14.6s | 0:53 |
+| `vo_04-kill` | Now watch. The process is killed mid-step. No graceful shutdown. No checkpoint. Nothing gets a chance to clean up. | 19 | 7.9s | 1:09 |
+| `vo_05-survives` | The process is gone. The step is still there — sitting in executing, with nothing alive that owns it. That row is the agent's memory, and it outlived the agent. | 30 | 9.9s | 1:22 |
+| `vo_06-resume` | A cold Lambda invocation — a different machine, in a different region, with no memory of this. It reads CockroachDB first, finds the interrupted step, and re-runs it. Not from scratch. Not skipped. Not duplicated. | 35 | 14.3s | 1:35 |
+| `vo_07-scale` | That isn't one lucky take. Fifty interrupted incidents. Fifty clean resumes. Zero duplicated actions, zero lost steps — counted from the durable rows, not from a log. | 27 | 11.7s | 1:52 |
+| `vo_08-aws` | And it isn't only our own kill switch. Here, AWS terminates the function itself, mid-step, with no signal the process can catch. All fifteen recovered, exactly once. | 27 | 11.5s | 2:04 |
+| `vo_09-vector` | And the memory scales with it. From one hundred incidents to ten thousand, CockroachDB's vector index stays flat while a full scan climbs away — seven and a half times faster. | 31 | 11.2s | 2:16 |
+| `vo_10-mcp` | And because it's all one database, you can simply ask it — the app querying its own memory, live, through CockroachDB's managed MCP server. | 24 | 9.1s | 2:28 |
+| `vo_11-production` | Type-checked, linted and gated in CI, with the recovery contract pinned by tests that hard-kill a real process on every push. | 21 | 8.4s | 2:38 |
+| `vo_12-close` | Agents will keep dying mid-task. Continuum is the one that picks up exactly where it left off. | 17 | 5.7s | 2:47 |
 
-**Narration spine 2:27.7** (147.7 s measured via ffprobe).
+**Narration spine 2:31.4** (151.4 s measured via ffprobe).
 
 `vo_00-problem` spends the video's most valuable twenty seconds on the *problem*, not the product —
 a judge who doesn't feel the problem won't care about the guarantee. It names no sponsor technology
@@ -592,18 +592,18 @@ video.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Opening card | silent | `demo-cards/banner-{dark,light}.png` | **static** — exactly 1920×1080 | none | 3.0s | 0:03 |
 | 2 | The problem | `vo_00-problem` (20.1s) | `s01-readme-top` | pan down | none | 21.5s | 0:24 |
-| 3 | Reveal | `vo_01-reveal` (15.0s) | `s02-console-idle` → `s03-space-url` | static ×2 | `huggingface.co/spaces/iarjunganesh/continuum · live` | 16.0s | 0:40 |
-| 4 | Architecture | `vo_02-architecture` (13.4s) | `architecture-diagram-*-16x9.png` | **static** | `5 agents · 1 write path · recovery read first` | 14.4s | 0:54 |
-| 5 | Normal operation | `vo_03-normal` (12.5s) | `s04-timeline-executing` | slow push-in | `Titan embed → C-SPANN search → Claude` | 13.5s | 1:08 |
-| 6 | **The kill** | `vo_04-kill` (7.9s) | **#1 live** — terminal dying mid-line | native, no move | `chaos_kill.py — SIGKILL, no graceful shutdown` | 12.9s | 1:21 |
+| 3 | Reveal | `vo_01-reveal` (15.5s) | `s02-console-idle` → `s03-space-url` | static ×2 | `huggingface.co/spaces/iarjunganesh/continuum · live` | 16.5s | 0:41 |
+| 4 | Architecture | `vo_02-architecture` (11.5s) | `architecture-diagram-*-16x9.png` | **static** | `5 agents · 1 write path · recovery read first` | 12.5s | 0:53 |
+| 5 | Normal operation | `vo_03-normal` (14.6s) | `s04-timeline-executing` | slow push-in | `Titan embed → C-SPANN search → Claude` | 15.6s | 1:09 |
+| 6 | **The kill** | `vo_04-kill` (7.9s) | **#1 live** — terminal dying mid-line | native, no move | `chaos_kill.py — SIGKILL, no graceful shutdown` | 12.9s | 1:22 |
 | 7 | **State survived** | `vo_05-survives` (9.9s) | **#1 live** — the row in `executing` | native, **hold 3s+** | `status: executing — and nothing is alive` | 13.9s | 1:35 |
-| 8 | **The resume** | `vo_06-resume` (11.6s) | **#1 live** — cold invocation resuming that step | native, no move | `resumed: true · same step_index · executed once` | 13.6s | 1:48 |
-| 9 | Not once — fifty times | `vo_07-scale` (11.7s) | `chart-kill-storm-*-16x9.png` | **static** | `50 kills · 0 duplicated · 0 lost` | 12.5s | 2:01 |
-| 10 | AWS kills it | `vo_08-aws` (11.5s) | `chart-lambda-timeout-*` → `s09-lambda-console` | static ×2 | `AWS terminated the function — it still resumed` | 12.3s | 2:13 |
-| 11 | The index earns its place | `vo_09-vector` (11.4s) | `chart-vector-scale-*` → `s05-explain-plan` | static ×2 | `100 → 10,000 vectors · C-SPANN stays flat` | 12.2s | 2:25 |
-| 12 | Live query over MCP | `vo_10-mcp` (8.6s) | **#2 live** — `mcp-query-take.mp4` (or `s06` still) | native, no move | `Managed MCP Server · read-only` | 9.4s | 2:35 |
-| 13 | Production | `vo_11-production` (8.4s) | `s07-ci-badges` → `s08-adr-list` → `chart-throughput-*` | static, pan, static | `100% coverage · 10 ADRs · CI on every push` | 9.2s | 2:44 |
-| 14 | Close | `vo_12-close` (5.7s) | `demo-cards/signoff-{dark,light}.png` | **static** | `The memory outlived the failure.` | 8.7s | **2:53** |
+| 8 | **The resume** | `vo_06-resume` (14.3s) | **#1 live** — cold invocation resuming that step | native, no move | `resumed: true · same step_index · executed once` | 16.3s | 1:52 |
+| 9 | Not once — fifty times | `vo_07-scale` (11.7s) | `chart-kill-storm-*-16x9.png` | **static** | `50 kills · 0 duplicated · 0 lost` | 12.3s | 2:04 |
+| 10 | AWS kills it | `vo_08-aws` (11.5s) | `chart-lambda-timeout-*` → `s09-lambda-console` | static ×2 | `AWS terminated the function — it still resumed` | 12.1s | 2:16 |
+| 11 | The index earns its place | `vo_09-vector` (11.2s) | `chart-vector-scale-*` → `s05-explain-plan` | static ×2 | `100 → 10,000 vectors · C-SPANN stays flat` | 11.8s | 2:28 |
+| 12 | Live query over MCP | `vo_10-mcp` (9.1s) | **#2 live** — `mcp-query-take.mp4` (or `s06` still) | native, no move | `Managed MCP Server · read-only` | 9.7s | 2:38 |
+| 13 | Production | `vo_11-production` (8.4s) | `s07-ci-badges` → `s08-adr-list` → `chart-throughput-*` | static, pan, static | `100% coverage · 10 ADRs · CI on every push` | 9.0s | 2:47 |
+| 14 | Close | `vo_12-close` (5.7s) | `demo-cards/signoff-{dark,light}.png` | **static** | `The memory outlived the failure.` | 7.7s | **2:55** |
 
 **Never hold a single static frame longer than ~15 s** under continuous narration — that's the real
 ceiling on how long any still can sit on screen, moving or not. If the cut runs short, extend beats

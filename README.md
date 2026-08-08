@@ -93,7 +93,7 @@ Continuum treats that as a design constraint rather than an edge case. The recov
 ## How It Works
 
 1. A **synthetic alert** fires (latency spike, error-rate breach, connection saturation)
-2. The **Orchestrator** (AWS Lambda) starts cold — its *first action, always*, is a CockroachDB recovery read for open incident state matching this alert
+2. The **Orchestrator** (AWS Lambda) does the same thing whether its execution environment is brand new or reused — its *first action, always*, is a CockroachDB recovery read for open incident state matching this alert
 3. The **Correlation Agent** embeds the alert via **Amazon Bedrock** (Titan v2, 1024-dim) and queries CockroachDB's **C-SPANN vector index** for semantically similar past incidents — structured filters and semantic ranking in one SQL round trip
 4. The **Remediation Agent** reasons over the matched precedent (Claude on Bedrock) and proposes the next step
 5. The **Memory Agent** — the *only* module allowed to write state — commits each step in explicit `SERIALIZABLE` transactions: the proposed action and `executing` status together (a forward step is claimed exactly once, `ON CONFLICT DO NOTHING`), then `executed`, with `resolved` committed atomically alongside the final step
