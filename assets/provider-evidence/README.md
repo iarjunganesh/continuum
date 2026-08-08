@@ -145,6 +145,16 @@ shots depends on the account being legible.
 Checked against `submission/SUBMISSION.md`'s "no credentials or account IDs in any frame" rule:
 
 - **No credentials, API keys, connection strings or passwords appear in any file.**
+- **One thing is masked, and it is declared.** The browser toolbar in `03`–`07` carried the
+  signed-in user's profile photograph — a picture of a real person, in material that goes to
+  judges. It is replaced by a neutral grey disc, a flat placeholder rather than a blur, because a
+  blur reads as *something was hidden here* and invites the question of what. The regions are
+  committed as data in [`../../scripts/redact_evidence.py`](../../scripts/redact_evidence.py) with
+  a reason each, the script is idempotent, and `--check` fails if a declared region is ever
+  unmasked. It is 24×24 pixels in the window chrome and touches nothing the console rendered.
+- **Nothing else is altered.** No metric, count, axis, legend, timestamp, status, query text or
+  identifier has been changed in any frame. That rule is written into the redaction script itself,
+  because masking a number to make it agree with a document would turn evidence into decoration.
 - Cluster ID (`620162fd-…`) and service-account ID (`30413d2e-…`) are visible in `03`–`07`. These
   are **identifiers, not secrets** — useless without the API key or SQL credentials, which are not
   here. Kept because redacting them would weaken the corroboration these files exist to provide.

@@ -392,6 +392,7 @@ continuum/
 │   ├── evidence.py            # run-scoped evidence folders + provenance manifest
 │   ├── build_charts.py        # theme-aware charts from the newest evidence run
 │   ├── build_obs_assets.py    # 1080p OBS sources from provider-evidence (pans, never downscales)
+│   ├── redact_evidence.py     # mask a face or an account id in evidence PNGs — declared, idempotent
 │   │                          # — release gates —
 │   ├── check_drift.py         # docs vs repo: versions, counts, links, generated files
 │   ├── build_devpost_readme.py           # regenerates the Devpost paste mirror from README.md
