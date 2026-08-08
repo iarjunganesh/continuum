@@ -69,6 +69,191 @@ Tracking checklist: [`SUBMISSION.md`](SUBMISSION.md)
 
 ---
 
+## Devpost Form Answers
+
+Every field on the Devpost submission form, with the exact text to paste. Fields marked
+**public** appear on the project gallery page; the rest go to judges and organizers only.
+Nothing here is a placeholder — an unanswerable field says so explicitly.
+
+### General info
+
+- [x] **Project name** *(public)*
+
+  > `Continuum`
+
+- [x] **Elevator pitch** — short tagline *(public)*
+
+  > Kill the agent mid-incident. It resumes the exact step it died on — because its memory lives in CockroachDB, not the process.
+
+- [x] **Built with** — up to 25 tags *(public)*
+
+  > `python` · `fastapi` · `uvicorn` · `pydantic` · `psycopg3` · `cockroachdb` · `cockroachdb-cloud` ·
+  > `distributed-vector-indexing` · `model-context-protocol` · `amazon-bedrock` · `amazon-titan` ·
+  > `claude` · `aws-lambda` · `aws-sam` · `aws-iam` · `amazon-polly` · `gradio` · `huggingface-spaces` ·
+  > `structlog` · `pytest` · `ruff` · `mypy` · `github-actions` · `docker` · `k6`
+
+  Exactly 25. Every one is a dependency, a service the app calls, or a gate in CI — nothing
+  aspirational.
+
+- [ ] **Video demo link** — **not yet recorded.** Shooting script: [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md).
+      Must be public (not unlisted) on YouTube or Vimeo, under 3 minutes, and must show the memory
+      layer — the kill-and-resume beat — not just the app. See the video block in
+      [`SUBMISSION.md`](SUBMISSION.md) for the post-upload steps, including re-linking the README badge.
+
+### Additional info (judges and organizers)
+
+- [x] **URL to your functional demo application**
+
+  > `https://huggingface.co/spaces/iarjunganesh/continuum`
+
+- [x] **Testing credentials or instructions**
+
+  > No credentials, login, or setup required — the Space is public and read-only.
+  >
+  > One thing to know before you click: **the panels are intentionally blank on first paint. Press
+  > "Refresh" to load live state from CockroachDB.** Auto-refresh is disabled on purpose — a
+  > Request-Unit audit measured the polling timer at roughly 50 RU per refresh per open browser tab,
+  > which over a four-week judging period would consume a large share of the cluster's monthly
+  > allowance while nobody was watching. Manual refresh is the trade we chose.
+  >
+  > What you'll see: seeded synthetic incidents with their remediation timelines, each step carrying
+  > provenance badges read directly from durable columns — the embedding and reasoning model ids, the
+  > vector-search recall rank and L2 distance, the runtime (`λ` when the step ran on Lambda), and
+  > `⟲ resumed after kill` where a cold invocation picked up an interrupted step. Every badge is a
+  > column value, never inferred, so anything the console asserts can be checked by querying the
+  > database. The "Ask via MCP" button runs a live query through the CockroachDB Cloud Managed MCP
+  > Server at request time.
+  >
+  > The Space cannot start a new incident — that is deliberate, not missing. Every write to incident
+  > state goes through a single module (ADR 001), and adding a UI write path would weaken the exact
+  > property the project exists to prove. To drive the loop yourself, clone the repo and follow the
+  > Quick Start; `make chaos-demo` (or `scripts/chaos_demo.ps1` on Windows) performs the kill and the
+  > recovery end to end against your own cluster.
+
+- [x] **URL to your open source and public code repository**
+
+  > `https://github.com/iarjunganesh/continuum`
+
+- [x] **URL to your open-source license file**
+
+  > `https://github.com/iarjunganesh/continuum/blob/main/LICENSE`
+
+  MIT, detected by GitHub and shown in the repository's **About** sidebar.
+
+- [x] **Which CockroachDB tools are used?** *(public)*
+
+  > ☑ **Distributed Vector Indexing**
+  > ☑ **CockroachDB Cloud Managed MCP Server**
+  >
+  > Not claimed: ccloud CLI and the Agent Skills Repo. Both were evaluated and deliberately cut
+  > (ADR 004) rather than added thinly to inflate a tool count.
+
+- [x] **Which AWS Services are used?** *(public)*
+
+  > ☑ **AWS Lambda** ☑ **Amazon Bedrock**
+  >
+  > Also used, if the form allows them: **AWS SAM**, **AWS IAM**, **Amazon Polly** (demo narration —
+  > production tooling, not the running app).
+
+- [x] **How did you meaningfully integrate the above components?**
+
+  > Each of the four is load-bearing: remove any one and the demo's central claim stops being
+  > provable.
+  >
+  > **CockroachDB — Distributed Vector Indexing.** `incident_embeddings.embedding` is a
+  > `VECTOR(1024)` column with a C-SPANN index prefixed by `service`. The Correlation Agent's live
+  > query filters on structured columns *and* ranks by `<->` L2 distance in a single round trip, so
+  > precedent lookup is ordinary SQL against the same store that holds the transactional state — no
+  > second datastore, no consistency gap. Two things make this a real integration rather than a
+  > claim. First, an integration test asserts the **query plan**, because for a long time it was
+  > wrong: joining `incidents` in the same statement as the `<->` ordering made the planner fall back
+  > to `spans: FULL SCAN`. Results stayed correct, so nothing failed and nothing looked wrong while
+  > the headline integration sat idle. A CTE restored it, and a second test fails deliberately if a
+  > future CockroachDB version makes that workaround unnecessary. Second, we measured whether the
+  > retrieval *meant* anything: the seeded vectors were originally deterministic hashes our own
+  > generator documents as "not semantically meaningful", scoring **precision@1 of 55%**. Real Titan
+  > vectors took it to **98%** — 39 of 40 nearest neighbours sharing the failure mode. At 10,000
+  > vectors the index is **7.5× faster than the equivalent full scan**.
+  >
+  > **CockroachDB — Cloud Managed MCP Server.** `agents/query_agent.py` is the *application's own*
+  > MCP client — the official `mcp` SDK over streamable HTTP, in read-only mode — not a developer
+  > convenience wired into an IDE. It backs `GET /api/v1/incidents/open` and the Gradio console's
+  > "Ask via MCP" button, so a question like "which incidents are open and what step are they on"
+  > travels through the protocol at request time, in production, on behalf of an end user (ADR 003).
+  >
+  > **AWS Lambda.** The orchestrator's deployed home, on the `python3.14` runtime, with
+  > **provisioned concurrency deliberately absent** — its absence is a reviewable line in
+  > `infra/template.yaml`, not a console setting (ADR 002). That is the integration's whole point:
+  > every invocation is a cold start, so any state the agent has must have come from CockroachDB.
+  > Four successive cold `sam remote invoke` calls drove one incident 0 → 1 → 2 → `resolved`, each
+  > resuming from the database with the same `incident_id`. Since `v0.9.5` the function deploys from
+  > CI on a version tag via GitHub OIDC with no stored AWS keys, asserting the code hash actually
+  > moved and smoke-testing the deployed package, so the running function and the newest release
+  > cannot silently diverge (ADR 010).
+  >
+  > **Amazon Bedrock.** Titan Text Embeddings V2 turns each alert into the 1024-dim vector the schema
+  > stores; Claude Sonnet 4.5 reasons over the matched precedent to propose the next remediation step.
+  > Both paths degrade rather than fail — a red Bedrock endpoint means "no precedent" or a
+  > deterministic precedent replay, never an aborted incident — and because silent degradation would
+  > let a throttled account produce a demo that looks fine while never calling Bedrock, **every step
+  > persists `correlation_source` / `reasoning_source` and the model ids it actually used**. A step
+  > that fell back names no model at all. So "Bedrock ran" is a column you can query, not a sentence
+  > in our README.
+  >
+  > **How they compose.** The differentiating property is the join of the two databases-in-one:
+  > `SERIALIZABLE` incident state and the vector index live in the same CockroachDB store, so a step
+  > commits as `executing` *before* its execution window and `executed` after, in two explicit
+  > transactions, with the forward-step claim as `INSERT … ON CONFLICT DO NOTHING`. Hard-kill the
+  > process mid-step and the next cold Lambda invocation finds the frozen `executing` row and re-runs
+  > that exact step — exactly once, even under concurrent invocations. Measured, not asserted: 50
+  > interrupted incidents → 50 clean resumes, 0 duplicated actions; 15 invocations killed by **AWS
+  > itself** via Lambda timeout, where no signal is delivered and nothing gets a chance to checkpoint,
+  > all recovering exactly once; 0 exactly-once violations across 100 trials up to 50-way
+  > concurrency; and a real `sam deploy` swapping the function's code underneath an open incident,
+  > after which the cold invocation resumed that step on the **new build**, with the durable
+  > CockroachDB row as the only thing bridging the two versions. Method and raw evidence:
+  > [`docs/RESILIENCE.md`](../docs/RESILIENCE.md).
+
+- [x] **What date did you start this project? (MM-DD-YY)**
+
+  > `07-04-26`
+
+  First commit `0be07bb`, 2026-07-04 — inside the Submission Period, which opened 2026-06-30.
+  The public history is verifiable: `git log --reverse` on the repository above.
+
+- [x] **Please explain any pre-existing code or work incorporated into the Project.**
+
+  > **None.** Continuum was created from an empty repository on 2026-07-04, inside the Submission
+  > Period, and every line was written during it. No code was ported in from any prior project of
+  > mine or anyone else's, and no starter template or scaffold was used.
+  >
+  > What *was* carried over, since the rules ask for disclosure rather than purity: general
+  > architectural patterns and personal conventions — a single-write-path memory module, ADRs as
+  > numbered files, structlog JSON logging, Ruff/mypy/coverage gates in CI. Patterns, not source.
+  > This is written into the project's own standing constraints (`CLAUDE.md`) so it holds for every
+  > future change rather than being asserted once at submission time.
+  >
+  > Third-party dependencies are the standard permitted kind and are all declared in
+  > `requirements.txt` with floor pins and major-version caps: FastAPI, psycopg 3, boto3, the
+  > official `mcp` SDK, Gradio, Pydantic, structlog, pytest, Ruff, mypy.
+  >
+  > All incident, alert, and remediation data is **synthetic** and generated by scripts in this
+  > repository (ADR 005). No real company names, no real infrastructure, no customer data, no PII.
+
+- [x] **Which AI tools have you leveraged while working on this project?**
+
+  > **Claude Code** (Anthropic) was the only AI coding assistant used, throughout the build — for
+  > implementation, refactoring, test authoring, documentation, and review. It is disclosed in the
+  > README's "Disclosure & Disclaimer" section as well as here. Every design decision, and every
+  > decision to *reject* something, is mine and recorded in the ADRs in `docs/adr/`; the ten ADRs are
+  > the audit trail for that.
+  >
+  > Distinct from the above, and worth separating: **Claude Sonnet 4.5 and Amazon Titan Text
+  > Embeddings V2 run inside the product itself** via Amazon Bedrock — they are runtime components
+  > of the agent, not authoring tools.
+
+---
+
 ## Judging Alignment
 
 The five criteria are **equally weighted**. Official descriptions quoted, followed by how Continuum

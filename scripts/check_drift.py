@@ -239,9 +239,13 @@ def check_adr_count() -> list[Failure]:
     """
     actual = len(list((REPO_ROOT / "docs" / "adr").glob("[0-9]*.md")))
     fails: list[Failure] = []
+    # The optional `-\w+` catches a hyphenated qualifier between the number and
+    # the noun: "the nine-row ADR table" in submission/DEMO_SCRIPT.md went stale
+    # on ADR 010 and slipped through, because the token adjacent to "ADR" was
+    # "row" rather than a number.
     counted = [
-        re.compile(r"\b(\w+)\s+(?:ADRs?|Architecture Decision Records)\b", re.I),
-        re.compile(r"\b(\w+)\s+decisions?\s+documented\b", re.I),
+        re.compile(r"\b(\w+)(?:-\w+)?\s+(?:ADRs?|Architecture Decision Records)\b", re.I),
+        re.compile(r"\b(\w+)(?:-\w+)?\s+decisions?\s+documented\b", re.I),
     ]
     # "(001-009)" / "001 to 009" — the upper bound is a count claim too.
     ranges = re.compile(r"\b001\s*(?:[-–—]|to)\s*0*(\d+)\b")
