@@ -98,7 +98,16 @@ was `eu-north-1` — which is why that region still has a populated `AWS/Bedrock
 
 ## Still to capture — the AWS side
 
-Bedrock invocation counts are done. What remains is Bedrock's access page and the Lambda console.
+Bedrock invocation counts are done. What remains is per-model latency and the Lambda console.
+
+> **There is no Model access frame, and there never will be.** A slot was reserved for one —
+> `Titan Text Embeddings V2` and `Claude Sonnet 4.5` showing *Access granted*, the visual close of
+> the ADR 008 quota story. On 2026-08-08 the page was found replaced by *"Model access page has
+> been retired. Serverless foundation models are now automatically enabled across all AWS
+> commercial regions when first invoked in your account."* The slot is removed rather than left
+> pending, because a checklist item nobody can complete is worse than an honest absence — and
+> `08`–`10` are better evidence regardless: **a model that cannot be accessed cannot be invoked
+> 1.66k times.** See [ADR 008 addendum 4](../../docs/adr/008-bedrock-region-split.md).
 
 ### Prove it as text too, not just pixels ✅ captured
 
@@ -106,10 +115,10 @@ Screenshots can be doubted; a log query answers back. Both are captured, as of 2
 
 | # | File | What it establishes |
 | --- | --- | --- |
-| `16` | `16.lambda-cold-starts.txt` | Every invocation that began with no warm process, with its `Init Duration` and `Max Memory Used`. The `Status: timeout` lines are AWS itself killing an invocation mid-step — resilience suite B, in Lambda's own words |
-| `17` | `17.lambda-recovery-reads.txt` | `recovered_incident_state` with `last_step_index` advancing across separate cold invocations of one `correlation_id`. The recovery contract, observed on the real runtime |
+| `15` | `15.lambda-cold-starts.txt` | Every invocation that began with no warm process, with its `Init Duration` and `Max Memory Used`. The `Status: timeout` lines are AWS itself killing an invocation mid-step — resilience suite B, in Lambda's own words |
+| `16` | `16.lambda-recovery-reads.txt` | `recovered_incident_state` with `last_step_index` advancing across separate cold invocations of one `correlation_id`. The recovery contract, observed on the real runtime |
 
-> **`17` starts on 2026-08-07, and that is worth reading rather than trimming.** Nothing appears
+> **`16` starts on 2026-08-07, and that is worth reading rather than trimming.** Nothing appears
 > before that date because the deployed function's structured logs were being *discarded*:
 > `configure_logging()` called `basicConfig()`, which does nothing when the runtime has already
 > installed a root handler, so CloudWatch held only AWS's own START/END/REPORT lines. The function

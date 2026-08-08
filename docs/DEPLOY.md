@@ -346,7 +346,7 @@ recorded at the time cannot be recovered afterwards, only overwritten by the nex
 **Cold start on the current build: 1806 ms init, 130 MB of 512 MB** (`9SwDKNSy…`, sampled
 2026-08-08). The long-published **1719 ms** figure was measured on `cfj/1z90…`; both are within the
 1578–1806 ms spread every sampled build has shown, and `Max Memory Used` has held at 129–130 MB
-throughout. Raw REPORT lines: [`../assets/provider-evidence/16.lambda-cold-starts.txt`](../assets/provider-evidence/16.lambda-cold-starts.txt).
+throughout. Raw REPORT lines: [`../assets/provider-evidence/15.lambda-cold-starts.txt`](../assets/provider-evidence/15.lambda-cold-starts.txt).
 
 **A filtered `Init Duration` query returns only cold starts, so it cannot tell you how often one
 happens.** Back-to-back invocations *do* reuse a warm environment — three ticks driven on
