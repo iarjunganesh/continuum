@@ -473,7 +473,7 @@ shooting anything. `s03` is done; `s09` is one screenshot away.
 | `s05-explain-plan` | 11 | A | 1280 | `EXPLAIN` showing `vector search … prefix spans` | static |
 | `s06-mcp-panel` | 12 | A | 1920 | Gradio "Ask via MCP" with a live answer — **fallback if Recording #2 is skipped** | static |
 | `s07-ci-badges` | 13 | A | 1280 | README badge rows — CI green, coverage, versions | static |
-| `s08-adr-list` | 13 | A | 1280 | The nine-row ADR table | pan down |
+| `s08-adr-list` | 13 | A | 1280 | The ten-row ADR table | pan down |
 | `s09-lambda-console` | 10 | B | — | AWS console: `continuum-orchestrator`, no provisioned concurrency. **Capture steps: `assets/provider-evidence/README.md` shot `12`** | static |
 
 ### Already captured: provider evidence
