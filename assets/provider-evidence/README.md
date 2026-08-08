@@ -16,22 +16,51 @@ file.
 
 ## The app, on its intended platform
 
+Captured **2026-08-08**, so these show the console as it is now — with the provenance badges, the
+deploy-mid-incident tile and the five-tile Proven-Under-Failure panel.
+
 | # | File | What it establishes |
 | --- | --- | --- |
-| `00` | `00.space-console-full-page.png` | The whole console in one frame: live banner, the in-flight `executing` step, incident memory read live from CockroachDB, the recovery timeline with *"the process died here"*, the Proven-Under-Failure panel, and the MCP query answering over the protocol. If a judge opens one file, this is the one |
-| `01` | `01.space-console-executing-banner.png` | Above-the-fold view at the Space's real URL, showing `1 remediation step in-flight (status = executing)` — the state a kill lands in |
+| `00` | `00.space-first-paint.png` | **What a judge sees first.** The Space at rest, panels empty. Not a broken screenshot: auto-refresh is off because the polling timer cost ~50 RU per refresh per open browser tab, so the console loads on demand. Listed first because it is the actual first frame of the visitor's experience, and a set that opens on the populated view misrepresents what arriving feels like |
+| `01` | `01.space-console-full-page.png` | **The same page after one click of Refresh — if a judge opens one file, this is the one.** The whole console at 1920×5412: live banner, an in-flight `executing` step, 49 incidents read live from CockroachDB, every card carrying the model ids and C-SPANN recall rank it was produced with, the badge legend, a recovery timeline showing a step *recalled from memory* at `distance 0.7902`, all five Proven-Under-Failure tiles, and the MCP panel answering over the protocol |
+| `02` | `02.mcp-open-incidents.json` | The exact payload behind `01`'s MCP panel — four open incidents with `incident_id`, `service`, `state` and `opened_at`, returned through the Managed MCP Server rather than a direct SQL connection |
+
+> **No frame here shows the Space's URL in a browser address bar.** One did — an above-the-fold
+> capture taken 2026-08-03 — and it was deleted on 2026-08-08 because it had gone stale: its KPI
+> tiles read 3/1/21/66 against today's 4/1/45/139, and its cards predate the provenance badges
+> entirely, so beside `01` it read as a different application. `00` and `01` are viewport captures
+> beginning at the Hugging Face header, which names the owner and the Space but is not proof of a
+> live URL. **One 1920×1080 window capture with the address bar in frame is still owed** —
+> [`../../submission/DEMO_SCRIPT.md`](../../submission/DEMO_SCRIPT.md) beat 3 needs exactly the
+> same shot, so it is one screenshot serving two purposes.
 
 ## CockroachDB Cloud console
 
+`03`, `04`, `05` and `06` were re-captured **2026-08-08** and are each a single, unedited
+1920×1080 screenshot with the URL bar in frame.
+
 | # | File | What it establishes |
 | --- | --- | --- |
-| `02` | `02.crdb-cluster-list-trial-expiring.png` | Cluster `continuum` **AVAILABLE**, plan Basic, v26.2.1. Also dates the trial: `$399/400` credits, expiring `2026-08-03` |
-| `03` | `03.crdb-cluster-overview-eu-central-1.png` | The best single CockroachDB frame, with the **Cluster settings** drawer open: `Plan Basic` · `Cloud AWS` · `Region Frankfurt (eu-central-1) PRIMARY` · `Compute 400 million RUs` · `Cluster created 4 Jul 2026`. The requirement that CockroachDB runs on AWS in the region ADR 007 claims, stated by Cockroach Labs' own UI — plus live throughput, latency and RU burn |
-| `04` | `04.crdb-cluster-overview-past-month.png` | Same panel over a month: sustained development traffic, with the benchmark runs visible as the late spike. Kept from an earlier capture, so it still shows browser chrome where `02`/`03` don't |
-| `05` | `05.crdb-metrics-full-page.png` | The whole Metrics dashboard in one frame: SQL connections, statement mix (select/update/insert/delete), service latency P99/P90, **zero blocked statements**, Request Units and storage growth |
-| `06` | `06.crdb-sql-activity-fingerprints.png` | The strongest of these: real statement fingerprints — `INSERT INTO incidents`, `INSERT INTO remediation_steps`, `INSERT INTO incident_embeddings` — with execution counts (27k / 1k / 24k) and contention time. The single write path (ADR 001) is visible as actual traffic |
-| `07` | `07.crdb-jobs-history.png` | Cluster job history — provenance that this is a long-lived managed cluster, not one spun up for a screenshot |
-| `08` | `08.crdb-service-account-mcp.png` | The `continuum-mcp` service account with **Cluster Operator** role — the identity behind ADR 003's Managed MCP Server integration |
+| `03` | `03.crdb-cluster-overview-eu-central-1.png` | The best single CockroachDB frame, **Cluster settings** drawer open: `Plan Basic` · `Cloud AWS` · `Region Frankfurt (eu-central-1) PRIMARY` · `v26.2.5` · `Compute 100 million RUs` · `Storage 10 GiB` · `Cluster created on 4 Jul 2026, 17:56 UTC`. The requirement that CockroachDB runs on AWS in the region ADR 007 claims, stated by Cockroach Labs' own UI — alongside `5.72 million / 100 million` Request Units and `28.69 MiB / 10 GiB` storage, and two months of throughput and p99 latency |
+| `04` | `04.crdb-metrics-full-page.png` | The whole Metrics dashboard over two months: SQL connections, statement mix (select/update/insert/delete), service latency P99/P90, **zero blocked statements**, Request Units, and storage climbing as memory accumulates |
+| `05` | `05.crdb-sql-activity-fingerprints.png` | **The strongest of these.** Real statement fingerprints with execution counts and contention: `INSERT INTO remediation_steps` (228), `UPDATE remediation_steps SET status` (107 + 48), `UPDATE incidents SET state` (159), `INSERT INTO incident_embeddings` (40), `INSERT INTO incidents` (52 + 40) — the single write path (ADR 001) visible as actual traffic. It also shows the correlation query as `WITH nearest AS (SELECT incident_id, embedding <->…)`: the CTE form that keeps the planner on the C-SPANN index instead of falling back to a full scan. **Contention time 0.0 ns on every row**, which is what `SERIALIZABLE` under this workload actually costs |
+| `06` | `06.crdb-jobs-history.png` | 61 jobs since 25 Jul, including `ALTER DATABASE system PRIMARY REGION "aws-eu-central-1"` and a full `26.1 → 26.2` upgrade sequence — provenance that this is a long-lived managed cluster that has been version-upgraded underneath the project, not one spun up for a screenshot |
+| `07` | `07.crdb-service-account-mcp.png` | The `continuum-mcp` service account with **Cluster Operator** role — the identity behind ADR 003's Managed MCP Server integration |
+
+### Trial-era frames, kept deliberately
+
+`08` is **not** current, and that is the point: it is the evidence for a misdiagnosis this project
+made and corrected, written up in [`../../submission/COSTS.md`](../../submission/COSTS.md).
+Refreshing or back-dating it would destroy the only proof that the correction was warranted.
+
+| # | File | What it establishes |
+| --- | --- | --- |
+| `08` | `08.crdb-cluster-overview-trial-era.png` | The overview panel *before* the plan change: `Compute 400 million RUs` against `3.42 million` Request Units used. Superseded as a description of the live cluster by `03`, retained because it is what disproves "we ran out of Request Units" — the entitlement lapsed with 99% of it unspent |
+
+A companion frame, `02.crdb-cluster-list-trial-expiring.png`, carried the `$399/400` credit balance
+and the `2026-08-03` expiry date. It was deleted on 2026-08-08. The billing console remains the
+authority on both figures, and `19` still carries the load-bearing half of the argument — that
+consumption was never the cause.
 
 ## Still to capture — the AWS side
 
@@ -126,23 +155,6 @@ and it is displayed at the top of the function page. `submission/SUBMISSION.md` 
 IDs in any video frame; the same care is cheap here. Blur it, or crop above it — nothing in these
 shots depends on the account being legible.
 
-## One composite, declared
-
-`05.crdb-metrics-full-page.png` is the only image here that is **not** a single screenshot. The
-Metrics dashboard is taller than a viewport, so it was captured in two scrolled passes and stitched
-into one page. Declared rather than left to be noticed:
-
-- Both captures are of the **same page over the same window** (`21:40–22:30`), taken seconds apart,
-  so no panel is shown against a different time range than its neighbours.
-- The overlap — *Service Latency* and *Blocked Statements* appeared in both passes — is included
-  **once**, from the capture where the row is complete.
-- Two cosmetic artifacts of stitching were removed, and nothing else: the position-fixed sidebar,
-  which would otherwise render its menu twice, and the scrollbar thumb, which would appear at two
-  heights at once. **No chart, axis, legend or value was altered.**
-
-Reproduce it by scrolling the Metrics page yourself; the panels and numbers are the ones the
-console renders.
-
 ## On what's in frame
 
 Checked against `submission/SUBMISSION.md`'s "no credentials or account IDs in any frame" rule:
@@ -156,20 +168,22 @@ Checked against `submission/SUBMISSION.md`'s "no credentials or account IDs in a
 
 ## The trial expiry, stated plainly
 
-`02` shows the free trial expiring **2026-08-03**, and it did: on that date the cluster stopped
-accepting connections, `max connections = 0`. The trial was time-boxed to 30 days from the cluster
-creation date `03` records (4 Jul 2026, 17:56 UTC) — it lapsed on schedule, and these two frames
-are also what disproves the tempting alternative explanation. `02` reads **$399 of $400 credits
-remaining** and `03` reads **3.42 million of 400 million Request Units**: the entitlement expired
-with 99% of it unspent. The error the cluster returns afterwards names a Request Unit limit, which
-is the post-expiry limit rather than a record of consumption — and reading it as exhaustion is
-exactly the mistake `../../submission/COSTS.md` made until these screenshots were checked against
-it. These captures were taken while the cluster was live and are left exactly as they were — a
-screenshot dated before an outage is evidence, and back-dating one would be the opposite.
-**Resolved 2026-08-06** by adding a payment method to the same organization: service resumed on the
-cluster id these frames show, with no data lost, so `03` still describes the live cluster in every
-respect except the trial-era capacity figures. That is a real constraint this project hit and
-recorded, not something to crop out — see the Known Gaps table in
-[`../../submission/SUBMISSION.md`](../../submission/SUBMISSION.md) and
-[`../../submission/COSTS.md`](../../submission/COSTS.md). The memory layer is snapshot-covered
-(`make export-memory` / `make restore-memory`), so the data survives the cluster.
+The cluster's free trial lapsed on **2026-08-03** and it stopped accepting connections,
+`max connections = 0`. The trial was time-boxed to 30 days from the creation date `03` still
+records — `4 Jul 2026, 17:56 UTC` — so it expired on schedule.
+
+It was **not** exhaustion, and `08` is what shows that: `3.42 million` Request Units used against
+`400 million` provisioned. The entitlement expired with roughly 99% of it unspent. The error the
+cluster returns afterwards names a Request Unit limit, which is the *post-expiry* limit rather
+than a record of consumption — and reading it as overuse is exactly the mistake
+[`../../submission/COSTS.md`](../../submission/COSTS.md) made until the console was checked
+against it. That is the whole reason this frame is kept unrefreshed: a screenshot dated before an
+outage is evidence, and back-dating one would be the opposite.
+
+**Resolved 2026-08-06** by adding a payment method to the same organization. Service resumed on the
+same cluster id with no data lost, which is why `03` — same cluster, same region, same creation
+date, now reading `5.72 million / 100 million` RUs — describes the live cluster in every respect
+except the trial-era capacity figures. A real constraint this project hit and recorded, not
+something to crop out; see the Known Gaps table in
+[`../../submission/SUBMISSION.md`](../../submission/SUBMISSION.md). The memory layer is
+snapshot-covered (`make export-memory` / `make restore-memory`), so the data survives the cluster.

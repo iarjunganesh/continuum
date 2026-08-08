@@ -3,7 +3,8 @@
 > **Target 2:50–2:55** (hard cap **3:00**, disqualifying if over) · **public** on YouTube · 1920×1080 / 30 fps ·
 > no copyrighted music · synthetic data only (ADR 005).
 > **Status: not yet shot.** Ready and committed: narration (13 clips), captions, charts, cards,
-> both diagrams, and `s03` under `assets/provider-evidence/`. Outstanding: **8 stills, Recording #1
+> both diagrams, and the re-captured CockroachDB/Space frames under `assets/provider-evidence/`
+> (2026-08-08). Outstanding: **9 stills, Recording #1
 > (the take that matters), Recording #2 (optional), Session C (evidence capture — not filmed), and
 > the cut.** Nothing here is blocked on anything — see the time budget below.
 
@@ -468,7 +469,7 @@ shooting anything. `s03` is done; `s09` is one screenshot away.
 | --- | --- | --- | --- | --- | --- |
 | `s01-readme-top` | 2 | A | 1280 | README from the banner through "The Problem" | pan down |
 | `s02-console-idle` | 3 | A | 1920 | Gradio console, incidents listed, nothing in flight | static |
-| ~~`s03-space-url`~~ ✅ | 3 | B | — | **Already captured** — use `assets/provider-evidence/1080p/01.space-console-executing-banner.png` (1920×1080, live URL in frame) | static |
+| `s03-space-url` | 3 | B | — | Space at its real URL, **address bar in frame**, ideally with a step in-flight. The frame that used to satisfy this was deleted on 2026-08-08 as stale — its KPI tiles and cards predated the provenance badges, so beside the current console it read as a different app. No frame in `assets/provider-evidence/` now shows the address bar either, so this one screenshot closes both gaps | static |
 | `s04-timeline-executing` | 5 | A | 1920 | Recovery timeline, a step mid-flight, `correlation_source: bedrock` visible | slow push-in |
 | `s05-explain-plan` | 11 | A | 1280 | `EXPLAIN` showing `vector search … prefix spans` | static |
 | `s06-mcp-panel` | 12 | A | 1920 | Gradio "Ask via MCP" with a live answer — **fallback if Recording #2 is skipped** | static |
@@ -483,26 +484,20 @@ own UIs** — screens this project cannot fake. They were captured as repo evide
 have no beat and belong in the README and on Devpost rather than in a 3-minute video. Three of them
 do earn screen time, and one closes a still outright.
 
-`make obs-assets` renders the OBS-ready set into `assets/provider-evidence/1080p/`. **Use that
-folder on the timeline, not the parent** — everything in it is exactly 1920×1080, and nothing in it
-was downscaled: short captures are padded, and anything taller than a frame became a pan video
-instead of a shrunken still.
+`assets/provider-evidence/` was re-captured on **2026-08-08** and the browser-chrome frames are
+already exactly **1920×1080**, so they drop straight onto the timeline with no intermediate step.
+The generated `1080p/` folder was deleted for that reason — it duplicated frames that no longer
+needed normalising. Two files still do, because they are full-page captures rather than viewport
+ones: `01.space-console-full-page.png` (1920×**5412**) and `00.space-first-paint.png`
+(1920×**2728**). Run `python scripts/build_obs_assets.py` to regenerate the folder when you need
+those as pans; it pads short captures and pans tall ones, and never downscales.
 
-| Asset (`1080p/`) | Use | Why it earns the time |
+| Asset | Use | Why it earns the time |
 | --- | --- | --- |
-| `01.space-console-executing-banner.png` | **Beat 3** — replaces `s03-space-url` | The live Space URL and a step sitting in `executing`, in one 1080p frame. Nothing to shoot |
-| `03.crdb-cluster-overview-eu-central-1.png` | **Beat 13**, after `s07-ci-badges` | `Plan Basic · Cloud AWS · Region Frankfurt (eu-central-1) PRIMARY`, in Cockroach Labs' own UI. The "CockroachDB deployed on AWS" requirement, corroborated by a screen we don't control. Hold static, it's exactly 1920×1080 |
-| `06.crdb-sql-activity-fingerprints.png` | **Beat 13** alternative | Real statement fingerprints — `INSERT INTO incidents`, `remediation_steps`, `incident_embeddings` with execution counts. The single write path visible as actual traffic |
-| `00.space-console-full-page.pan.mp4` | **Beat 3** alternative to `s02-console-idle` | A 24.8 s pan down the whole console at native scale. Trim to the 16 s the beat has; it moves, so it can replace a static still if beat 3 feels flat. **Note it shows a step in flight**, so it reads as beat 3 *or* beat 5, not as "idle" |
-| `05.crdb-metrics-full-page.pan.mp4` | optional B-roll | 7 s pan over the Metrics dashboard. No beat needs it — use only if a gap opens in the cut |
-| `02`, `04`, `07`, `08` | **not in the video** | Trial state, month-scale traffic, job history, the MCP service account. Repo and Devpost evidence; none of them advances the one sentence this video exists to land |
-
-**The Bedrock and Lambda console captures are still to take**, and they matter more than the ones
-above: `assets/provider-evidence/README.md` has exact click-paths as shots `09`–`14`. Shot `12`
-*is* `s09-lambda-console` for beat 10. Shot `10` — CloudWatch `AWS/Bedrock` invocation counts per
-model — has no beat but is the only artifact that proves, from AWS's side, that the live Bedrock
-path ran rather than the silent fallback; capture it right after a run, because the graph is
-time-windowed.
+| `03.crdb-cluster-overview-eu-central-1.png` | **Beat 13**, after `s07-ci-badges` | `Plan Basic · Cloud AWS · Region Frankfurt (eu-central-1) PRIMARY · v26.2.5`, with the cluster's creation date and live RU burn, in Cockroach Labs' own UI. The "CockroachDB deployed on AWS" requirement corroborated by a screen we don't control. Exactly 1920×1080 — hold static |
+| `05.crdb-sql-activity-fingerprints.png` | **Beat 13** alternative | Real statement fingerprints with execution counts — the single write path as actual traffic — and the correlation query visible in its `WITH nearest AS (… embedding <->…)` CTE form. Contention time 0.0 ns on every row |
+| `01.space-console-full-page.png` | **Beat 3** alternative to `s02-console-idle` | The entire console in one tall image. Needs a pan (or a crop) — it is 5412 px tall. **It shows a step in flight**, so it reads as beat 3 *or* beat 5, not as "idle" |
+| `00`, `04`, `06`, `07`, `08` | **not in the video** | Metrics, job history, the MCP service account, the blank first paint and the trial-era overview. Repo and Devpost evidence; none advances the one sentence this video exists to land |
 
 **Do not put any of these inside beats 6–8.** They are stills and pans of pages, and those three
 beats are one continuous take for a reason.
@@ -732,10 +727,11 @@ These matter more than polish. A judge who catches one overstatement discounts e
       terminal stays in frame. If the resume fell back to `--via-api`, `vo_06-resume` was re-recorded
       to match
 - [ ] Recording #2 shot, or beat 12 consciously falls back to the `s06` still
-- [ ] The remaining **8** stills captured at the right type and viewport into
-      `assets/demo-video/statics/` — `s03` is already satisfied by
-      `assets/provider-evidence/1080p/01.space-console-executing-banner.png`
-- [ ] `make obs-assets` run, so anything used from `assets/provider-evidence/` is the 1080p variant
+- [ ] The remaining **9** stills captured at the right type and viewport into
+      `assets/demo-video/statics/` — `s03` is no longer pre-satisfied; the frame that covered it was
+      deleted as stale on 2026-08-08
+- [ ] `python scripts/build_obs_assets.py` run **only if** beat 3 uses the full-page
+      `01.space-console-full-page.png`; the browser-chrome frames are already 1920×1080
 - [ ] One theme held throughout — UI, cards, diagram, charts
 
 **Session C — evidence capture (not filmed)**
