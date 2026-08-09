@@ -1,0 +1,83 @@
+{
+  "remote": "https://github.com/iarjunganesh/continuum.git",
+  "ref": "main",
+  "workdir": "C:\\Users\\ARJUNG~1\\AppData\\Local\\Temp\\claude\\c--ws-continuum\\71e30993-9935-4c2e-820e-c10c0ddef33c\\scratchpad\\cc2",
+  "host_python": "3.14.6",
+  "db_steps_run": true,
+  "cloned_commit": "cb54ffaa7668150ef81c164706a58f9901246eb5",
+  "steps_passed": 10,
+  "steps_total": 10,
+  "outcome": "PASS",
+  "steps": [
+    {
+      "step": "git clone",
+      "proves": "the pushed branch is complete and checks out",
+      "ok": true,
+      "seconds": 1.2,
+      "detail": "Cloning into 'C:\\Users\\ARJUNG~1\\AppData\\Local\\Temp\\claude\\c--ws-continuum\\71e30993-9935-4c2e-820e-c10c0ddef33c\\scratchpad\\cc2\\continuum'..."
+    },
+    {
+      "step": "python -m venv .venv",
+      "proves": "a fresh interpreter with no inherited packages",
+      "ok": true,
+      "seconds": 2.4,
+      "detail": "Actual environment location may have moved due to redirects, links or junctions.\n  Requested location: \"C:\\Users\\ARJUNG~1\\AppData\\Local\\Temp\\claude\\c--ws-continuum\\71e30993-9935-4c2e-820e-c10c0ddef33c\\scratchpad\\cc2\\continuum\\.venv\\Scripts\\python.exe\"\n  Actual location:    \"C:\\Users\\arjunganesh\\AppData\\Local\\Temp\\claude\\c--ws-continuum\\71e30993-9935-4c2e-820e-c10c0ddef33c\\scratchpad\\cc2\\continuum\\.venv\\Scripts\\python.exe\""
+    },
+    {
+      "step": "pip install -r requirements.txt",
+      "proves": "the committed dependency set installs and is sufficient",
+      "ok": true,
+      "seconds": 25.6,
+      "detail": "[notice] A new release of pip is available: 26.1.2 -> 26.2.1\n[notice] To update, run: C:\\Users\\ARJUNG~1\\AppData\\Local\\Temp\\claude\\c--ws-continuum\\71e30993-9935-4c2e-820e-c10c0ddef33c\\scratchpad\\cc2\\continuum\\.venv\\Scripts\\python.exe -m pip install --upgrade pip"
+    },
+    {
+      "step": "cp .env",
+      "proves": "the app reads its configuration from .env, not from the repo",
+      "ok": true,
+      "seconds": 0.0,
+      "detail": "copied .env (contents never logged)"
+    },
+    {
+      "step": "import every entrypoint",
+      "proves": "no module depends on a file that was never committed",
+      "ok": true,
+      "seconds": 1.0,
+      "detail": "imports ok"
+    },
+    {
+      "step": "pytest tests/unit",
+      "proves": "the committed test suite passes against the committed code",
+      "ok": true,
+      "seconds": 3.8,
+      "detail": "........................................................................ [ 84%]\n.............                                                            [100%]\n============================== warnings summary ===============================\n.venv\\Lib\\site-packages\\fastapi\\testclient.py:1\n  C:\\Users\\ARJUNG~1\\AppData\\Local\\Temp\\claude\\c--ws-continuum\\71e30993-9935-4c2e-820e-c10c0ddef33c\\scratchpad\\cc2\\continuum\\.venv\\Lib\\site-packages\\fastapi\\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.\n    from starlette.testclient import TestClient as TestClient  # noqa\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html"
+    },
+    {
+      "step": "apply infra/schema.sql",
+      "proves": "the documented schema applies to a live cluster",
+      "ok": true,
+      "seconds": 0.5,
+      "detail": "schema applied"
+    },
+    {
+      "step": "seed from the committed fixture",
+      "proves": "seeding needs no AWS call and no live Bedrock",
+      "ok": true,
+      "seconds": 10.2,
+      "detail": "{\"records\": 40, \"embedding_source\": \"fixture\", \"embeddings_replaced\": false, \"event\": \"seed_complete\", \"timestamp\": \"2026-08-09T17:47:40.331576Z\", \"level\": \"info\"}"
+    },
+    {
+      "step": "uvicorn + GET /api/v1/health",
+      "proves": "the documented run command serves the documented endpoint",
+      "ok": true,
+      "seconds": 1.0,
+      "detail": "HTTP 200 {\"status\":\"ok\",\"version\":\"0.9.6\"}"
+    },
+    {
+      "step": "GET /api/v1/incidents/open",
+      "proves": "the live MCP round trip works from a clean install",
+      "ok": true,
+      "seconds": 2.3,
+      "detail": "HTTP 200 \u00b7 744 bytes"
+    }
+  ]
+}

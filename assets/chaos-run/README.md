@@ -47,11 +47,74 @@ show the same incident the evidence JSON describes.
 
 ### Then, the screenshots
 
-Numbered per the plan in [`../README.md`](../README.md), into `screenshots/`. Shot `03` — the
-`executing` row in the CockroachDB console with no live process — is the one that carries the
-argument, and it **must** be taken during the `--pause` window. Every other shot (the resolved
-incident, the step history, the Gradio timeline) can be taken afterwards against the incident id
-the capture printed, because those states persist.
+Numbered per the plan in [`../README.md`](../README.md), into `screenshots/`, every file prefixed
+with the run's short id — `<short-id>_NN-what-it-shows.png` — so a file stays attributable if it is
+ever copied out into a slide or a Devpost post. Match the conventions the provider frames already
+use: **1920×1080, unedited, URL bar in frame** for anything from a web console.
 
-Every file is prefixed with the run's short id so files stay attributable if they're ever copied
-out of their folder into a slide or a Devpost post.
+**The screenshots belong to the run they were taken during.** A folder whose evidence JSON describes
+one incident and whose screenshots show another proves nothing, so the runs already committed here
+keep their empty `screenshots/`: they were unattended, and the frozen state they captured is gone.
+Capturing shots means starting a **new** `--pause` run and shooting that one.
+
+#### Before you start
+
+1. `python scripts/probe_bedrock.py` — quotas are dynamic. A run that silently fell back to
+   precedent replay is honest evidence, but it is *different* evidence, and the capture records
+   which mode it was in either way.
+2. Open the two tabs you will need, **logged in and already on the right page**, because the pause
+   window is the only time shot `03` exists and you do not want to be navigating inside it:
+   - **CockroachDB Cloud console** → your cluster → **SQL Shell**
+   - **The Space** — <https://huggingface.co/spaces/iarjunganesh/continuum> — click **Refresh** once
+     so you know it is awake. Auto-refresh is off by design (the timer costs ~50 RU per refresh per
+     open tab), so every update below is a deliberate click.
+3. For the Lambda run, a third tab: **CloudWatch** → **Log groups** →
+   `/aws/lambda/continuum-orchestrator`.
+
+#### Session A — the local run
+
+    python scripts/chaos_capture.py --pause
+
+It prints the `correlation_id` and `incident_id`, then **holds** with the step frozen in
+`executing` and no process alive to own it. Inside that window, in this order:
+
+| Shot | Where | What to do |
+| --- | --- | --- |
+| `02` | Terminal | The capture's own output — the kill delivered, the process gone. Already on screen; capture it before you switch away |
+| `03` | CockroachDB Cloud SQL Shell | Paste the `SELECT … FROM remediation_steps WHERE incident_id = '…'` the capture printed. **This is the money shot**: a step reading `executing` in Cockroach Labs' own UI while nothing is running |
+| `01` | The Space | Click **Refresh**. The incident appears with its step in flight |
+
+Then press **ENTER** and let it resolve. The rest of the states persist, so take your time:
+
+| Shot | Where | What to do |
+| --- | --- | --- |
+| `04` | Terminal | The cold restart resuming at the same step index |
+| `05` | The Space | **Refresh** → the recovery timeline, showing the step replayed exactly once and the `⟲ resumed after kill` badge |
+| `06` | CockroachDB Cloud SQL Shell | Re-run the same `SELECT` → incident `resolved`, all steps `executed`, none duplicated |
+| `07` | The Space | The **Ask via MCP** panel answering a live query (ADR 003) |
+| `08` | The Space | A card's `⌖ recalled #N of M` with its distance and `embedding_model_id` — the vector search's result, not just its existence (ADR 001) |
+
+#### Session B — the Lambda run
+
+    Remove-Item Env:AWS_ACCESS_KEY_ID, Env:AWS_SECRET_ACCESS_KEY -ErrorAction SilentlyContinue
+    python scripts/chaos_capture.py --via-lambda --profile continuum-admin --pause
+
+Same sequence, with two differences worth knowing before you are inside the pause. The kill is
+delivered by **AWS**, not by `chaos_kill.py`, so shot `02` is the capture reporting a function
+timeout rather than a `SIGKILL`. And there is a ninth shot, which only this run can produce:
+
+| Shot | Where | What to do |
+| --- | --- | --- |
+| `09` | CloudWatch → `/aws/lambda/continuum-orchestrator` | Open the log group, sort newest first. You want one frame spanning **two** log streams: the first ending `REPORT … Status: timeout`, the second opening `INIT_START` and then `recovered_incident_state` with `last_step_status: executing`. The harness already saved these lines as text in `evidence/<id>_cloudwatch-log.txt`; this is AWS's console rendering the same thing |
+
+The calibration line matters if a run surprises you: the harness tunes the function timeout to land
+inside the execution window, and an attempt that missed is discarded and retried with the rows
+deleted. Only the attempt that *worked* becomes the evidence, and every attempt is listed in
+`manifest.json` so the tuning is visible rather than hidden.
+
+#### Afterwards
+
+Drop the files into the new run's `screenshots/`, delete its `.gitkeep`, and — if the new run
+supersedes an unattended one — say so in that folder rather than deleting it. Two independent
+passes of the same contract is a stronger claim than one, provided nothing pretends the older run
+had screenshots it never had.

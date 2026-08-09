@@ -1,0 +1,42 @@
+{
+  "run_id": "7dad3d5f",
+  "kind": "clean-clone",
+  "started_utc": "2026-08-09T17:46:55.678868+00:00",
+  "finished_utc": "2026-08-09T17:47:43.865632+00:00",
+  "code": {
+    "commit": "cb54ffaa7668150ef81c164706a58f9901246eb5",
+    "commit_short": "cb54ffa",
+    "describe": "v0.9.6-2-gcb54ffa",
+    "working_tree_dirty": false,
+    "dirty_tracked": [],
+    "untracked_files": 2
+  },
+  "environment": {
+    "python": "3.14.6",
+    "platform": "win32",
+    "cluster": "continuum-28621.j77.aws-eu-central-1.cockroachlabs.cloud/defaultdb",
+    "aws_region": "eu-central-1",
+    "bedrock_region": "eu-central-1",
+    "embedding_model": "amazon.titan-embed-text-v2:0",
+    "reasoning_model": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "lambda_function": "continuum-orchestrator",
+    "step_execution_seconds": 5.0,
+    "max_remediation_steps": 3
+  },
+  "command": "clean_clone_check.py --workdir C:/Users/ARJUNG~1/AppData/Local/Temp/claude/c--ws-continuum/71e30993-9935-4c2e-820e-c10c0ddef33c/scratchpad/cc2",
+  "files": [
+    "7dad3d5f_NOTES.md",
+    "7dad3d5f_clean-clone-check.json"
+  ],
+  "results": {
+    "remote": "https://github.com/iarjunganesh/continuum.git",
+    "ref": "main",
+    "workdir": "C:\\Users\\ARJUNG~1\\AppData\\Local\\Temp\\claude\\c--ws-continuum\\71e30993-9935-4c2e-820e-c10c0ddef33c\\scratchpad\\cc2",
+    "host_python": "3.14.6",
+    "db_steps_run": true,
+    "cloned_commit": "cb54ffaa7668150ef81c164706a58f9901246eb5",
+    "steps_passed": 10,
+    "steps_total": 10,
+    "outcome": "PASS"
+  }
+}

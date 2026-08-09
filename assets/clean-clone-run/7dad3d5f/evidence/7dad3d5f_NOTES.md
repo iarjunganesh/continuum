@@ -1,4 +1,4 @@
-# Clean-clone check `84ed16f6` — PASS
+# Clean-clone check `7dad3d5f` — PASS
 
 - remote: `https://github.com/iarjunganesh/continuum.git` @ `main`
 - host Python: `3.14.6`
@@ -7,16 +7,16 @@
 
 | Step | Proves | Result | Seconds |
 | --- | --- | --- | --- |
-| `git clone` | the pushed branch is complete and checks out | PASS | 1.7 |
-| `python -m venv .venv` | a fresh interpreter with no inherited packages | PASS | 2.3 |
-| `pip install -r requirements.txt` | the committed dependency set installs and is sufficient | PASS | 28.5 |
+| `git clone` | the pushed branch is complete and checks out | PASS | 1.2 |
+| `python -m venv .venv` | a fresh interpreter with no inherited packages | PASS | 2.4 |
+| `pip install -r requirements.txt` | the committed dependency set installs and is sufficient | PASS | 25.6 |
 | `cp .env` | the app reads its configuration from .env, not from the repo | PASS | 0.0 |
-| `import every entrypoint` | no module depends on a file that was never committed | PASS | 1.4 |
-| `pytest tests/unit` | the committed test suite passes against the committed code | PASS | 10.2 |
-| `apply infra/schema.sql` | the documented schema applies to a live cluster | PASS | 0.6 |
+| `import every entrypoint` | no module depends on a file that was never committed | PASS | 1.0 |
+| `pytest tests/unit` | the committed test suite passes against the committed code | PASS | 3.8 |
+| `apply infra/schema.sql` | the documented schema applies to a live cluster | PASS | 0.5 |
 | `seed from the committed fixture` | seeding needs no AWS call and no live Bedrock | PASS | 10.2 |
 | `uvicorn + GET /api/v1/health` | the documented run command serves the documented endpoint | PASS | 1.0 |
-| `GET /api/v1/incidents/open` | the live MCP round trip works from a clean install | PASS | 4.3 |
+| `GET /api/v1/incidents/open` | the live MCP round trip works from a clean install | PASS | 2.3 |
 
 ## What this does not prove
 
