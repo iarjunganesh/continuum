@@ -12,6 +12,7 @@ Usage:
     python scripts/demo_run.py --tick --via-api        # POST to the running API instead
     python scripts/demo_run.py --tick --via-lambda     # invoke the deployed Lambda instead
     python scripts/demo_run.py --tick --new            # start a fresh incident
+    python scripts/demo_run.py --tick --correlation-id notebook-abc123  # target an existing incident
 """
 
 import argparse
@@ -59,9 +60,21 @@ DEMO_ALERT = {
 }
 
 
-def tick(resume_check: bool = False, via_api: bool = False, via_lambda: bool = False, new: bool = False):
+def tick(
+    resume_check: bool = False,
+    via_api: bool = False,
+    via_lambda: bool = False,
+    new: bool = False,
+    correlation_id: str | None = None,
+):
     alert = dict(DEMO_ALERT)
-    if new:
+    if correlation_id:
+        # Targets a specific existing incident (e.g. one opened by the
+        # notebook's own alert cell) instead of this script's own fixed or
+        # freshly-generated one — required to kill/resume the SAME incident
+        # a caller is already tracking.
+        alert["correlation_id"] = correlation_id
+    elif new:
         alert["correlation_id"] = f"demo-incident-{uuid.uuid4().hex[:8]}"
 
     if via_api:
@@ -100,10 +113,20 @@ if __name__ == "__main__":
     parser.add_argument("--resume-check", action="store_true")
     parser.add_argument("--via-api", action="store_true")
     parser.add_argument("--via-lambda", action="store_true")
-    parser.add_argument("--new", action="store_true")
+    # Mutually exclusive: both set the correlation id, so accepting both would
+    # silently ignore one. An explicit error beats a confusing no-op.
+    incident = parser.add_mutually_exclusive_group()
+    incident.add_argument("--new", action="store_true")
+    incident.add_argument("--correlation-id")
     args = parser.parse_args()
 
     if args.tick:
-        tick(resume_check=args.resume_check, via_api=args.via_api, via_lambda=args.via_lambda, new=args.new)
+        tick(
+            resume_check=args.resume_check,
+            via_api=args.via_api,
+            via_lambda=args.via_lambda,
+            new=args.new,
+            correlation_id=args.correlation_id,
+        )
     else:
         print("Use --tick to fire a synthetic alert against the orchestrator.")
