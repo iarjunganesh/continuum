@@ -1,0 +1,100 @@
+{
+  "run_id": "0b99a950",
+  "kind": "chaos",
+  "label": "lambda",
+  "started_utc": "2026-08-09T18:43:09.459869+00:00",
+  "finished_utc": "2026-08-09T18:48:41.506918+00:00",
+  "code": {
+    "commit": "0ae00995afc89d2ee8e7940c9a61f67a19e516ee",
+    "commit_short": "0ae0099",
+    "describe": "v0.9.6-3-g0ae0099",
+    "working_tree_dirty": true,
+    "dirty_tracked": [
+      ".gitignore"
+    ],
+    "untracked_files": 33
+  },
+  "environment": {
+    "python": "3.14.6",
+    "platform": "win32",
+    "cluster": "continuum-28621.j77.aws-eu-central-1.cockroachlabs.cloud/defaultdb",
+    "aws_region": "eu-central-1",
+    "bedrock_region": "eu-central-1",
+    "embedding_model": "amazon.titan-embed-text-v2:0",
+    "reasoning_model": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "lambda_function": "continuum-orchestrator",
+    "step_execution_seconds": 5.0,
+    "max_remediation_steps": 3
+  },
+  "command": "chaos_capture.py --via-lambda --profile continuum-admin --pause",
+  "files": [
+    "0b99a950_01-before-kill.json",
+    "0b99a950_02-frozen.json",
+    "0b99a950_03-after-resume.json",
+    "0b99a950_NOTES.md",
+    "0b99a950_bedrock-probe.txt",
+    "0b99a950_cloudwatch-log.txt",
+    "0b99a950_remediation-steps.json",
+    "0b99a950_session-metadata.json"
+  ],
+  "screenshots": [
+    "0b99a950_01-space-console-step-in-flight.png",
+    "0b99a950_02-terminal-aws-kill-and-cold-resume.png",
+    "0b99a950_03-crdb-console-step-frozen-executing-runtime-lambda.png",
+    "0b99a950_05-space-console-resumed-resolved-with-lambda-badge.png",
+    "0b99a950_06-crdb-console-executing-then-executed-runtime-lambda.png",
+    "0b99a950_07-space-mcp-answering-live.png",
+    "0b99a950_09-cloudwatch-timeout-then-cold-recovery-read.png"
+  ],
+  "results": {
+    "mode": "aws-lambda-timeout",
+    "function": "continuum-orchestrator",
+    "aws_region": "eu-central-1",
+    "caller_identity": "arn:aws:iam::<account-id>:user/continuum-admin",
+    "calibration_attempts": [
+      {
+        "attempt": 1,
+        "timeout": 6,
+        "correlation_id": "chaos-lambda-f6d562b7",
+        "durable_executing_step": 0,
+        "function_error": "Unhandled",
+        "timed_out": true
+      }
+    ],
+    "bedrock_reachable_at_capture": true,
+    "original_timeout": 60,
+    "function_build": {
+      "code_sha256": "FM6pWpgAUlV3QSeiHAAq15wiOewIh8/sENEuNsLCraw=",
+      "last_modified": "2026-08-09T17:36:48.000+0000",
+      "runtime": "python3.14",
+      "memory_size_mb": 512,
+      "version": "$LATEST"
+    },
+    "correlation_id": "chaos-lambda-f6d562b7",
+    "interrupted_step_index": 0,
+    "timeout_used": 6,
+    "kill_delivered_by": "AWS Lambda (function timeout)",
+    "timeout_payload": "{\"errorType\":\"Sandbox.Timedout\",\"errorMessage\":\"RequestId: a9928478-fa31-4698-93a9-02a452743a8d Error: Task timed out after 6.00 seconds\"}",
+    "resume_response": {
+      "incident_id": "5b130dad-0cd3-4c56-99e6-e81aa5cb6a63",
+      "step_index": 0,
+      "action": "increase_database_connection_pool_size",
+      "state": "remediating",
+      "resumed": true,
+      "reexecuted_after_interrupt": true,
+      "correlation_source": "bedrock",
+      "reasoning_source": "bedrock"
+    },
+    "final_state": "resolved",
+    "steps_executed": 3,
+    "duplicated_step_indices": [],
+    "step_runtimes": [
+      "lambda"
+    ],
+    "exactly_once": true,
+    "outcome": "PASS",
+    "timeout_restored": 60
+  },
+  "screenshots_added_utc": "2026-08-09T19:07:30.639188+00:00",
+  "screenshots_redacted_by": "scripts/redact_evidence.py"
+}

@@ -30,3 +30,7 @@ data/runs/
 # IDE
 .vscode/
 .idea/
+
+# Windows Explorer folder-view metadata — created whenever a folder is customised
+desktop.ini
+Thumbs.db

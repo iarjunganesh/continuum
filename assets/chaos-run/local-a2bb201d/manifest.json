@@ -1,0 +1,72 @@
+{
+  "run_id": "a2bb201d",
+  "kind": "chaos",
+  "label": "local",
+  "started_utc": "2026-08-09T18:22:24.316985+00:00",
+  "finished_utc": "2026-08-09T18:30:18.618074+00:00",
+  "code": {
+    "commit": "0ae00995afc89d2ee8e7940c9a61f67a19e516ee",
+    "commit_short": "0ae0099",
+    "describe": "v0.9.6-3-g0ae0099",
+    "working_tree_dirty": false,
+    "dirty_tracked": [],
+    "untracked_files": 14
+  },
+  "environment": {
+    "python": "3.14.6",
+    "platform": "win32",
+    "cluster": "continuum-28621.j77.aws-eu-central-1.cockroachlabs.cloud/defaultdb",
+    "aws_region": "eu-central-1",
+    "bedrock_region": "eu-central-1",
+    "embedding_model": "amazon.titan-embed-text-v2:0",
+    "reasoning_model": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "lambda_function": "continuum-orchestrator",
+    "step_execution_seconds": 5.0,
+    "max_remediation_steps": 3
+  },
+  "command": "chaos_capture.py --pause",
+  "files": [
+    "a2bb201d_01-before-kill.json",
+    "a2bb201d_02-frozen.json",
+    "a2bb201d_03-after-resume.json",
+    "a2bb201d_NOTES.md",
+    "a2bb201d_bedrock-probe.txt",
+    "a2bb201d_orchestrator-log.jsonl",
+    "a2bb201d_remediation-steps.json",
+    "a2bb201d_session-metadata.json"
+  ],
+  "screenshots": [
+    "a2bb201d_00-space-console-at-rest.png",
+    "a2bb201d_01-space-console-step-in-flight.png",
+    "a2bb201d_02-terminal-kill-pause-and-cold-resume.png",
+    "a2bb201d_03-crdb-console-step-frozen-executing.png",
+    "a2bb201d_05-space-console-resumed-and-resolved.png",
+    "a2bb201d_06-crdb-console-executing-then-executed.png",
+    "a2bb201d_08-space-card-provenance-badges.png"
+  ],
+  "results": {
+    "correlation_id": "chaos-5dd7084d",
+    "mode": "local-process-kill",
+    "bedrock_reachable_at_capture": true,
+    "killed_pid": 38600,
+    "killed_port": 52083,
+    "interrupted_step_index": 0,
+    "resume_response": {
+      "incident_id": "6433e546-8211-479a-b0e5-2dcb6ca9e990",
+      "step_index": 0,
+      "action": "increase_database_connection_pool_size",
+      "state": "remediating",
+      "resumed": true,
+      "reexecuted_after_interrupt": true,
+      "correlation_source": "bedrock",
+      "reasoning_source": "bedrock"
+    },
+    "final_state": "resolved",
+    "steps_executed": 3,
+    "duplicated_step_indices": [],
+    "exactly_once": true,
+    "outcome": "PASS"
+  },
+  "screenshots_added_utc": "2026-08-09T19:07:30.639188+00:00",
+  "screenshots_redacted_by": "scripts/redact_evidence.py"
+}

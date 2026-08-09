@@ -1,0 +1,44 @@
+INIT_START Runtime Version: python:3.14.mainline.v59	Runtime Version ARN: arn:aws:lambda:eu-central-1::runtime:916b2077df67ed391c654f784d06a7867c8e499551b1d1b62d6df5d240990a52
+START RequestId: a9928478-fa31-4698-93a9-02a452743a8d Version: $LATEST
+{"correlation_id": "chaos-lambda-f6d562b7", "event": "new_incident", "timestamp": "2026-08-09T18:43:24.715167Z", "level": "info"}
+{"incident_id": "5b130dad-0cd3-4c56-99e6-e81aa5cb6a63", "correlation_id": "chaos-lambda-f6d562b7", "event": "incident_opened", "timestamp": "2026-08-09T18:43:24.807205Z", "level": "info"}
+{"incident_id": "5b130dad-0cd3-4c56-99e6-e81aa5cb6a63", "state": "correlating", "event": "incident_state_changed", "timestamp": "2026-08-09T18:43:24.891750Z", "level": "info"}
+Found credentials in environment variables.
+{"model": "amazon.titan-embed-text-v2:0", "dimensions": 1024, "event": "alert_embedded", "timestamp": "2026-08-09T18:43:25.436644Z", "level": "info"}
+{"service": "checkout-api", "matches_found": 5, "event": "correlation_query", "timestamp": "2026-08-09T18:43:25.530483Z", "level": "info"}
+{"based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a", "step_index": 0, "action": "increase_database_connection_pool_size", "source": "bedrock", "event": "remediation_proposed", "timestamp": "2026-08-09T18:43:28.365795Z", "level": "info"}
+{"incident_id": "5b130dad-0cd3-4c56-99e6-e81aa5cb6a63", "step_index": 0, "resuming": false, "claimed": true, "event": "step_checkpoint_start", "timestamp": "2026-08-09T18:43:28.453093Z", "level": "info"}
+END RequestId: a9928478-fa31-4698-93a9-02a452743a8d
+REPORT RequestId: a9928478-fa31-4698-93a9-02a452743a8d	Duration: 6000.00 ms	Billed Duration: 7805 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1804.51 ms	Status: timeout
+INIT_START Runtime Version: python:3.14.mainline.v59	Runtime Version ARN: arn:aws:lambda:eu-central-1::runtime:916b2077df67ed391c654f784d06a7867c8e499551b1d1b62d6df5d240990a52
+START RequestId: cc541312-6aa3-4b1c-b6c6-1ec31f44d7d0 Version: $LATEST
+{"correlation_id": "chaos-lambda-f6d562b7", "state": "remediating", "last_step_index": 0, "last_step_status": "executing", "event": "recovered_incident_state", "timestamp": "2026-08-09T18:48:13.687998Z", "level": "info"}
+{"correlation_id": "chaos-lambda-f6d562b7", "state": "remediating", "step_index": 0, "interrupted": true, "event": "resuming_incident", "timestamp": "2026-08-09T18:48:13.690201Z", "level": "info"}
+Found credentials in environment variables.
+{"model": "amazon.titan-embed-text-v2:0", "dimensions": 1024, "event": "alert_embedded", "timestamp": "2026-08-09T18:48:14.236898Z", "level": "info"}
+{"service": "checkout-api", "matches_found": 5, "event": "correlation_query", "timestamp": "2026-08-09T18:48:14.318602Z", "level": "info"}
+{"based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a", "step_index": 0, "action": "increase_database_connection_pool_size", "source": "bedrock", "event": "remediation_proposed", "timestamp": "2026-08-09T18:48:16.775018Z", "level": "info"}
+{"incident_id": "5b130dad-0cd3-4c56-99e6-e81aa5cb6a63", "step_index": 0, "resuming": true, "claimed": true, "event": "step_checkpoint_start", "timestamp": "2026-08-09T18:48:16.852313Z", "level": "info"}
+{"incident_id": "5b130dad-0cd3-4c56-99e6-e81aa5cb6a63", "step_index": 0, "resolved": false, "event": "step_checkpoint_done", "timestamp": "2026-08-09T18:48:21.941093Z", "level": "info"}
+END RequestId: cc541312-6aa3-4b1c-b6c6-1ec31f44d7d0
+REPORT RequestId: cc541312-6aa3-4b1c-b6c6-1ec31f44d7d0	Duration: 8467.64 ms	Billed Duration: 10124 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1655.96 ms	
+START RequestId: 8162f908-8c82-4e2d-88e7-abcaa5e18472 Version: $LATEST
+{"correlation_id": "chaos-lambda-f6d562b7", "state": "remediating", "last_step_index": 0, "last_step_status": "executed", "event": "recovered_incident_state", "timestamp": "2026-08-09T18:48:22.058717Z", "level": "info"}
+{"correlation_id": "chaos-lambda-f6d562b7", "state": "remediating", "step_index": 1, "interrupted": false, "event": "resuming_incident", "timestamp": "2026-08-09T18:48:22.060795Z", "level": "info"}
+{"model": "amazon.titan-embed-text-v2:0", "dimensions": 1024, "event": "alert_embedded", "timestamp": "2026-08-09T18:48:22.166811Z", "level": "info"}
+{"service": "checkout-api", "matches_found": 5, "event": "correlation_query", "timestamp": "2026-08-09T18:48:22.261533Z", "level": "info"}
+{"based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a", "step_index": 1, "action": "increase_database_connection_pool_size", "source": "bedrock", "event": "remediation_proposed", "timestamp": "2026-08-09T18:48:24.548318Z", "level": "info"}
+{"incident_id": "5b130dad-0cd3-4c56-99e6-e81aa5cb6a63", "step_index": 1, "resuming": false, "claimed": true, "event": "step_checkpoint_start", "timestamp": "2026-08-09T18:48:24.632929Z", "level": "info"}
+{"incident_id": "5b130dad-0cd3-4c56-99e6-e81aa5cb6a63", "step_index": 1, "resolved": false, "event": "step_checkpoint_done", "timestamp": "2026-08-09T18:48:29.707344Z", "level": "info"}
+END RequestId: 8162f908-8c82-4e2d-88e7-abcaa5e18472
+REPORT RequestId: 8162f908-8c82-4e2d-88e7-abcaa5e18472	Duration: 7724.50 ms	Billed Duration: 7725 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	
+START RequestId: d6205108-121c-4d55-ab7f-1ceb07f02f2f Version: $LATEST
+{"correlation_id": "chaos-lambda-f6d562b7", "state": "remediating", "last_step_index": 1, "last_step_status": "executed", "event": "recovered_incident_state", "timestamp": "2026-08-09T18:48:29.845061Z", "level": "info"}
+{"correlation_id": "chaos-lambda-f6d562b7", "state": "remediating", "step_index": 2, "interrupted": false, "event": "resuming_incident", "timestamp": "2026-08-09T18:48:29.847516Z", "level": "info"}
+{"model": "amazon.titan-embed-text-v2:0", "dimensions": 1024, "event": "alert_embedded", "timestamp": "2026-08-09T18:48:29.951683Z", "level": "info"}
+{"service": "checkout-api", "matches_found": 5, "event": "correlation_query", "timestamp": "2026-08-09T18:48:30.024416Z", "level": "info"}
+{"based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a", "step_index": 2, "action": "increase_database_connection_pool_size", "source": "bedrock", "event": "remediation_proposed", "timestamp": "2026-08-09T18:48:32.972756Z", "level": "info"}
+{"incident_id": "5b130dad-0cd3-4c56-99e6-e81aa5cb6a63", "step_index": 2, "resuming": false, "claimed": true, "event": "step_checkpoint_start", "timestamp": "2026-08-09T18:48:33.055780Z", "level": "info"}
+{"incident_id": "5b130dad-0cd3-4c56-99e6-e81aa5cb6a63", "step_index": 2, "resolved": true, "event": "step_checkpoint_done", "timestamp": "2026-08-09T18:48:38.150757Z", "level": "info"}
+END RequestId: d6205108-121c-4d55-ab7f-1ceb07f02f2f
+REPORT RequestId: d6205108-121c-4d55-ab7f-1ceb07f02f2f	Duration: 8390.16 ms	Billed Duration: 8391 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	

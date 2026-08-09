@@ -1,0 +1,49 @@
+{
+  "mode": "aws-lambda-timeout",
+  "function": "continuum-orchestrator",
+  "aws_region": "eu-central-1",
+  "caller_identity": "arn:aws:iam::<account-id>:user/continuum-admin",
+  "calibration_attempts": [
+    {
+      "attempt": 1,
+      "timeout": 6,
+      "correlation_id": "chaos-lambda-f6d562b7",
+      "durable_executing_step": 0,
+      "function_error": "Unhandled",
+      "timed_out": true
+    }
+  ],
+  "bedrock_reachable_at_capture": true,
+  "original_timeout": 60,
+  "function_build": {
+    "code_sha256": "FM6pWpgAUlV3QSeiHAAq15wiOewIh8/sENEuNsLCraw=",
+    "last_modified": "2026-08-09T17:36:48.000+0000",
+    "runtime": "python3.14",
+    "memory_size_mb": 512,
+    "version": "$LATEST"
+  },
+  "correlation_id": "chaos-lambda-f6d562b7",
+  "interrupted_step_index": 0,
+  "timeout_used": 6,
+  "kill_delivered_by": "AWS Lambda (function timeout)",
+  "timeout_payload": "{\"errorType\":\"Sandbox.Timedout\",\"errorMessage\":\"RequestId: a9928478-fa31-4698-93a9-02a452743a8d Error: Task timed out after 6.00 seconds\"}",
+  "resume_response": {
+    "incident_id": "5b130dad-0cd3-4c56-99e6-e81aa5cb6a63",
+    "step_index": 0,
+    "action": "increase_database_connection_pool_size",
+    "state": "remediating",
+    "resumed": true,
+    "reexecuted_after_interrupt": true,
+    "correlation_source": "bedrock",
+    "reasoning_source": "bedrock"
+  },
+  "final_state": "resolved",
+  "steps_executed": 3,
+  "duplicated_step_indices": [],
+  "step_runtimes": [
+    "lambda"
+  ],
+  "exactly_once": true,
+  "outcome": "PASS",
+  "timeout_restored": 60
+}

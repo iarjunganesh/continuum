@@ -8,10 +8,13 @@ That claim is only credible if you can see a remediation step frozen in `executi
 while no process is alive to own it, and then see a cold invocation pick up *that exact step*. This
 directory is where that proof lives.
 
-> **Status — both runs captured; screenshots still to be taken.** `chaos-run/local-<id>/` holds a
-> live orchestrator hard-killed mid-step, and `chaos-run/lambda-<id>/` holds the same three phases
-> against the **deployed function with AWS delivering the kill** — the frozen `executing` row and
-> the cold resume read back out of CockroachDB in both cases. The folders list exactly what exists.
+> **Status — complete.** Both runs are captured *and* screenshotted (2026-08-09).
+> `chaos-run/local-a2bb201d/` holds a live orchestrator hard-killed mid-step;
+> `chaos-run/lambda-0b99a950/` holds the same three phases against the **deployed function with
+> AWS delivering the kill**. Each carries the frozen `executing` row and the cold resume as
+> machine-read JSON *and* as console frames from Cockroach Labs, Hugging Face and AWS — including
+> the one shot that cannot be staged after the fact: the step sitting in `executing` with nothing
+> alive to own it.
 
 ---
 

@@ -27,6 +27,13 @@ screenshot exists: the plain target resolves the incident in the same breath, an
 console shows `resolved`. **The frozen state cannot be staged again after the fact** — this is why
 run `local-4789422d` has complete evidence JSON and an empty `screenshots/` folder.
 
+**Every screenshot that lands in a `screenshots/` folder must be declared in
+[`../../scripts/redact_evidence.py`](../../scripts/redact_evidence.py)** — with an empty region
+tuple if it genuinely needs no mask, because "declared and deliberately unmasked" is a decision and
+an undeclared file is nobody having looked. `make redact-evidence --check` fails on either an
+undeclared file or an unmasked declared region. That is what stops a raw 1920×1080 window capture
+shipping with a real person's profile photograph, or an AWS account id, in the browser chrome.
+
 **Run the keeper capture against the Cloud cluster**, not `make local-cluster` — shot `03` is a
 screenshot of the *CockroachDB Cloud console*, so a local run frames a localhost container and
 evidences nothing. It costs one incident and three steps. Rehearse locally if you want the timing
@@ -53,9 +60,16 @@ ever copied out into a slide or a Devpost post. Match the conventions the provid
 use: **1920×1080, unedited, URL bar in frame** for anything from a web console.
 
 **The screenshots belong to the run they were taken during.** A folder whose evidence JSON describes
-one incident and whose screenshots show another proves nothing, so the runs already committed here
-keep their empty `screenshots/`: they were unattended, and the frozen state they captured is gone.
-Capturing shots means starting a **new** `--pause` run and shooting that one.
+one incident and whose screenshots show another proves nothing, so an unattended run keeps its empty
+`screenshots/` rather than borrowing another run's frames — the frozen state it captured is gone and
+cannot be staged again. Capturing shots means starting a **new** `--pause` run and shooting that one.
+
+Two runs are fully shot, one per environment, each with its own `screenshots/README.md` mapping
+frame to claim: [`local-a2bb201d/`](local-a2bb201d/screenshots/) (a real `SIGKILL`) and
+[`lambda-0b99a950/`](lambda-0b99a950/screenshots/) (AWS delivering the kill). The earlier
+`local-4789422d/` and `lambda-c81826e7/` were unattended and keep their evidence JSON alone; they
+are kept rather than deleted because two independent passes of the same contract is a stronger
+claim than one.
 
 #### Before you start
 
