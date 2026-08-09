@@ -39,6 +39,16 @@ comments, test fixtures, and captured evidence.
   this stack's role paths is recorded as outstanding in ADR 010 rather than glossed over.
 - CI runs on deliberately fake credentials — every outbound call in the unit suite is mocked at the
   import boundary, so a real key is never needed to make the suite pass.
+- **Nor into a screenshot.** Judge-facing evidence is full-window console captures, which carry
+  browser chrome: the signed-in user's profile photograph, and on AWS pages the account id — in the
+  top-right tooltip and inside any ARN the page prints. Neither is a credential, but a face is a
+  real person and an account id is barred from submission material, so masking is declared as data
+  in [`scripts/redact_evidence.py`](scripts/redact_evidence.py) with a reason per region rather
+  than done by hand and forgotten. `make redact-evidence --check` fails on an unmasked declared
+  region **and** on a screenshot with no declaration at all, so a new capture cannot ship because
+  nobody looked at it. It must never touch a metric, timestamp, identifier or query text the
+  surrounding prose cites — masking a number to make it agree with a document would turn evidence
+  into decoration.
 - **Secrets must not reach a terminal either.** Gitignoring `.env` and keeping the DSN out of
   `samconfig.toml` stops a credential reaching the repository; neither stops one reaching stdout,
   where it lands in scrollback and in any transcript later shared for help. The realistic failure

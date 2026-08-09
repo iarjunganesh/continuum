@@ -8,7 +8,7 @@ Final cut and its source material. Beat-by-beat script: [`../../submission/DEMO_
 | `continuum.srt` | Captions, timed to the measured narration clips | **generated** — `make voiceover` |
 | `kill-recover-take.mp4` | Recording #1: the one continuous take covering beats 6–8 | pending |
 | `mcp-query-take.mp4` | Recording #2: the live MCP query, beat 12 | pending |
-| `statics/` | Still frames — README top, console, `EXPLAIN` plan, CI badges, ADR list, Lambda console | pending |
+| `statics/` | Still frames — README top, console, `EXPLAIN` plan, CI badges, ADR list, Lambda console | pending — see [`statics/README.md`](statics/README.md); every PNG there must be declared in `scripts/redact_evidence.py` before `--check` passes |
 
 **Never hand-edit `continuum.srt`.** It is regenerated from
 [`scripts/generate_demo_voiceover.py`](../../scripts/generate_demo_voiceover.py), which owns the

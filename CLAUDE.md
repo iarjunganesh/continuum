@@ -19,7 +19,7 @@ Continuum — an agentic incident-response system built for the CockroachDB × A
 
 Deploy notes that cost time and will again: build from a **clean `git clone`**, never the working tree — `CodeUri: ../` packages the repo root, and a local `.venv`/`.mypy_cache` blows Lambda's 250 MB limit. `sam build` reads `infra/requirements-lambda.txt` (via `manifest` in `samconfig.toml`), *not* the root `requirements.txt`, which would ship Gradio and the dev toolchain into the function; `tests/unit/test_lambda_manifest.py` guards the two files against drift. Deploy with `--profile continuum-admin`; the default `continuum-bedrock` identity is Bedrock-invoke only and gets `AccessDenied` on CloudFormation by design. **Setting `AWS_PROFILE` is not enough**: `.env` exports static `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` for that Bedrock-only user, and boto3 ranks static keys above the profile — so the profile is silently ignored and the failure arrives as an IAM `AccessDenied`, not a config error. Unset both in the shell before deploying or invoking. Run `make preflight-deploy` first — it checks all of this.
 
-Remaining before submission: capture the judge-facing evidence runs into `assets/chaos-run/` (see `assets/README.md`), record the demo video (`submission/DEMO_SCRIPT.md`), and fill in the `submission/SUBMISSION.md` checklist end to end.
+**The judge-facing evidence is complete as of 2026-08-09.** Both chaos runs are captured *and* screenshotted — `assets/chaos-run/local-a2bb201d/` (a real `SIGKILL`) and `assets/chaos-run/lambda-0b99a950/` (AWS delivering the kill via a lowered function timeout), seven console frames each, shot inside the `--pause` window that is the only moment the interrupted state exists. `make clean-clone-check` answers the "runs from a clean clone" item with a report that states its own limits. Remaining before submission: **record the demo video** (`submission/DEMO_SCRIPT.md` — its Session C evidence capture is already done, do not re-run it on shoot day), paste the Devpost form answers from `submission/DEVPOST.md`, and get one judge-experience dry run from someone who has not seen the project.
 
 ## Key Commands
 ```bash
@@ -33,7 +33,9 @@ make demo               # one remediation tick, in-process
 make chaos-demo         # the kill-and-recover sequence — see submission/DEMO_SCRIPT.md
 make probe-bedrock      # is live Bedrock open today? quotas are dynamic — run before recording
 make benchmark          # latency benchmarks → docs/BENCHMARKS.md
-make redact-evidence    # mask declared regions in assets/provider-evidence/ (--check gates it)
+make chaos-capture-lambda  # the same kill-and-recover, but AWS terminates the invocation
+make clean-clone-check  # clone the public repo, fresh venv, run the README's own Quick Start
+make redact-evidence    # mask declared regions in EVERY judge-facing screenshot (--check gates it)
 make export-memory      # snapshot incidents/steps/embeddings → data/snapshots/*.jsonl
 make restore-memory SNAPSHOT=<path>   # put a snapshot back (idempotent, ON CONFLICT DO NOTHING)
 make deploy-restart-drill CLONE_DIR=<clean checkout>  # redeploy under an open incident, prove the resume
@@ -71,7 +73,12 @@ CockroachDB tools used: **Distributed Vector Indexing** + **Managed MCP Server**
   that points at `*.cockroachlabs.cloud`. The cost is not Request Units (the whole project has used
   5.72M against a 50M/month allowance as of 2026-08-08, and that already includes the heaviest day the project has run); it is that an N=200 bench left **665 incidents, 431 frozen in
   `remediating`**, on the cluster judges open. The `--allow-cloud-burn` guard in `resilience_bench.py`
-  is a backstop, not permission. Published *latency* is the one exception and must come from Cloud.
+  is a backstop, not permission. Published *latency* is the one exception and must come from Cloud —
+  and so is a **keeper chaos capture**, whose whole artifact is a screenshot of the Cloud console;
+  `make chaos-capture-lambda` has no local option at all, since it drives the deployed function.
+  Each costs one incident. Leave the demo cluster with **no incident stuck open** afterwards: a step
+  frozen in `executing` is the thesis for a few minutes and a stuck agent after a few days — one sat
+  there from 7 July until 2026-08-09, when the agent resumed and finished it 33 days later.
   Full guidance: `docs/CLUSTER_OPS.md`.
 - **Never set `CONTINUUM_UI_REFRESH_SECONDS` on the Hugging Face Space.** The timer costs ~50 RU per
   refresh — ~36K RU/hour *per open browser tab*, so one forgotten tab over a four-week judging period
@@ -293,7 +300,7 @@ Commit subjects carry no version numbers — the tag and CHANGELOG carry the ver
 - Architecture spec: `docs/ARCHITECTURE.md`. **Two diagrams, both source-of-truth `.mmd` files in `assets/architecture/`**: `architecture-diagram.mmd` (components — *what talks to what*) and `recovery-sequence.mmd` (the two-cold-invocation handoff — *what survives*). Neither is duplicated as an inline ```mermaid``` fence anywhere; `README.md` and `docs/ARCHITECTURE.md` embed the rendered SVGs. Edit the `.mmd` and re-render — never hand-edit an SVG/PNG.
 - Demo script: `submission/DEMO_SCRIPT.md` — the kill-and-recover sequence is the thing being graded, treat changes to that flow as high-risk
 - Judge-facing packet: `submission/` — `SUBMISSION.md` (rules checklist), `DEVPOST.md` (hackathon facts + judging-criteria mapping), `DEVPOST_README.md` (**generated** paste mirror of `README.md`), `DEMO_SCRIPT.md` (the recording script — owns the graded kill-and-recover flow), `COSTS.md`. These moved out of `docs/`; don't recreate them there.
-- Judge-facing evidence: `assets/` — `assets/README.md` is the curated index and carries the capture plan for `assets/chaos-run/`. **Never hand-edit a frame in `assets/provider-evidence/`.** Masking is declared as data in `scripts/redact_evidence.py` with a reason per region, is idempotent, and `--check` fails on an unmasked declared region. It may cover a real person's photograph and an AWS account id, and nothing else — masking a metric, timestamp or identifier that a document cites would turn evidence into decoration. A region's coordinates are *measured off the capture*, never eyeballed: an eyeballed box once left a crescent of the photograph showing, and the account tooltip sits ~16px further right on CloudWatch's log-events page than on its metrics pages, which is why two boxes exist
+- Judge-facing evidence: `assets/` — `assets/README.md` is the curated index; `assets/chaos-run/` is captured and screenshotted (both environments, 2026-08-09). **Never hand-edit a frame in `assets/provider-evidence/` or any `screenshots/` folder.** Masking is declared as data in `scripts/redact_evidence.py` with a reason per region, is idempotent, and `--check` fails on an unmasked declared region **or on a screenshot with no declaration at all** — an empty region tuple is a valid declaration and means "someone looked and it needs nothing". It covers `provider-evidence/`, `chaos-run/*/screenshots/` and `demo-video/statics/`, because a still frame cut into the video is as judge-facing as anything else. It may cover a real person's photograph and an AWS account id, and nothing else — masking a metric, timestamp or identifier that a document cites would turn evidence into decoration. A region's coordinates are *measured off the capture*, never eyeballed: an eyeballed box once left a crescent of the photograph showing, and the account tooltip sits ~16px further right on CloudWatch's log-events page than on its metrics pages, which is why two boxes exist
 - Model prompts: `prompts/` — loaded at import time by the owning agent, deliberately (see `prompts/README.md`)
 
 ## When adding a CockroachDB or AWS integration

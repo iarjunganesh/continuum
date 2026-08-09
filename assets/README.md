@@ -18,11 +18,12 @@ directory is where that proof lives.
 
 ---
 
-## Planned runs
+## The two runs
 
-Two runs of the **same** incident through the **same** recovery contract, in two different
-execution environments — the point being that the contract holds identically because no state
-lives in the process.
+The **same** incident shape through the **same** recovery contract, in two different execution
+environments — the point being that the contract holds identically because no state lives in the
+process. Both are captured and screenshotted; this section describes what each one is *for*, and
+the method for redoing either.
 
 | Run | Folder | Environment | What it proves |
 | --- | --- | --- | --- |
@@ -57,6 +58,17 @@ chaos-run/<id>/
 ```
 
 ## Screenshot plan (numbered in walkthrough order)
+
+Both runs are shot against this plan, each with a `screenshots/README.md` mapping frame to claim
+and stating which numbers it deliberately does **not** have as separate files — `04` lives inside
+`02` (one continuous scrollback), and in the Lambda run `08` lives inside `05` (the card's full
+badge row was already in frame). A number absent because it is contained in another frame is not a
+missing shot, but only saying so makes that checkable.
+
+**Every screenshot must be declared in [`../scripts/redact_evidence.py`](../scripts/redact_evidence.py)**,
+with an empty region tuple if it needs no mask. `make redact-evidence --check` fails on an
+undeclared file as well as an unmasked one — a raw 1920×1080 window capture carries the signed-in
+user's profile photograph, and on AWS pages an account id.
 
 **Only `chaos-run/` carries screenshots.** `resilience-run/`, `deploy-restart-run/` and the
 benchmark suites are machine-evidenced by design: their results are counts and JSON, whose visual

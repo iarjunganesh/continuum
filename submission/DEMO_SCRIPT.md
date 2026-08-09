@@ -65,12 +65,14 @@ So the shoot splits three ways:
 - **Stills** — every other beat. Crisper text, free retakes, and the charts are *generated* rather
   than captured, so they can never show a number that has drifted from the evidence.
 
-There is also a fourth thing to capture on shoot day that is **not part of the video at all**:
+There was also a fourth thing to capture, **not part of the video at all**:
 
-- **Session C — Evidence capture** (`make chaos-capture-pause`, ~5 min). Produces the judge-facing
-  `assets/chaos-run/` folder and its console screenshots. Nothing from it appears on the timeline.
-  Do it in the same sitting because the browser tabs and cluster state are already staged — but see
-  *Session C* below for why it **cannot** double as Recording #1.
+- **Session C — Evidence capture** — ✅ **done 2026-08-09, before shoot day.** Both runs are
+  captured *and* screenshotted: [`../assets/chaos-run/local-a2bb201d/`](../assets/chaos-run/local-a2bb201d/)
+  (a real `SIGKILL`) and [`../assets/chaos-run/lambda-0b99a950/`](../assets/chaos-run/lambda-0b99a950/)
+  (AWS delivering the kill). Nothing from it appears on the timeline. **Do not re-run it on shoot
+  day** — the frames are committed and the section below is kept only as the method, for if a run
+  ever needs redoing. See *Session C* for why it could never have doubled as Recording #1 anyway.
 
 **What stills cost, and why it's the right trade**: a still has no cursor, so nothing in those beats
 reads as "someone is operating this right now." That's fine — correct, even — for beats whose job is
@@ -387,13 +389,18 @@ still you captured, or beat 12 will jump against beats 3 and 5.
 
 ---
 
-## Session C — Evidence capture (not filmed, but do it the same day)
+## Session C — Evidence capture ✅ done 2026-08-09 (not filmed)
+
+**This is finished — it is not shoot-day work.** Kept as the method, because a run may need
+redoing and the timing is easy to get wrong.
 
 `make chaos-capture-pause` produces the judge-facing artifact the *repo* needs: a
 `assets/chaos-run/local-<id>/` folder holding a provenance manifest, the three phase snapshots read
 straight out of CockroachDB, the orchestrator's own structlog, the Bedrock probe — and the console
-screenshots that go with them. **None of it lands on the video timeline.** It is what a judge opens
-when they want to verify the claim without watching anything.
+screenshots that go with them. `make chaos-capture-lambda --pause` does the same against the
+**deployed** function, with AWS delivering the kill via a lowered timeout. **None of it lands on the
+video timeline.** It is what a judge opens when they want to verify the claim without watching
+anything.
 
 ### Why this cannot be Recording #1
 
@@ -449,10 +456,17 @@ passing folder worth trusting.
 
 ### Afterwards
 
-The new run supersedes `local-4789422d`, which has complete evidence JSON and an empty
-`screenshots/` folder because it was captured before `--pause` existed and its incident has long
-since resolved. Update `assets/README.md`, `assets/chaos-run/README.md` and the Known Gaps row in
-[`SUBMISSION.md`](SUBMISSION.md) to point at the new id.
+Done on 2026-08-09: `local-a2bb201d` and `lambda-0b99a950`, seven frames each, both with a
+`screenshots/README.md` mapping frame to claim. They supersede `local-4789422d` and
+`lambda-c81826e7`, which keep complete evidence JSON and empty `screenshots/` folders — they were
+unattended, and the interrupted state they captured is long resolved. Those two are kept rather
+than deleted: two independent passes of the same contract is a stronger claim than one.
+
+Any future run repeats that: update `assets/README.md`, `assets/chaos-run/README.md` and the Known
+Gaps row in [`SUBMISSION.md`](SUBMISSION.md) to the new id, and **declare every new screenshot in
+[`../scripts/redact_evidence.py`](../scripts/redact_evidence.py)** — `make redact-evidence --check`
+fails on an undeclared file, which is what stops a raw window capture shipping with a real person's
+photograph or an AWS account id in the browser chrome.
 
 ---
 
@@ -760,14 +774,17 @@ These matter more than polish. A judge who catches one overstatement discounts e
       `01.space-console-full-page.png`; the browser-chrome frames are already 1920×1080
 - [ ] One theme held throughout — UI, cards, diagram, charts
 
-**Session C — evidence capture (not filmed)**
+**Session C — evidence capture (not filmed)** — ✅ **complete 2026-08-09, nothing to do on shoot day**
 
-- [ ] `make chaos-capture-pause` run **against the Cloud cluster**, folder written, outcome `PASS`
-- [ ] Shot `03` — the `executing` row in the CockroachDB console — taken **during the pause**.
-      This is unrecoverable afterwards; the incident resolves on ENTER
-- [ ] Shots `01`, `02`, `04`, `05` into `assets/chaos-run/local-<id>/screenshots/`, run-id prefixed
-- [ ] `assets/README.md`, `assets/chaos-run/README.md` and `SUBMISSION.md` Known Gaps updated to
-      the new run id, superseding `local-4789422d`
+- [x] `make chaos-capture-pause` run **against the Cloud cluster**, folder written, outcome `PASS`
+      — `local-a2bb201d`, and `lambda-0b99a950` via `make chaos-capture-lambda --pause`
+- [x] Shot `03` — the `executing` row in the CockroachDB console — taken **during the pause**, in
+      both runs. This is unrecoverable afterwards; the incident resolves on ENTER
+- [x] Seven frames per run into `assets/chaos-run/<id>/screenshots/`, run-id prefixed, each with a
+      README mapping frame to claim
+- [x] `assets/README.md`, `assets/chaos-run/README.md` and `SUBMISSION.md` Known Gaps updated to
+      the new run ids
+- [x] Every frame declared in `scripts/redact_evidence.py`; `make redact-evidence --check` green
 
 **Cut & publish**
 

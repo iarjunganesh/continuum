@@ -47,7 +47,14 @@ make lint         # ruff — also lints notebooks
 make typecheck    # mypy
 make test         # pytest tests/unit tests/integration
 make coverage     # coverage report; CI gate is 90%, currently 100%
+make check-drift  # docs vs repo: versions, counts, links, generated files
 ```
+
+If your change adds a **screenshot** anywhere under `assets/`, also run
+`python scripts/redact_evidence.py --check`. It fails on a capture with no entry in
+`scripts/redact_evidence.py` — an empty region tuple is a valid entry and means "someone looked and
+it needs nothing". A raw window capture carries the signed-in user's profile photograph, and on AWS
+pages an account id.
 
 On Windows (PowerShell 7+):
 
