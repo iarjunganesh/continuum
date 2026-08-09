@@ -1,0 +1,91 @@
+{
+  "phase": "03-after-resume",
+  "note": "incident resolved; every step executed exactly once",
+  "captured_utc": "2026-08-09T17:36:48Z",
+  "incident": {
+    "incident_id": "193c36c6-c580-43ef-b54e-7827b327a9a3",
+    "correlation_id": "chaos-lambda-b562acaa",
+    "service": "checkout-api",
+    "region": "eu-central-1",
+    "severity": "high",
+    "state": "resolved",
+    "summary": "[FIRING:1] HighLatencyP99 service=checkout-api region=eu-central-1 severity=high \u2014 histogram_quantile(0.99, http_server_duration_seconds) = 3.08s exceeds SLO 0.80s for 5m; db_pool_connections_active 2",
+    "opened_at": "2026-08-09 17:36:14.266455+00:00",
+    "updated_at": "2026-08-09 17:36:47.754492+00:00",
+    "resolved_at": "2026-08-09 17:36:47.754492+00:00"
+  },
+  "remediation_steps": [
+    {
+      "step_index": 0,
+      "action": "increase_database_connection_pool_size",
+      "proposed_by": "remediation_agent",
+      "status": "executed",
+      "detail": {
+        "based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a",
+        "bedrock_region": "eu-central-1",
+        "correlation_source": "bedrock",
+        "embedding_model_id": "amazon.titan-embed-text-v2:0",
+        "precedent_distance": 0.831273,
+        "precedent_rank": 0,
+        "precedent_state": "resolved",
+        "precedent_summary": "Elevated p99 latency on checkout-api in us-east-1, likely connection pool exhaustion",
+        "precedents_considered": 5,
+        "rationale": "Database connection pool is fully exhausted (200/200 active, 63 waiting) which directly correlates with the elevated p99 latency, matching the closest past incident 7ad8682a involving connection pool exhaustion.",
+        "reasoning_model_id": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "reasoning_source": "bedrock",
+        "reexecuted_after_interrupt": true,
+        "runtime": "lambda"
+      },
+      "created_at": "2026-08-09 17:36:17.865265+00:00"
+    },
+    {
+      "step_index": 1,
+      "action": "increase_db_connection_pool_size",
+      "proposed_by": "remediation_agent",
+      "status": "executed",
+      "detail": {
+        "based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a",
+        "bedrock_region": "eu-central-1",
+        "correlation_source": "bedrock",
+        "embedding_model_id": "amazon.titan-embed-text-v2:0",
+        "precedent_distance": 0.831273,
+        "precedent_rank": 0,
+        "precedent_state": "resolved",
+        "precedent_summary": "Elevated p99 latency on checkout-api in us-east-1, likely connection pool exhaustion",
+        "precedents_considered": 5,
+        "rationale": "Database connection pool is fully saturated (200/200) with 63 clients waiting, matching the closest correlated incident 7ad8682a which identified connection pool exhaustion as the root cause.",
+        "reasoning_model_id": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "reasoning_source": "bedrock",
+        "reexecuted_after_interrupt": false,
+        "runtime": "lambda"
+      },
+      "created_at": "2026-08-09 17:36:34.955077+00:00"
+    },
+    {
+      "step_index": 2,
+      "action": "increase_database_connection_pool_size",
+      "proposed_by": "remediation_agent",
+      "status": "executed",
+      "detail": {
+        "based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a",
+        "bedrock_region": "eu-central-1",
+        "correlation_source": "bedrock",
+        "embedding_model_id": "amazon.titan-embed-text-v2:0",
+        "precedent_distance": 0.831273,
+        "precedent_rank": 0,
+        "precedent_state": "resolved",
+        "precedent_summary": "Elevated p99 latency on checkout-api in us-east-1, likely connection pool exhaustion",
+        "precedents_considered": 5,
+        "rationale": "Database connection pool is fully saturated (200/200 active connections with 63 clients waiting), matching the closest correlated incident 7ad8682a which identified connection pool exhaustion as the root cause.",
+        "reasoning_model_id": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "reasoning_source": "bedrock",
+        "reexecuted_after_interrupt": false,
+        "runtime": "lambda"
+      },
+      "created_at": "2026-08-09 17:36:42.655903+00:00"
+    }
+  ],
+  "step_status_counts": {
+    "executed": 3
+  }
+}

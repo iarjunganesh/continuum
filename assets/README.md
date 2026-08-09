@@ -8,11 +8,10 @@ That claim is only credible if you can see a remediation step frozen in `executi
 while no process is alive to own it, and then see a cold invocation pick up *that exact step*. This
 directory is where that proof lives.
 
-> **Status — local run captured, Lambda run pending.** `chaos-run/local-<id>/` holds a real
-> captured run: a live orchestrator hard-killed mid-step, the frozen `executing` row, and the cold
-> resume, all read back out of CockroachDB by `make chaos-capture`. The `lambda-<id>` run — the
-> same contract across *invocations* rather than process restarts — is not captured yet.
-> Screenshots for both are still to be taken; the folders list exactly what exists.
+> **Status — both runs captured; screenshots still to be taken.** `chaos-run/local-<id>/` holds a
+> live orchestrator hard-killed mid-step, and `chaos-run/lambda-<id>/` holds the same three phases
+> against the **deployed function with AWS delivering the kill** — the frozen `executing` row and
+> the cold resume read back out of CockroachDB in both cases. The folders list exactly what exists.
 
 ---
 
@@ -25,7 +24,15 @@ lives in the process.
 | Run | Folder | Environment | What it proves |
 | --- | --- | --- | --- |
 | **Local kill** ✅ | `chaos-run/local-<short-id>/` | `make chaos-capture` against the live cluster | A real `SIGKILL`/`TerminateProcess` mid-step leaves `executing` durable; cold restart resumes exactly once |
-| **Lambda cold** ❌ | `chaos-run/lambda-<short-id>/` | deployed `continuum-orchestrator`, no provisioned concurrency (ADR 002) | The same resume happens across *invocations*, not just across process restarts — statelessness is real, not simulated |
+| **Lambda cold** ✅ | `chaos-run/lambda-<short-id>/` | `make chaos-capture-lambda` against the deployed `continuum-orchestrator`, no provisioned concurrency (ADR 002) | The same resume happens across *invocations*, not just across process restarts — statelessness is real, not simulated |
+
+The Lambda run does not kill anything itself. It lowers the **function's own timeout** below its
+step-execution window, so **AWS** terminates the invocation mid-step — no signal the runtime can
+catch, no cleanup, no checkpoint — and the resume is a second cold invocation of the same function.
+It restores the timeout unconditionally, records the `CodeSha256` of the build that produced the
+evidence, and fetches the function's own CloudWatch log for the capture window: `INIT_START`, the
+`REPORT … Status: timeout` where AWS does the killing, a *second* `INIT_START`, and then
+`recovered_incident_state` with `last_step_status: executing`. The whole contract, in AWS's words.
 
 `make chaos-capture` performs the kill *and* records it. That split matters: `make chaos-demo`
 drives the sequence but writes nothing down, so evidence for it had to be assembled by hand
@@ -68,7 +75,7 @@ staged again. Every other shot below can be taken afterwards against the printed
 | `06` | CockroachDB console — final state, incident resolved atomically with last step | No orphaned/duplicated work |
 | `07` | MCP Server answering a live query | ADR 003 — the tool is load-bearing, not decorative |
 | `08` | Vector search returning a correlated precedent | ADR 001 — the second CockroachDB tool, working |
-| `09` | CloudWatch — two separate Lambda invocations, second one cold | Lambda run only |
+| `09` | CloudWatch — two separate Lambda invocations, second one cold | Lambda run only. The same facts are already captured as **text** by the harness (`<id>_cloudwatch-log.txt`); this shot is AWS's console rendering the log the harness read |
 
 ## Provider-side corroboration
 
@@ -101,6 +108,7 @@ a judge to discover. See ADR 008 and its addendum for the account-level quota hi
 | [`resilience-run/`](resilience-run/) | Correctness-under-adversity evidence — kill storms, Lambda timeouts, exactly-once, vector scale |
 | [`provider-evidence/`](provider-evidence/) | All four providers reporting the same facts the application reports about itself — CockroachDB Cloud (plan, region, live write traffic), Hugging Face (the running Space), Amazon Bedrock (invocation counts and per-call latency per model) and AWS Lambda (no provisioned concurrency, and a cold environment reading incident state back out of the database in CloudWatch's own log). Platform provenance, not per-run proof; see that folder's README for what each frame does and does not establish |
 | [`deploy-restart-run/`](deploy-restart-run/) | The deployment-restart drill (`make deploy-restart-drill`) — a real `sam deploy` replacing the code under an open incident, and the resume that lands exactly once on the new build. Its own family, not a `resilience-run/`: it produces a single suite, and a one-suite folder dropped in there would become the newest run for `make charts` and the console panel, both of which would then find none of the suites they render |
+| [`clean-clone-run/`](clean-clone-run/) | `make clean-clone-check` — the public repo cloned into a throwaway directory, a fresh venv, `pip install -r requirements.txt`, and the README's own Quick Start run inside it. Each report states what it does **not** prove (the host still supplied Python; the `.env` was copied rather than filled in by hand), because the submission checklist item it answers cannot be fully proven on a machine that already has everything installed |
 | `logo.svg` | Project mark, used in the README header |
 
 Charts and voiceover are **generated, never hand-edited** — regenerate from source rather than

@@ -1,0 +1,41 @@
+INIT_START Runtime Version: python:3.14.mainline.v59	Runtime Version ARN: arn:aws:lambda:eu-central-1::runtime:916b2077df67ed391c654f784d06a7867c8e499551b1d1b62d6df5d240990a52
+START RequestId: 444e5a7e-b5b2-4292-9729-4d344fccbba0 Version: $LATEST
+{"correlation_id": "chaos-lambda-b562acaa", "event": "new_incident", "timestamp": "2026-08-09T17:36:14.202697Z", "level": "info"}
+{"incident_id": "193c36c6-c580-43ef-b54e-7827b327a9a3", "correlation_id": "chaos-lambda-b562acaa", "event": "incident_opened", "timestamp": "2026-08-09T17:36:14.284515Z", "level": "info"}
+{"incident_id": "193c36c6-c580-43ef-b54e-7827b327a9a3", "state": "correlating", "event": "incident_state_changed", "timestamp": "2026-08-09T17:36:14.369040Z", "level": "info"}
+Found credentials in environment variables.
+{"model": "amazon.titan-embed-text-v2:0", "dimensions": 1024, "event": "alert_embedded", "timestamp": "2026-08-09T17:36:14.883508Z", "level": "info"}
+{"service": "checkout-api", "matches_found": 5, "event": "correlation_query", "timestamp": "2026-08-09T17:36:14.984062Z", "level": "info"}
+{"based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a", "step_index": 0, "action": "increase_database_connection_pool_size", "source": "bedrock", "event": "remediation_proposed", "timestamp": "2026-08-09T17:36:17.801279Z", "level": "info"}
+{"incident_id": "193c36c6-c580-43ef-b54e-7827b327a9a3", "step_index": 0, "resuming": false, "claimed": true, "event": "step_checkpoint_start", "timestamp": "2026-08-09T17:36:17.897866Z", "level": "info"}
+END RequestId: 444e5a7e-b5b2-4292-9729-4d344fccbba0
+REPORT RequestId: 444e5a7e-b5b2-4292-9729-4d344fccbba0	Duration: 6000.00 ms	Billed Duration: 7681 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1680.90 ms	Status: timeout
+INIT_START Runtime Version: python:3.14.mainline.v59	Runtime Version ARN: arn:aws:lambda:eu-central-1::runtime:916b2077df67ed391c654f784d06a7867c8e499551b1d1b62d6df5d240990a52
+START RequestId: b6a76836-7a7b-41f8-bd67-b2c6202baf71 Version: $LATEST
+{"correlation_id": "chaos-lambda-b562acaa", "state": "remediating", "last_step_index": 0, "last_step_status": "executing", "event": "recovered_incident_state", "timestamp": "2026-08-09T17:36:24.229182Z", "level": "info"}
+{"correlation_id": "chaos-lambda-b562acaa", "state": "remediating", "step_index": 0, "interrupted": true, "event": "resuming_incident", "timestamp": "2026-08-09T17:36:24.231652Z", "level": "info"}
+Found credentials in environment variables.
+{"model": "amazon.titan-embed-text-v2:0", "dimensions": 1024, "event": "alert_embedded", "timestamp": "2026-08-09T17:36:24.790422Z", "level": "info"}
+{"service": "checkout-api", "matches_found": 5, "event": "correlation_query", "timestamp": "2026-08-09T17:36:24.880819Z", "level": "info"}
+{"based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a", "step_index": 0, "action": "increase_database_connection_pool_size", "source": "bedrock", "event": "remediation_proposed", "timestamp": "2026-08-09T17:36:27.297295Z", "level": "info"}
+{"incident_id": "193c36c6-c580-43ef-b54e-7827b327a9a3", "step_index": 0, "resuming": true, "claimed": true, "event": "step_checkpoint_start", "timestamp": "2026-08-09T17:36:27.398737Z", "level": "info"}
+{"incident_id": "193c36c6-c580-43ef-b54e-7827b327a9a3", "step_index": 0, "resolved": false, "event": "step_checkpoint_done", "timestamp": "2026-08-09T17:36:32.484542Z", "level": "info"}
+END RequestId: b6a76836-7a7b-41f8-bd67-b2c6202baf71
+REPORT RequestId: b6a76836-7a7b-41f8-bd67-b2c6202baf71	Duration: 8501.31 ms	Billed Duration: 10251 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	Init Duration: 1748.85 ms	
+START RequestId: 0fc7d97e-6836-4422-b49e-45bebc7dbbec Version: $LATEST
+{"correlation_id": "chaos-lambda-b562acaa", "state": "remediating", "last_step_index": 0, "last_step_status": "executed", "event": "recovered_incident_state", "timestamp": "2026-08-09T17:36:32.622502Z", "level": "info"}
+{"correlation_id": "chaos-lambda-b562acaa", "state": "remediating", "step_index": 1, "interrupted": false, "event": "resuming_incident", "timestamp": "2026-08-09T17:36:32.628825Z", "level": "info"}
+{"model": "amazon.titan-embed-text-v2:0", "dimensions": 1024, "event": "alert_embedded", "timestamp": "2026-08-09T17:36:32.745712Z", "level": "info"}
+{"service": "checkout-api", "matches_found": 5, "event": "correlation_query", "timestamp": "2026-08-09T17:36:32.825340Z", "level": "info"}
+{"based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a", "step_index": 1, "action": "increase_db_connection_pool_size", "source": "bedrock", "event": "remediation_proposed", "timestamp": "2026-08-09T17:36:34.896374Z", "level": "info"}
+{"incident_id": "193c36c6-c580-43ef-b54e-7827b327a9a3", "step_index": 1, "resuming": false, "claimed": true, "event": "step_checkpoint_start", "timestamp": "2026-08-09T17:36:34.988032Z", "level": "info"}
+{"incident_id": "193c36c6-c580-43ef-b54e-7827b327a9a3", "step_index": 1, "resolved": false, "event": "step_checkpoint_done", "timestamp": "2026-08-09T17:36:40.060655Z", "level": "info"}
+END RequestId: 0fc7d97e-6836-4422-b49e-45bebc7dbbec
+REPORT RequestId: 0fc7d97e-6836-4422-b49e-45bebc7dbbec	Duration: 7531.02 ms	Billed Duration: 7532 ms	Memory Size: 512 MB	Max Memory Used: 130 MB	
+START RequestId: a0f200e1-0976-440e-8dc4-5520e1e61c94 Version: $LATEST
+{"correlation_id": "chaos-lambda-b562acaa", "state": "remediating", "last_step_index": 1, "last_step_status": "executed", "event": "recovered_incident_state", "timestamp": "2026-08-09T17:36:40.182639Z", "level": "info"}
+{"correlation_id": "chaos-lambda-b562acaa", "state": "remediating", "step_index": 2, "interrupted": false, "event": "resuming_incident", "timestamp": "2026-08-09T17:36:40.184878Z", "level": "info"}
+{"model": "amazon.titan-embed-text-v2:0", "dimensions": 1024, "event": "alert_embedded", "timestamp": "2026-08-09T17:36:40.294330Z", "level": "info"}
+{"service": "checkout-api", "matches_found": 5, "event": "correlation_query", "timestamp": "2026-08-09T17:36:40.384634Z", "level": "info"}
+{"based_on": "7ad8682a-e21a-4e4e-a068-da84d0346f5a", "step_index": 2, "action": "increase_database_connection_pool_size", "source": "bedrock", "event": "remediation_proposed", "timestamp": "2026-08-09T17:36:42.596459Z", "level": "info"}
+{"incident_id": "193c36c6-c580-43ef-b54e-7827b327a9a3", "step_index": 2, "resuming": false, "claimed": true, "event": "step_checkpoint_start", "timestamp": "2026-08-09T17:36:42.679924Z", "level": "info"}

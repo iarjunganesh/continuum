@@ -9,6 +9,16 @@ numbered screenshot order.
 
     make chaos-capture          # unattended — evidence JSON only
     make chaos-capture-pause    # HOLDS at the frozen phase, for screenshots or filming
+    make chaos-capture-lambda   # the DEPLOYED function, with AWS delivering the kill
+
+`chaos-capture-lambda` is the `lambda-<id>` half. It kills nothing itself: it lowers the function's
+own timeout below its step-execution window so **AWS** terminates the invocation mid-step, then
+resumes with a second cold invocation of the same function. It needs an admin profile
+(`lambda:UpdateFunctionConfiguration`) with `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` unset —
+static keys outrank a profile in boto3's resolution order, and that misconfiguration surfaces as an
+IAM `AccessDenied` rather than as a config error. It restores the original timeout unconditionally,
+records the `CodeSha256` of the build under test, and saves the function's own CloudWatch log for
+the window. Add `--pause` for the screenshot hold, exactly as the local capture does.
 
 **If you intend to screenshot or film the run, use `chaos-capture-pause`.** It stops at phase
 `[4/6]` — the step frozen in `executing` with no process alive to own it — and waits for ENTER,

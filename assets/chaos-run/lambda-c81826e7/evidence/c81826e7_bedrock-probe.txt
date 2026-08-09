@@ -1,0 +1,26 @@
+Configured BEDROCK_REGION: eu-central-1
+
+=== eu-central-1 ===
+  amazon.titan-embed-text-v2:0: OK (0.2s)
+  eu.anthropic.claude-sonnet-4-5-20250929-v1:0: OK (1.5s)
+
+=== eu-north-1 ===
+  amazon.titan-embed-text-v2:0: OK (0.2s)
+  eu.anthropic.claude-sonnet-4-5-20250929-v1:0: OK (1.4s)
+
+=== eu-west-1 ===
+  amazon.titan-embed-text-v2:0: OK (0.3s)
+  eu.anthropic.claude-sonnet-4-5-20250929-v1:0: OK (1.5s)
+
+=== eu-west-3 ===
+  amazon.titan-embed-text-v2:0: OK (0.3s)
+  eu.anthropic.claude-sonnet-4-5-20250929-v1:0: OK (1.4s)
+
+=== us-west-2 ===
+  amazon.titan-embed-text-v2:0: OK (0.7s)
+  us.anthropic.claude-sonnet-4-5-20250929-v1:0: OK (1.7s)
+
+All OK? Live Bedrock is open right now — but quotas are dynamic, so re-probe
+immediately before recording rather than trusting this run (ADR 008 addenda).
+All throttled? The demo still works end to end on deterministic fallbacks;
+set BEDROCK_REGION to any region that shows OK, and note which mode you're in.

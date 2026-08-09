@@ -58,7 +58,7 @@ class EvidenceRun:
     """One immutable evidence folder. Create at the start of a run, write into
     it as results arrive."""
 
-    def __init__(self, kind: str, root: Path | None = None, label: str | None = None):
+    def __init__(self, kind: str, root: Path | None = None, label: str | None = None, screenshots: bool = True):
         self.kind = kind
         self.label = label
         self.short_id = uuid.uuid4().hex[:8]
@@ -70,8 +70,15 @@ class EvidenceRun:
         # short id alone, so they remain attributable if copied out of the folder.
         self.dir = base / (f"{label}-{self.short_id}" if label else self.short_id)
         self.evidence = self.dir / "evidence"
+        # `assets/README.md` states that only chaos-run carries screenshots, and
+        # that the machine-evidenced families "deliberately have no screenshots/
+        # directory rather than an empty one implying an unfinished task". A run
+        # whose result is a report, not a photograph, opts out here so the
+        # folder cannot imply a shot list nobody intends to take.
+        self.wants_screenshots = screenshots
         self.screenshots = self.dir / "screenshots"
-        for d in (self.evidence, self.screenshots):
+        dirs = (self.evidence, self.screenshots) if screenshots else (self.evidence,)
+        for d in dirs:
             d.mkdir(parents=True, exist_ok=True)
         self._manifest: dict = {}
 
@@ -134,7 +141,11 @@ class EvidenceRun:
             },
             "command": " ".join([Path(sys.argv[0]).name, *sys.argv[1:]]),
             "files": sorted(p.name for p in self.evidence.iterdir() if p.is_file()),
-            "screenshots": sorted(p.name for p in self.screenshots.iterdir() if p.is_file()),
+            **(
+                {"screenshots": sorted(p.name for p in self.screenshots.iterdir() if p.is_file())}
+                if self.wants_screenshots
+                else {}
+            ),
         }
         if extra:
             self._manifest["results"] = extra
@@ -144,16 +155,15 @@ class EvidenceRun:
 
         # A .gitkeep keeps the screenshots folder in git while it's still empty,
         # so the run folder is complete even before any are captured.
-        keep = self.screenshots / ".gitkeep"
-        if not any(self.screenshots.iterdir()):
-            keep.touch()
+        if self.wants_screenshots and not any(self.screenshots.iterdir()):
+            (self.screenshots / ".gitkeep").touch()
         return path
 
     def __repr__(self) -> str:
         return f"<EvidenceRun {self.kind}/{self.short_id} at {self.dir.relative_to(REPO_ROOT)}>"
 
 
-def new_run(kind: str, label: str | None = None) -> EvidenceRun:
+def new_run(kind: str, label: str | None = None, screenshots: bool = True) -> EvidenceRun:
     if not os.getenv("CONTINUUM_EVIDENCE", "1") == "1":
         raise RuntimeError("evidence capture disabled via CONTINUUM_EVIDENCE=0")
-    return EvidenceRun(kind, label=label)
+    return EvidenceRun(kind, label=label, screenshots=screenshots)

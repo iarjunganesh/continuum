@@ -100,6 +100,15 @@ The distinction that makes this consistent with the rest of the table: `resilien
 creates **one**, and that one *is* the artifact. Use `make chaos-capture-pause` for a keeper run —
 it holds at the frozen phase so the screenshot is takeable at all.
 
+`make chaos-capture-lambda` follows the same rule, and has no local option at all: it drives the
+**deployed** function, which is configured against the Cloud cluster, so that is where its incident
+lands by construction. It costs one incident plus at most a few abandoned calibration attempts,
+which it deletes itself — the timeout has to be tuned to land inside the execution window, and an
+attempt that missed leaves rows that would otherwise sit in `remediating` forever. It also mutates
+the live function's `Timeout` and restores it in a `finally`; if a run is interrupted hard enough to
+skip that, check `aws lambda get-function-configuration --query "Timeout"` before recording, because
+a demo function left at 6 seconds fails in a way that looks like a broken agent.
+
 Two of the commands above have guards as of 0.9.2: `resilience_bench.py` refuses more than 400 incidents or
 10,000 vectors against a `*.cockroachlabs.cloud` host without `--allow-cloud-burn`. **The guard is
 a backstop, not permission** — pointing a bench at Cloud is still the wrong call even under the

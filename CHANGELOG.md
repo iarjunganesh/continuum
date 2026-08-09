@@ -5,6 +5,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **The Lambda half of the chaos evidence — `make chaos-capture-lambda`.** `assets/README.md` had planned two captures of the same contract in two execution environments, and only the local one existed; the Lambda row carried a ❌ for a week. It now captures the same three phases against the deployed function, with **AWS delivering the kill**: the function's own timeout is lowered below its step-execution window, so Lambda terminates the invocation mid-step with no catchable signal, no cleanup and no opportunity to checkpoint. First run (`assets/chaos-run/lambda-c81826e7/`) froze step 0 in `executing` with no invocation alive to own it, resumed at that exact index on a second cold invocation, and resolved with 3 steps executed and 0 duplicated — every durable step recording `runtime: lambda` from the function's own `AWS_LAMBDA_FUNCTION_NAME`, and `correlation_source`/`reasoning_source` both `bedrock`. The harness asserts each of those and marks the folder `FAIL` rather than emitting weaker evidence, restores the original timeout unconditionally, and records the `CodeSha256` of the build under test so the evidence names *which* function it came from. It also saves the function's own CloudWatch log for the window, which reads `INIT_START` → `step_checkpoint_start` → `REPORT … Status: timeout` → a second `INIT_START` → `recovered_incident_state` with `last_step_status: executing`: the entire thesis, written by AWS rather than by this project.
+- **`make clean-clone-check`** — the submission checklist has carried *"runs from a clean clone following only the README instructions"* unticked since the beginning, for the honest reason that it cannot be verified on the machine that already has everything installed. This checks the part that can be: it clones the **public** repository into a throwaway directory, builds a fresh virtualenv, installs from `requirements.txt` alone, and runs the README's own Quick Start inside that clone — imports, the unit suite, schema apply, a fixture seed, and a live API answering `/api/v1/health` and the MCP-backed `/api/v1/incidents/open`. First run: **10/10**. Its report states what it does *not* prove rather than leaving a reader to infer it — the host still supplied Python 3.14, and the `.env` was copied rather than filled in from `.env.example` by hand. The seed step deliberately omits `--replace-embeddings`, so it can never overwrite the demo cluster's real Titan vectors.
+
+### Changed
+
+- **Evidence runs whose result is a report no longer create an empty `screenshots/` folder.** `assets/README.md` states that the machine-evidenced families deliberately have none, "rather than an empty one implying an unfinished task" — so `EvidenceRun` now takes that as a parameter instead of leaving the claim to be maintained by hand.
+
 ## [0.9.6] — 2026-08-08 — the AWS half of the evidence, and a rule written the hard way
 
 ### Added

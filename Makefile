@@ -1,4 +1,4 @@
-.PHONY: chaos-capture-pause charts voiceover obs-assets redact-evidence check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo chaos-capture benchmark resilience-bench local-cluster local-cluster-down local-cluster-status probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
+.PHONY: clean-clone-check chaos-capture-lambda chaos-capture-pause charts voiceover obs-assets redact-evidence check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo chaos-capture benchmark resilience-bench local-cluster local-cluster-down local-cluster-status probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -62,6 +62,24 @@ chaos-capture:
 # shows `resolved`, and that state cannot be staged again after the fact.
 chaos-capture-pause:
 	python scripts/chaos_capture.py --pause
+
+# The same three phases against the DEPLOYED function, with AWS delivering the
+# kill: the function's timeout is lowered below its own step-execution window,
+# so Lambda terminates the invocation mid-step with no catchable signal. The
+# resume is a second cold invocation of the same function. Needs the admin
+# profile (lambda:UpdateFunctionConfiguration) and AWS_ACCESS_KEY_ID /
+# AWS_SECRET_ACCESS_KEY unset — static keys outrank a profile in boto3.
+# Add --pause for the screenshot window. Restores the timeout unconditionally.
+chaos-capture-lambda:
+	python scripts/chaos_capture.py --via-lambda --profile $(AWS_PROFILE)
+
+# Clone the PUBLIC repo into a throwaway dir, build a fresh venv, install from
+# requirements.txt alone, and run the README's own Quick Start inside it. The
+# submission checklist item "runs from a clean clone" cannot be checked on the
+# machine that already has everything; this checks the part that can be.
+# Records what it does NOT prove (host Python, hand-filled .env) in its report.
+clean-clone-check:
+	python scripts/clean_clone_check.py
 
 # OBS-ready 1920x1080 sources from assets/provider-evidence/. Never downscales a
 # still: short captures are padded, and anything taller than 1080 becomes a pan
