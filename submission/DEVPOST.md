@@ -184,9 +184,11 @@ Nothing here is a placeholder — an unanswerable field says so explicitly.
   > **AWS Lambda.** The orchestrator's deployed home, on the `python3.14` runtime, with
   > **provisioned concurrency deliberately absent** — its absence is a reviewable line in
   > `infra/template.yaml`, not a console setting (ADR 002). That is the integration's whole point:
-  > every invocation is a cold start, so any state the agent has must have come from CockroachDB.
-  > Four successive cold `sam remote invoke` calls drove one incident 0 → 1 → 2 → `resolved`, each
-  > resuming from the database with the same `incident_id`. Since `v0.9.5` the function deploys from
+  > nothing keeps the function warm, and the orchestrator re-reads CockroachDB *first* on every
+  > invocation regardless of whether the execution environment is brand new or reused — so the
+  > guarantee never rests on the container being cold. Four successive `sam remote invoke` calls
+  > drove one incident 0 → 1 → 2 → `resolved`, each resuming from the database with the same
+  > `incident_id`. Since `v0.9.5` the function deploys from
   > CI on a version tag via GitHub OIDC with no stored AWS keys, asserting the code hash actually
   > moved and smoke-testing the deployed package, so the running function and the newest release
   > cannot silently diverge (ADR 010).

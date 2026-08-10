@@ -42,7 +42,8 @@ box here is the honest state, not an oversight.
   - [x] **AWS Lambda** — deployed from `infra/template.yaml` via SAM:
         `arn:aws:lambda:eu-central-1:<account-id>:function:continuum-orchestrator`, stack
         `continuum`. No provisioned concurrency (ADR 002) — cold start 1806 ms init, 130 MB of a
-        512 MB allocation, sampled 2026-08-08 on the current build. Since `v0.9.5` the function is
+        512 MB allocation, sampled 2026-08-08 on the `v0.9.5` build (`v0.9.6` changed no
+        application code). Since `v0.9.5` the function is
         deployed by CI on a version tag via GitHub OIDC (ADR 010), so the live function and the
         newest tag cannot drift apart
 

@@ -335,18 +335,31 @@ Kept because a stale function is invisible from the repo, and the one thing that
 | 2026-08-07 18:33 UTC | `r8pbqNx1…` → `amvfjds9…` | not re-measured | Manual deploy of `v0.9.4` from the clean clone, so the live function matched the tag |
 | 2026-08-07 18:44 UTC | `amvfjds9…` → *(recorded by the next deploy's summary)* | not re-measured | Manual deploy of `fb1c1e8` — the structlog `force=True` fix, without which the function wrote **no** application log lines at all |
 | 2026-08-07 19:30 UTC | *(previous)* → `9SwDKNSy…` | **1806 ms / 130 MB** | **First CI deploy** — tag `v0.9.5`, [run 31211694477](https://github.com/iarjunganesh/continuum/actions/runs/31211694477). OIDC role assumed, artifact 61 MB of 250 MB, hash asserted moved, empty-payload smoke test returned the expected `KeyError` from `handle_alert`. Cold start re-sampled 2026-08-08 on this build |
+| 2026-08-08 17:10 UTC | `9SwDKNSy…` → `nofa9OMe…` | not re-measured | CI deploy, tag `v0.9.6`, [run 31268760275](https://github.com/iarjunganesh/continuum/actions/runs/31268760275) |
+| 2026-08-08 17:20 UTC | `nofa9OMe…` → `fnkZoLML…` | not re-measured | CI deploy, `v0.9.6` re-pushed after the tag was re-pointed, [run 31269179844](https://github.com/iarjunganesh/continuum/actions/runs/31269179844) |
+| 2026-08-08 17:39 UTC | `fnkZoLML…` → `FM6pWpgA…` | not re-measured | CI deploy, `v0.9.6` final, [run 31269972300](https://github.com/iarjunganesh/continuum/actions/runs/31269972300). **This is the build currently live**, confirmed against `get-function-configuration` on 2026-08-10 |
 
-**From `v0.9.5` onward this table is written by the CI deploy**, which prints the before and after
-hashes into the workflow run summary ([ADR 010](adr/010-deploy-on-tag-from-ci.md)). The hand-kept
-rows above are the manual era, and the gap in the second-to-last one is exactly why: a hash nobody
-recorded at the time cannot be recovered afterwards, only overwritten by the next deploy. The
-`v0.9.5` row's *after* hash was read back live from
-`aws lambda get-function-configuration`; its *before* is the row above it.
+**From `v0.9.5` onward the hashes come from the CI deploy**, which prints them into the workflow
+run summary ([ADR 010](adr/010-deploy-on-tag-from-ci.md)) — but **CI does not write this table; a
+human copies them across, and that is where it breaks.** The three `v0.9.6` rows were reconstructed
+from the run logs on **2026-08-10**, during a submission audit that found this log still naming
+`9SwDKNSy…` as live while the function had been running `FM6pWpgA…` for two days. That is the
+precise failure this log exists to prevent, in the file `CLAUDE.md` and the README both call *the
+authority on what is currently live*. It was recoverable only because the run logs still held the
+hashes; the `2026-08-07 18:44` row shows what happens when they don't — a hash nobody recorded at
+the time cannot be recovered afterwards, only overwritten by the next deploy.
 
-**Cold start on the current build: 1806 ms init, 130 MB of 512 MB** (`9SwDKNSy…`, sampled
-2026-08-08). The long-published **1719 ms** figure was measured on `cfj/1z90…`; both are within the
-1578–1806 ms spread every sampled build has shown, and `Max Memory Used` has held at 129–130 MB
-throughout. Raw REPORT lines: [`../assets/provider-evidence/12.lambda-cold-starts.txt`](../assets/provider-evidence/12.lambda-cold-starts.txt).
+**Copying the summary into this table is part of tagging, not follow-up work.** The `v0.9.5` and
+`v0.9.6` *after* hashes were both read back live from `aws lambda get-function-configuration`; each
+*before* is the row above it.
+
+**Cold start: 1806 ms init, 130 MB of 512 MB**, measured on `9SwDKNSy…` (tag `v0.9.5`) on
+2026-08-08. It has **not** been re-sampled on the live `FM6pWpgA…` build, and the figure is
+published as a characteristic of the function rather than of one artifact: the long-published
+**1719 ms** figure was measured on `cfj/1z90…`, and both sit inside the 1578–1806 ms spread every
+sampled build has shown, with `Max Memory Used` holding at 129–130 MB throughout. `v0.9.6` changed
+no application code — only scripts, docs and assets — so there is no reason to expect it to move.
+Re-sample if that stops being true. Raw REPORT lines: [`../assets/provider-evidence/12.lambda-cold-starts.txt`](../assets/provider-evidence/12.lambda-cold-starts.txt).
 
 **A filtered `Init Duration` query returns only cold starts, so it cannot tell you how often one
 happens.** Back-to-back invocations *do* reuse a warm environment — three ticks driven on
