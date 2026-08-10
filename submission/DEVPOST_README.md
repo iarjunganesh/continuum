@@ -1,25 +1,10 @@
 # Continuum
 
 <!--
-  MAINTAINER NOTE — this block is an HTML comment so the whole file stays paste-safe:
-  select all, paste into Devpost, and nothing below renders as meta-commentary.
-
-  This is a Devpost-paste mirror of the root README.md
-  (https://github.com/iarjunganesh/continuum/blob/main/README.md).
-  Devpost's project-description field has no repo-root context, so every relative link and image
-  path below is rewritten to an absolute github.com / raw.githubusercontent.com URL — paste this
-  file's content directly into the Devpost form and every link and image still resolves.
-
-  DO NOT HAND-EDIT. Regenerate instead, so the two can never drift:
-
-      python scripts/build_devpost_readme.py
-
-  Verify it is current (exits 1 if stale):
-
-      python scripts/build_devpost_readme.py --check
-
-  The Hugging Face Space frontmatter at the top of README.md is stripped here — it configures the
-  Space build and would render as stray text on Devpost.
+  GENERATED from README.md — DO NOT HAND-EDIT. Regenerate:
+      python scripts/build_devpost_readme.py         (--check verifies, exit 1 if stale)
+  Paste-safe: links absolutised, Space frontmatter stripped, repo-only sections replaced.
+  Source: https://github.com/iarjunganesh/continuum/blob/main/README.md
 -->
 
 <p align="center">
@@ -381,93 +366,9 @@ python scripts/seed_memory.py --file data/synthetic/incidents_seed.jsonl `
 
 ## Project Structure
 
-```text
-continuum/
-├── agents/
-│   ├── orchestrator.py        # Lambda entrypoint — recovery read FIRST, one step per invocation
-│   ├── correlation_agent.py   # Bedrock Titan embeddings + CockroachDB vector search
-│   ├── memory_agent.py        # THE single write path to incidents/remediation_steps
-│   ├── remediation_agent.py   # Claude-on-Bedrock reasoning + precedent-replay fallback
-│   └── query_agent.py         # CockroachDB Managed MCP Server client (read-only live queries)
-├── api/main.py                # FastAPI gateway, versioned under /api/v1
-├── ui/app.py                  # Gradio — incident console, timeline replay, failure evidence
-├── config.py                  # pydantic-settings; tolerates unknown env vars by design
-├── observability/structured_logger.py   # structlog JSON — no bare print anywhere
-├── prompts/
-│   ├── remediation_agent.txt  # Claude reasoning prompt — data, not code (loaded at import)
-│   └── README.md              # why prompts are data and why loading is import-time
-├── infra/
-│   ├── schema.sql             # incidents · remediation_steps · incident_embeddings VECTOR(1024)
-│   ├── lambda_handler.py      # Lambda package entrypoint
-│   ├── template.yaml          # AWS SAM — deliberately NO provisioned concurrency (ADR 002)
-│   └── requirements-lambda.txt   # what ships INTO the function (not the root requirements.txt)
-├── scripts/
-│   │                          # — data —
-│   ├── generate_synthetic_incidents.py   # corpus incl. historical remediation paths
-│   ├── seed_memory.py         # loads incidents + step history + embeddings
-│   ├── capture_seed_embeddings.py        # capture real Titan vectors once, seed --from-fixture
-│   ├── synthetic_vectors.py   # deterministic vectors for a zero-AWS seed
-│   ├── export_memory.py       # snapshot the memory layer to data/snapshots/*.jsonl
-│   ├── restore_memory.py      # put a snapshot back — idempotent, retries on contention
-│   ├── migrate_and_seed.ps1   # Windows path for migrate + seed, no make required
-│   ├── local_cluster.py       # single-node CockroachDB in Docker — where benchmarks belong
-│   │                          # — the demo beat —
-│   ├── chaos_kill.py          # cross-platform hard kill (psutil)
-│   ├── chaos_capture.py       # the same kill, recorded → assets/chaos-run/ evidence
-│   ├── chaos_demo.ps1         # Windows kill-and-recover sequence
-│   ├── demo_run.py            # drives one remediation step per --tick
-│   ├── generate_demo_voiceover.py        # Polly narration + caption track (owns the words)
-│   │                          # — evidence —
-│   ├── benchmark.py           # latency → docs/BENCHMARKS.md
-│   ├── resilience_bench.py    # correctness under adversity → docs/RESILIENCE.md
-│   ├── deploy_restart_drill.py           # redeploy under an open incident, prove the resume
-│   ├── evidence.py            # run-scoped evidence folders + provenance manifest
-│   ├── build_charts.py        # theme-aware charts from the newest evidence run
-│   ├── build_obs_assets.py    # 1080p OBS sources from provider-evidence (pans, never downscales)
-│   ├── redact_evidence.py     # mask a face or an account id in evidence PNGs — declared, idempotent
-│   │                          # — release gates —
-│   ├── clean_clone_check.py   # clone the public repo, fresh venv, run the README's own Quick Start
-│   ├── check_drift.py         # docs vs repo: versions, counts, links, generated files
-│   ├── build_devpost_readme.py           # regenerates the Devpost paste mirror from README.md
-│   ├── preflight_deploy.py    # six deploy preconditions, all reported at once
-│   └── probe_bedrock.py       # is live Bedrock open today? quotas are dynamic (ADR 008)
-├── tests/
-│   ├── unit/                  # recovery-semantics tests (all I/O mocked at the import boundary)
-│   ├── integration/           # vs a real cluster — recovery, real SIGKILL, vector plan, snapshot
-│   └── load/k6_smoke.js       # read-path smoke load (health + MCP-backed /incidents/open)
-├── data/
-│   ├── synthetic/             # generated incident corpus + alert stream (synthetic, always)
-│   └── snapshots/             # memory exports — insurance against the cluster lapsing
-├── docs/
-│   ├── ARCHITECTURE.md · DEPLOY.md · BENCHMARKS.md · RESILIENCE.md · CLUSTER_OPS.md
-│   └── adr/                   # 10 Architecture Decision Records
-├── submission/                # judge-facing packet
-│   └── SUBMISSION.md · DEVPOST.md · DEVPOST_README.md · DEMO_SCRIPT.md · COSTS.md
-├── assets/                    # judge-facing evidence — see assets/README.md
-│   ├── architecture/          # mermaid source + brand-themed SVG/PNG renders
-│   ├── charts/                # generated benchmark charts (make charts) — never screenshots
-│   ├── chaos-run/             # captured kill-and-recover runs — local-<id> and lambda-<id>
-│   ├── clean-clone-run/       # the public repo cloned, installed and run from scratch
-│   ├── provider-evidence/     # the same facts in Cockroach Labs', Hugging Face's and AWS's own consoles
-│   ├── resilience-run/        # kill storms, Lambda timeouts, exactly-once, vector scale
-│   ├── deploy-restart-run/    # the code swapped under an open incident, and the resume
-│   ├── demo-cards/            # banner + sign-off cards (SVG source, 16:9 video PNGs)
-│   ├── demo-voiceover/        # generated Polly narration, one clip per beat
-│   ├── demo-video/            # final cut, captions, per-beat takes
-│   └── logo.svg
-├── notebooks/
-│   ├── DEMO_RUNBOOK.ipynb     # run the recovery demo against a live cluster, no local setup
-│   └── README.md              # setup notes and notebook conventions
-├── .claude/settings.json      # PostToolUse hook — regenerates the Devpost mirror on README edits
-├── Makefile                   # source of truth for how to run anything
-├── samconfig.toml             # checked in, minus the cluster credential — reproducible deploys
-├── pyproject.toml             # version, ruff + mypy config, coverage gate
-├── requirements.txt           # floor-pinned with major-version caps
-├── .env.example               # every setting, placeholder values only
-├── .mcp.json                  # MCP server config — environment expansion, no secrets
-├── .github/workflows/         # ci.yml · deploy.yml · release.yml · sync-to-hf-space.yml
-└── CHANGELOG.md · CLAUDE.md · CONTRIBUTING.md · SECURITY.md · LICENSE
-```
+Omitted from this paste for length — GitHub renders the live tree, which cannot go stale:
+**[browse the repository](https://github.com/iarjunganesh/continuum/tree/main/)**. The annotated version, checked against the real repo
+on every commit, is in [`README.md`](https://github.com/iarjunganesh/continuum/blob/main/README.md#project-structure).
 
 ---
 

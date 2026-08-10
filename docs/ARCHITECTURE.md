@@ -104,7 +104,7 @@ CockroachDB tool count stops at two (Vector Indexing + MCP Server) by design —
 
 ## 5. AWS Usage — Detail
 
-- **AWS Lambda** — the orchestrator runs as a Lambda function, invoked per alert-stream tick. Explicitly *not* provisioned-concurrency / kept-warm, so each demo run genuinely tests cold recovery rather than reusing warm in-memory state.
+- **AWS Lambda** — the orchestrator runs as a Lambda function, invoked per alert-stream tick. Explicitly *not* provisioned-concurrency / kept-warm. Lambda still reuses a warm execution environment between back-to-back invocations, and that is precisely why the guarantee is not allowed to depend on cold starts: the orchestrator holds no incident state in process memory and re-reads CockroachDB first on every invocation, warm or cold (ADR 002).
 - **Amazon Bedrock** — one model for embeddings (alert → vector), one for remediation reasoning (candidate action generation given correlated precedent).
 
 ---

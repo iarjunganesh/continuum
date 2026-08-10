@@ -356,7 +356,16 @@ def check_lambda_manifest() -> list[Failure]:
 # the tree deliberately collapses (tests/unit, docs/adr) are NOT listed here:
 # the tree describes those by their job, and enumerating 8 test files would be
 # noise that goes stale on every new test.
-TREE_ENUMERATED_DIRS = ("agents", "scripts", "infra", "prompts", "assets", "data", ".github/workflows")
+TREE_ENUMERATED_DIRS = (
+    "agents",
+    "scripts",
+    "infra",
+    "prompts",
+    "assets",
+    "data",
+    "notebooks",
+    ".github/workflows",
+)
 # Build outputs, caches and package plumbing — real files, but not structure a
 # reader needs. Dunder names are skipped wholesale.
 TREE_IGNORED_CHILDREN = {"__pycache__", "seed_embeddings.json"}

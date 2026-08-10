@@ -448,6 +448,7 @@ continuum/
 │   └── logo.svg
 ├── notebooks/
 │   ├── DEMO_RUNBOOK.ipynb     # run the recovery demo against a live cluster, no local setup
+│   ├── DEMO_RUNBOOK.results.ipynb        # frozen record of a completed run — output, not template
 │   └── README.md              # setup notes and notebook conventions
 ├── .claude/settings.json      # PostToolUse hook — regenerates the Devpost mirror on README edits
 ├── Makefile                   # source of truth for how to run anything

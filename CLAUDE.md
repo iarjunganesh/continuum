@@ -241,6 +241,27 @@ Never hand-edit `DEVPOST_README.md`; it is generated, and an edit there is destr
 regeneration. Change `README.md` and let the generator do the rest. **Any prose change to the
 README — counts, dates, claims, new sections — is a change to both files.**
 
+**The mirror has a hard 50,000-character ceiling — Devpost's project-description limit, which
+truncates silently on paste.** You would discover it by finding the tail of your submission
+missing, which is not something anyone re-reads after pasting. `build_devpost_readme.py` now fails
+on it (and warns from 48,500), because the mirror is *longer than the README by construction*:
+absolutising every relative link costs ~4.6k characters, so the README can look comfortable at 48k
+while the paste is 4k over. It was 54,262 when the ceiling was first checked, on 2026-08-10.
+
+Two rules for staying under it:
+
+- **`README.md` is not the thing you trim.** It is the repo's front page and is judged as one
+  document; shrinking it to fit a form field is the tail wagging the dog. Trim the *paste*.
+- **`DEVPOST_ONLY_OMIT` in the generator is the one sanctioned way the two documents differ in
+  content**, and a section qualifies for it on exactly one ground: *a Devpost reader gets the same
+  thing better somewhere else.* Never because it was long and the budget was tight. Each entry
+  ships a replacement pointer, so the paste names what it dropped and links to it — a visible
+  omission is not a gap. `## Project Structure` is the sole entry: 6.5k of file tree that GitHub
+  renders live, one click from every repo link in the paste, and that cannot go stale the way a
+  transcribed tree does. It stays in `README.md` in full, enforced against the real repo by
+  `check_drift.py`. A heading named there that `README.md` no longer contains is a hard error, not
+  a silent no-op — otherwise renaming a section quietly restores 6.5k to a length-capped file.
+
 **Before tagging a release:**
 
 **A tag deploys the Lambda (ADR 010).** Everything below was already the standard; it is now the
