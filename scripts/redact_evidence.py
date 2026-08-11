@@ -238,6 +238,16 @@ REDACTIONS: dict[str, tuple[Region, ...]] = {
 VIDEO_GLOBS = ("demo-video/*.mp4", "demo-video/beats/*.mp4")
 
 VIDEO_REDACTIONS: dict[str, tuple[Region, ...]] = {
+    # The exported cut. Empty because every frame in it comes from a source already masked here,
+    # and a mask burned into a PNG travels with its pixels — the editor scales some stills slightly,
+    # which moves mask and content together and cannot pull them apart. That scaling is also why
+    # this entry cannot carry regions: a fixed box would land off the mask and report a false
+    # failure. It was instead swept frame by frame before upload — the three frames carrying browser
+    # chrome (`s03` at 36s, the Lambda console at 131s, the MCP take at 152s) were checked visually,
+    # and `blackdetect`/`silencedetect` were used to confirm nothing unexpected sits between beats.
+    # The file is gitignored (252 MB, over GitHub's per-file limit), so on a fresh clone this entry
+    # reports `[skip] not present` rather than failing.
+    "demo-video/continuum.mp4": (),
     "demo-video/mcp-query-take.mp4": (Region(AVATAR_TAKE, PHOTO, circle=True),),
     # Two PowerShell panes and nothing else — no browser chrome, so no avatar. The AWS account id
     # would have appeared had the `--via-lambda` leg hit AccessDenied on camera; it did not, and

@@ -33,7 +33,7 @@ license: mit
 [![Codecov](https://codecov.io/gh/iarjunganesh/continuum/graph/badge.svg)](https://codecov.io/gh/iarjunganesh/continuum)
 [![Release](https://img.shields.io/badge/release-latest-2ea44f?logo=github&logoColor=white)](https://github.com/iarjunganesh/continuum/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Watch Video](https://img.shields.io/badge/%E2%96%B6_Watch-3--min_demo-FF0000?logo=youtube&logoColor=white)
+[![Watch Video](https://img.shields.io/badge/%E2%96%B6_Watch-3--min_demo-FF0000?logo=youtube&logoColor=white)](https://youtu.be/LwD8__sKqa0)
 
 <!-- Row 2 — AWS services -->
 [![AWS Lambda](https://img.shields.io/badge/AWS_Lambda-python3.14-FF9900?logo=awslambda&logoColor=white)](https://aws.amazon.com/lambda/)
@@ -202,7 +202,7 @@ Judging-criteria mapping and full submission narrative: [`submission/DEVPOST.md`
 | --- | --- |
 | **App** | [https://huggingface.co/spaces/iarjunganesh/continuum](https://huggingface.co/spaces/iarjunganesh/continuum) *(deploys on push to `main`)* |
 | **Orchestrator** | Live on AWS Lambda — `continuum-orchestrator`, eu-central-1 (stack `continuum`), deployed from CI on a version tag ([ADR 010](docs/adr/010-deploy-on-tag-from-ci.md)). No provisioned concurrency: **cold start 1806 ms init, 130 MB / 512 MB** (sampled 2026-08-08 on the `v0.9.5` build; `v0.9.6` changed no application code and sits inside the same 1578–1806 ms spread). Warm environments *are* reused between back-to-back invocations, and it doesn't matter — the orchestrator re-reads CockroachDB first either way, so the guarantee never rests on the container being new. [`docs/DEPLOY.md`](docs/DEPLOY.md) is the authority on what is currently live |
-| **Demo Video** | *Not yet recorded.* Recording script: [`submission/DEMO_SCRIPT.md`](submission/DEMO_SCRIPT.md) |
+| **Demo Video** | [https://youtu.be/LwD8__sKqa0](https://youtu.be/LwD8__sKqa0) — 2:55, 1920×1080/30, captions included. The kill and the resume are one continuous take, no cut between them. Script: [`submission/DEMO_SCRIPT.md`](submission/DEMO_SCRIPT.md) |
 | **Try It Now** | `make chaos-demo` — kill the agent mid-incident, watch it resume from CockroachDB |
 
 Submission checklist: [`submission/SUBMISSION.md`](submission/SUBMISSION.md) · Judging alignment + project story: [`submission/DEVPOST.md`](submission/DEVPOST.md) · Cost model: [`submission/COSTS.md`](submission/COSTS.md)

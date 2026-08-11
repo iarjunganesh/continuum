@@ -95,10 +95,11 @@ Nothing here is a placeholder — an unanswerable field says so explicitly.
   Exactly 25. Every one is a dependency, a service the app calls, or a gate in CI — nothing
   aspirational.
 
-- [ ] **Video demo link** — **not yet recorded.** Shooting script: [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md).
-      Must be public (not unlisted) on YouTube or Vimeo, under 3 minutes, and must show the memory
-      layer — the kill-and-resume beat — not just the app. See the video block in
-      [`SUBMISSION.md`](SUBMISSION.md) for the post-upload steps, including re-linking the README badge.
+- [x] **Video demo link** — https://youtu.be/LwD8__sKqa0 (uploaded 2026-08-12, 2:55.7, under the 3-minute cap).
+      Shows the memory layer rather than only the app: beats 6–8 are one continuous take in which a
+      live orchestrator is hard-killed mid-step and a cold Lambda invocation resumes that exact
+      `step_index` out of CockroachDB. **Confirm Visibility reads Public, not Unlisted** — that is a
+      rules requirement and the two are indistinguishable from outside YouTube Studio.
 
 ### Additional info (judges and organizers)
 
