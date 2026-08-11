@@ -2,21 +2,22 @@
 
 > **Target 2:50–2:55** (hard cap **3:00**, disqualifying if over) · **public** on YouTube · 1920×1080 / 30 fps ·
 > no copyrighted music · synthetic data only (ADR 005).
-> **Status: not yet shot.** Ready and committed: narration (13 clips), captions, charts, cards,
-> both diagrams, and the re-captured CockroachDB, Space, Bedrock and Lambda frames under
-> `assets/provider-evidence/` (2026-08-08) — one of which, `09.lambda-configuration.png`, satisfies
-> the `s09` beat outright. Outstanding: **8 stills, Recording #1
-> (the take that matters), Recording #2 (optional), Session C (evidence capture — not filmed), and
-> the cut.** Nothing here is blocked on anything — see the time budget below.
+> **Status: both takes shot 2026-08-11; only the cut remains.** Committed and ready: narration
+> (13 clips), captions, charts, cards, both diagrams, the CockroachDB, Space, Bedrock and Lambda
+> frames under `assets/provider-evidence/` (2026-08-08) — one of which,
+> `09.lambda-configuration.png`, satisfies the `s09` beat outright — every still the timeline needs
+> (`s01`–`s05`, `s07`, `s08`, `s10` in [`../assets/demo-video/statics/`](../assets/demo-video/statics/)),
+> the four beat outputs in [`../assets/demo-video/beats/`](../assets/demo-video/beats/), and **both
+> live takes**: `kill-recover-take.mp4` (42.0s) and `mcp-query-take.mp4` (10.5s). `s06` is not needed
+> — Recording #2 was shot, so the fallback it exists for never triggered. **Outstanding: the cut.**
 
 **Time budget — this is a one-day shoot, and the deadline is the only hard constraint.** Everything
 below is written to make each beat correct on the first attempt, not to be worked through in order
 on the day. Plan roughly: OBS + desktop setup **30 min** · Step 0 prep **20 min** · Recording #1
-**45 min** including retakes · Session C evidence capture **15 min** · stills **45 min** ·
-assembly and export **90 min**. That is one
-focused day with slack, and it fits several times over in the time remaining — but only if it
-starts. **If you are running long, cut in this order**: Recording #2 (beat 12 falls back to the
-`s06` still, explicitly sanctioned below) → beat 13's third still. **`s09` is no longer a cut
+**45 min** including retakes · assembly and export **90 min**. Session C and the stills are both
+done, so what remains is half a day. **If you are running long, cut in this order**: Recording #2
+(beat 12 falls back to the `s06` still — but that still is *not* captured, so cutting the recording
+means spending ten minutes on the still instead) → beat 13's third still. **`s09` is no longer a cut
 candidate** — it costs nothing, because `09.lambda-configuration.png` is already captured and
 committed. **Never cut, shorten, or re-shoot-in-pieces beats 6–8.**
 A rough cut of beats 6–8 with everything else missing is a submittable video; a polished everything
@@ -91,7 +92,7 @@ Every setting below is chosen; none is a default. Get these right once and both 
 | --- | --- | --- | --- |
 | Output → Recording | Type | **Standard** | |
 | Output → Recording | Recording Path | a folder you'll find again — not Desktop | |
-| Output → Recording | Recording Format | **MKV** | A crash or a hard-kill of the *wrong* window leaves an MKV playable and an MP4 corrupt. Remux after (below) |
+| Output → Recording | Recording Format | **Hybrid MP4** | A crash — or a hard-kill of the *wrong* window — leaves a classic MP4 corrupt, because it is finalised on stop. Hybrid MP4 writes recovery data as it goes, so it survives that **and** needs no remux, unlike MKV |
 | Output → Recording | Video Encoder | hardware (NVENC / QuickSync / AMF) if offered, else x264 | Hardware keeps the capture from stealing CPU from the thing you're filming |
 | Output → Recording | Rate Control | **CBR** | |
 | Output → Recording | Bitrate | **12000–16000 Kbps** | Terminal text on a dark background is where low bitrate shows first |
@@ -131,8 +132,10 @@ the exact moment the beat needs the dead terminal visible.
 - Right-click the source → **Properties** → tick **Capture Cursor**. The cursor is wanted here; it's
   what makes beats 6–8 read as someone operating a machine.
 
-**After each take**: File → **Remux Recordings** → pick the MKV → Remux. Rename the MP4 to the name
-this script gives it. Editors handle MP4 predictably and MKV variably.
+**After each take**: copy the file straight to the name this script gives it, in
+`assets/demo-video/`. There is no remux step — that is the reason for Hybrid MP4 over MKV. If your
+OBS is old enough to lack Hybrid MP4, record MKV and File → **Remux Recordings** afterwards; never
+record a *classic* MP4, which is finalised on stop and is therefore unrecoverable if OBS dies.
 
 ### Desktop hygiene — do this before the first take, not between takes
 
@@ -170,8 +173,16 @@ This is most of what separates footage that reads as polished from footage that 
 > Remove-Item Env:AWS_ACCESS_KEY_ID     -ErrorAction SilentlyContinue
 > Remove-Item Env:AWS_SECRET_ACCESS_KEY -ErrorAction SilentlyContinue
 > $env:AWS_PROFILE = "continuum-admin"
-> python scripts/demo_run.py --tick --via-lambda --new   # throwaway — must print runtime lambda
+> python scripts/demo_run.py --tick --via-lambda --new   # throwaway — see below for what proves it
 > ```
+>
+> **`runtime` is persisted, not printed.** That command's JSON carries `correlation_source` and
+> `reasoning_source` but no `runtime` field, so a successful Lambda invocation looks identical to a
+> local one on stdout. The durable row is the authority — `remediation_steps.detail->>'runtime'`
+> reads `lambda` only when the step actually executed inside the function, because it comes from
+> Lambda's own `AWS_LAMBDA_FUNCTION_NAME`. Check the console's `λ runtime` badge, or query it.
+> What the command *does* prove immediately is the negative: an `AccessDeniedException` here means
+> the profile did not take.
 >
 > Clearing the static keys first is not optional: `.env` exports them for the Bedrock-only user and
 > **boto3 ranks static environment keys above a named profile**, so setting the profile alone leaves
@@ -269,7 +280,7 @@ rather than letting it play over the wrong footage.
 | Scene | the Display Capture scene from the setup section |
 | Source | **Display Capture**, Capture Cursor **on** — *not* Window Capture. The kill destroys the window, and a Window Capture source follows it into a black frame at the exact moment the beat needs the dead terminal visible |
 | Base / Output | 1920×1080 / 1920×1080, 30 fps |
-| Format / bitrate | MKV, CBR 12–16 Mbps |
+| Format / bitrate | Hybrid MP4, CBR 12–16 Mbps |
 | **Mic / Aux** | **Disabled** (Settings → Audio, not muted in the mixer) — you never speak |
 | **Desktop Audio** | **ON**. Nothing plays in this take; it stays on so audio state never varies between takes |
 | Start / Stop | **hotkey only** (`Ctrl+Shift+F9` / `F10`). Clicking OBS puts OBS in frame |
@@ -337,9 +348,10 @@ should look like.
 
 1. **Stop with the hotkey**, not by clicking OBS.
 2. Wait ~2 s before touching anything — OBS finalises the file after the stop.
-3. File → **Remux Recordings** → select the MKV → **Remux**.
-4. Rename the resulting MP4 to **`kill-recover-take.mp4`**, in `assets/demo-video/`.
-5. Verify what you actually captured before you trust it:
+3. Copy the file out of the recording folder to **`assets/demo-video/kill-recover-take.mp4`**. <!-- drift-allow-path: the take does not exist until this step is performed -->
+
+   Copy, don't move — the original stays put until the cut is exported and you know you're done.
+4. Verify what you actually captured before you trust it:
 
 ```powershell
 ffprobe -v error -show_entries format=duration `
@@ -359,7 +371,9 @@ widens the window; that is a recording aid, not a change to the guarantee.
 
 ## Recording #2 — Live MCP query (OBS, ~15 s)
 
-Free and retakeable. Skip it only if you'd rather run beat 12 as the `s06` still.
+Free and retakeable — ~15 seconds, one button click, as many attempts as you like. "Optional" here
+means *first to cut if the day runs out*, not *skip by default*: `s06` is not captured, so cutting
+this take costs a still rather than saving one. Shoot it.
 
 ### OBS state for this take
 
@@ -375,16 +389,34 @@ shift at the cut. Specifically, still true here:
 | **Desktop Audio** | **ON** — unchanged from take #1, even though nothing plays |
 | Start / Stop | **hotkey only** |
 
-The one thing to re-check: the browser window is at the **same size and page zoom** as any Gradio
-still you captured, or beat 12 will jump against beats 3 and 5.
+**Set browser page zoom to 150% before rolling.** Beats 3 and 5 are rendered from 1200-viewport
+DPR-2 captures downscaled to 1920, so the console appears there at ~1.6× life size. A live recording
+in a 1920 window at 100% zoom shows it at 1.0×, and beat 12 would visibly jump against the beats
+either side of it. 150% is Edge's nearest step and closes the gap. Same window size as take #1.
+
+### Shoot it immediately after Recording #1 — the incident has to be open
+
+`ask_via_mcp()` calls `list_open_incidents()`
+([`../ui/app.py`](../ui/app.py)), so with a clean cluster it returns `[]` — an empty array on screen
+under narration saying *"you can simply ask it"*, which reads as broken rather than honest.
+
+After Recording #1's resume the incident is **still open**: step 0 is `executed`, steps 1–2 are not,
+and the state is `remediating`. So roll #2 straight away and the answer names *the incident the
+judge has just watched being killed and recovered*. That continuity is worth more than any question
+you could compose, and it costs nothing — it is the same incident, not a second one.
+
+Resolve it afterwards, not before: `python scripts/demo_run.py --tick --via-lambda` until the JSON
+reads `"state": "resolved"`, then stop. One tick past resolved opens a fresh incident.
 
 ### The take — beat 12
 
-1. Gradio console open, **"Ask via MCP"** panel visible, previous answer cleared.
+1. Gradio console open, previous answer cleared, page zoom **150%**.
 2. Start OBS (hotkey).
-3. Type a short question — pre-decide the wording, don't compose on camera — and submit.
-4. Let the answer render fully. **Pause on it** for 2–3 seconds; that pause is the beat.
-5. Stop with the hotkey, wait ~2 s, remux, save as **`mcp-query-take.mp4`**.
+3. Click **"Ask via MCP: what's open right now?"** — it is a **button, not a text field**. Nothing
+   is typed on camera, so there is no wording to pre-decide and no typo to retake for.
+4. Let the JSON render fully. **Pause on it** for 2–3 seconds; that pause is the beat.
+5. Stop with the hotkey, wait ~2 s, copy to **`assets/demo-video/mcp-query-take.mp4`**. <!-- drift-allow-path: the take does not exist until this step is performed -->
+
 6. `ffprobe` it exactly as above — same 1920×1080 / 30 fps expectation.
 
 ---
@@ -490,26 +522,35 @@ Two capture types, and the difference decides whether a still can move:
 renders a README into a centred column ~800 px wide, so captured at a 1920 px viewport it fills under
 half the frame and reads as a strip of text floating in whitespace. Capture **GitHub pages at a
 1200–1280 px viewport**: the column then fills the frame, and at DPR 2 you still get a 2400–2560 px
-PNG, comfortably above the 1920 you need. Capture the **app's own pages at 1920** — they're
-full-bleed. Don't also change page zoom; viewport width alone does it, and stacking both makes the
-result hard to predict.
+PNG, comfortably above the 1920 you need.
+
+**Capture the app's own pages at 1200 as well** — the Gradio console is *not* full-bleed, which cost
+a re-shoot on 2026-08-11. Its container is ~1115 CSS px wide and **left-aligned**, so at a 1920
+viewport the content occupied 58% of the frame with the right 40% blank white — the same failure the
+paragraph above describes for GitHub. At 1200 it fills ~80% with even gutters, and the incident cards
+reflow 3-up → 2-up, which makes the alert text and provenance badges markedly more legible. Don't
+also change page zoom; viewport width alone does it, and stacking both makes the result hard to
+predict.
 
 Save everything to `assets/demo-video/statics/`.
 
-**Some of these are already captured** — see *Already captured: provider evidence* below before
-shooting anything. `s03` is done; `s09` is one screenshot away.
+**All of these are captured as of 2026-08-11** except `s06`, which is only needed if Recording #2 is
+cut. `s09` never needed a capture at all — `09.lambda-configuration.png` satisfies it outright; see
+*Already captured: provider evidence* below. The table records how each was taken, so a re-shoot
+reproduces it rather than re-deriving it.
 
 | Still | Beat | Type | Viewport | What to capture | Move |
 | --- | --- | --- | --- | --- | --- |
-| `s01-readme-top` | 2 | A | 1280 | README from the banner through "The Problem" | pan down |
-| `s02-console-idle` | 3 | A | 1920 | Gradio console, incidents listed, nothing in flight | static |
+| `s01-readme-top` | 2 | A | 1280 | README from the banner through "The Problem" — cropped out of one signed-out full-page capture, along with `s07` and `s08`. Sign out first: the signed-in view shows `Settings`, `Unpin` and an edit pencil no judge sees. Note DevTools caps a full-page capture at 16384 px, which truncates this README below *Live Demo* — harmless, since all three crops sit above the cut | pan down |
+| `s02-console-idle` | 3 | A | 1200 | Gradio console, incidents listed, nothing in flight. The green *"No steps in-flight — 0 open incident(s) fully checkpointed"* banner is what makes it read as idle rather than unloaded — click **Refresh now** first, the panels are blank on first paint by design | static |
 | `s03-space-url` | 3 | B | — | Space at its real URL, **address bar in frame**, ideally with a step in-flight. The frame that used to satisfy this was deleted on 2026-08-08 as stale — its KPI tiles and cards predated the provenance badges, so beside the current console it read as a different app. No frame in `assets/provider-evidence/` shows the **Space's** URL in an address bar either — the AWS and CockroachDB frames show their own consoles' URLs, not this one — so this single screenshot closes both gaps | static |
-| `s04-timeline-executing` | 5 | A | 1920 | Recovery timeline, a step mid-flight, `correlation_source: bedrock` visible | slow push-in |
-| `s05-explain-plan` | 11 | A | 1280 | `EXPLAIN` showing `vector search … prefix spans` | static |
-| `s06-mcp-panel` | 12 | A | 1920 | Gradio "Ask via MCP" with a live answer — **fallback if Recording #2 is skipped** | static |
+| `s04-timeline-executing` | 5 | A | 1200 | A step mid-flight — the amber *"1 remediation step in-flight (status = `executing`)"* banner with `IN-FLIGHT NOW 1`. Bedrock is attested by the **model badge**, not a raw field: a step that fell back to precedent replay names no model, so `claude-sonnet-4-5-…` on a step at `0/1` proves the proposal came from Bedrock, and `d=…` renders only beside the embedding model that produced it | slow push-in |
+| `s05-explain-plan` | 11 | A/B | — | `EXPLAIN` showing `vector search … prefix spans`. Taken from a **terminal**, not the Cloud console: the 1024-dim vector literal makes the console echo a screen-filling wall of `0.01,…` above its own result. Suppress the trailing `index recommendations` block — the planner suggests a *different* index, which under a caption saying "the index earns its place" reads as CockroachDB disagreeing with you | static |
+| `s06-mcp-panel` | 12 | A | 1200 | Gradio "Ask via MCP" with a live answer — **fallback if Recording #2 is skipped**. The only still not captured, because it is only needed in that case | static |
 | `s07-ci-badges` | 13 | A | 1280 | README badge rows — CI green, coverage, versions | static |
 | `s08-adr-list` | 13 | A | 1280 | The ten-row ADR table | pan down |
 | `s09-lambda-console` | 10 | B | — | AWS console: `continuum-orchestrator`, no provisioned concurrency. **Already captured** — use `assets/provider-evidence/09.lambda-configuration.png` | static |
+| `s10-codecov` | 13 | A | 1400 | Codecov's page for the repo, corroborating the `100% coverage` the beat-13 caption claims. **Click "Hide charts" first**: the chart block is ~930px of mostly-empty grey, and with it the page is ratio 1.12 — no 16:9 crop can hold both the coverage figure and the file table. Hidden, the page is 1.77 and everything fits. Capture **signed out**: `Log in` in the nav and `Viewing as visitor` beside the repo name show a judge can open the same page, and there is then no avatar to mask. Type A at DPR 2 rather than a window capture — the same figure renders ~1.8× larger, and at two seconds on screen that is the difference between reading it and not | static |
 
 ### Already captured: provider evidence
 
@@ -553,6 +594,27 @@ regenerate with the evidence, so they cannot drift. Use the **`.png`** variants 
 
 ---
 
+## The first thirty seconds — what a judge knows, and when
+
+`vo_00-problem` deliberately names no product and no technology, so for the first twenty seconds the
+**picture and the captions** are the only things answering *"what is this?"*. That is a choice, not
+an oversight — but it only works if those two actually carry it.
+
+- **Beat 2's move is built around it.** `beat02-readme.mp4` opens on the logo and the README's
+  one-line thesis, then settles at **0:12–0:15** on the frame holding *"An autonomous
+  incident-response agent that resumes the exact step it was killed on — because its memory lives in
+  CockroachDB, not in the process"* together with the full badge stack: `AWS Lambda` · `Titan` ·
+  `Claude Sonnet 4.5` · `CockroachDB Cloud` · `Distributed Vector Indexing C-SPANN 1024d` ·
+  `Managed MCP Server`. A constant-speed scroll would put that block on screen in passing for two
+  seconds. It is the "what is it" frame, so it is held.
+- **Beats 1 and 2 carry captions for the same reason.** They used to read `none`. A judge watching
+  with sound off — and many do, on a first pass through a pile of submissions — now gets the
+  category, the runtime and the memory layer inside the first six seconds.
+
+By 0:24 the answer has arrived three independent ways: in text, in picture, and then in
+`vo_01-reveal` saying it out loud. Nothing was cut from the narration to achieve that, and the
+2:55 total is unchanged.
+
 ## Motion direction — how to move a still without being annoying
 
 The move exists to stop the frame looking frozen, **not** to be noticed. If a viewer could describe
@@ -594,15 +656,15 @@ the measured durations.
 | `vo_01-reveal` | Continuum is an incident-response agent whose memory lives in CockroachDB, not in the process. On AWS Lambda, it never trusts what's in memory — every invocation re-reads its state from the database first. So the process is allowed to die. | 40 | 15.5s | 0:24 |
 | `vo_02-architecture` | Five agents, and only one of them is allowed to write. Every fact about an incident goes through a single module into one database — so whatever picks that incident up next can trust everything it reads. | 37 | 11.5s | 0:41 |
 | `vo_03-normal` | An alert fires. Bedrock turns it into a vector, CockroachDB finds the closest incident it's seen before, Claude proposes the next step. And here's what matters — the step is written down as executing before it runs, not after. | 39 | 14.6s | 0:53 |
-| `vo_04-kill` | Now watch. The process is killed mid-step. No graceful shutdown. No checkpoint. Nothing gets a chance to clean up. | 19 | 7.9s | 1:09 |
+| `vo_04-kill` | Now watch. The process is killed mid-step. No graceful shutdown. No checkpoint. Nothing gets a chance to clean up. | 19 | 7.9s | 1:12 |
 | `vo_05-survives` | The process is gone. The step is still there — sitting in executing, with nothing alive that owns it. That row is the agent's memory, and it outlived the agent. | 30 | 9.9s | 1:22 |
 | `vo_06-resume` | A cold Lambda invocation — a different machine, in a different region, with no memory of this. It reads CockroachDB first, finds the interrupted step, and re-runs it. Not from scratch. Not skipped. Not duplicated. | 35 | 14.3s | 1:35 |
-| `vo_07-scale` | That isn't one lucky take. Fifty interrupted incidents. Fifty clean resumes. Zero duplicated actions, zero lost steps — counted from the durable rows, not from a log. | 27 | 11.7s | 1:52 |
-| `vo_08-aws` | And it isn't only our own kill switch. Here, AWS terminates the function itself, mid-step, with no signal the process can catch. All fifteen recovered, exactly once. | 27 | 11.5s | 2:04 |
-| `vo_09-vector` | And the memory scales with it. From one hundred incidents to ten thousand, CockroachDB's vector index stays flat while a full scan climbs away — seven and a half times faster. | 31 | 11.2s | 2:16 |
-| `vo_10-mcp` | And because it's all one database, you can simply ask it — the app querying its own memory, live, through CockroachDB's managed MCP server. | 24 | 9.1s | 2:28 |
-| `vo_11-production` | Type-checked, linted and gated in CI, with the recovery contract pinned by tests that hard-kill a real process on every push. | 21 | 8.4s | 2:38 |
-| `vo_12-close` | Agents will keep dying mid-task. Continuum is the one that picks up exactly where it left off. | 17 | 5.7s | 2:47 |
+| `vo_07-scale` | That isn't one lucky take. Fifty interrupted incidents. Fifty clean resumes. Zero duplicated actions, zero lost steps — counted from the durable rows, not from a log. | 27 | 11.7s | 1:51 |
+| `vo_08-aws` | And it isn't only our own kill switch. Here, AWS terminates the function itself, mid-step, with no signal the process can catch. All fifteen recovered, exactly once. | 27 | 11.5s | 2:03 |
+| `vo_09-vector` | And the memory scales with it. From one hundred incidents to ten thousand, CockroachDB's vector index stays flat while a full scan climbs away — seven and a half times faster. | 31 | 11.2s | 2:15 |
+| `vo_10-mcp` | And because it's all one database, you can simply ask it — the app querying its own memory, live, through CockroachDB's managed MCP server. | 24 | 9.1s | 2:27 |
+| `vo_11-production` | Type-checked, linted and gated in CI, with the recovery contract pinned by tests that hard-kill a real process on every push. | 21 | 8.4s | 2:37 |
+| `vo_12-close` | Agents will keep dying mid-task. Continuum is the one that picks up exactly where it left off. | 17 | 5.7s | 2:48 |
 
 **Narration spine 2:31.4** (151.4 s measured via ffprobe).
 
@@ -622,20 +684,26 @@ video.
 
 | # | Beat | VO (measured) | Visual | Motion | On-screen caption | Dur | Cum |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Opening card | silent | `demo-cards/banner-{dark,light}.png` | **static** — exactly 1920×1080 | none | 3.0s | 0:03 |
-| 2 | The problem | `vo_00-problem` (20.1s) | `s01-readme-top` | pan down | none | 21.5s | 0:24 |
-| 3 | Reveal | `vo_01-reveal` (15.5s) | `s02-console-idle` → `s03-space-url` | static ×2 | `huggingface.co/spaces/iarjunganesh/continuum · live` | 16.5s | 0:41 |
+| 1 | Opening card | silent | `demo-cards/banner-{dark,light}.png` | **static** — exactly 1920×1080 | `Incident-response agent · memory outlives the process` | 3.0s | 0:03 |
+| 2 | The problem | `vo_00-problem` (20.1s) | **`beats/beat02-readme.mp4`** | pre-rendered — see below | `Runs on AWS Lambda · state in CockroachDB · Bedrock reasoning` | 21.5s | 0:24 |
+| 3 | Reveal | `vo_01-reveal` (15.5s) | **`beats/beat03-console.mp4`** → `s03-space-url` | static ×2 | `huggingface.co/spaces/iarjunganesh/continuum · live` | 16.5s | 0:41 |
 | 4 | Architecture | `vo_02-architecture` (11.5s) | `architecture-diagram-*-16x9.png` | **static** | `5 agents · 1 write path · recovery read first` | 12.5s | 0:53 |
-| 5 | Normal operation | `vo_03-normal` (14.6s) | `s04-timeline-executing` | slow push-in | `Titan embed → C-SPANN search → Claude` | 15.6s | 1:09 |
-| 6 | **The kill** | `vo_04-kill` (7.9s) | **#1 live** — terminal dying mid-line | native, no move | `chaos_kill.py — SIGKILL, no graceful shutdown` | 12.9s | 1:22 |
-| 7 | **State survived** | `vo_05-survives` (9.9s) | **#1 live** — the row in `executing` | native, **hold 3s+** | `status: executing — and nothing is alive` | 13.9s | 1:35 |
-| 8 | **The resume** | `vo_06-resume` (14.3s) | **#1 live** — cold invocation resuming that step | native, no move | `resumed: true · same step_index · executed once` | 16.3s | 1:52 |
-| 9 | Not once — fifty times | `vo_07-scale` (11.7s) | `chart-kill-storm-*-16x9.png` | **static** | `50 kills · 0 duplicated · 0 lost` | 12.3s | 2:04 |
-| 10 | AWS kills it | `vo_08-aws` (11.5s) | `chart-lambda-timeout-*` → `s09-lambda-console` | static ×2 | `AWS terminated the function — it still resumed` | 12.1s | 2:16 |
-| 11 | The index earns its place | `vo_09-vector` (11.2s) | `chart-vector-scale-*` → `s05-explain-plan` | static ×2 | `100 → 10,000 vectors · C-SPANN stays flat` | 11.8s | 2:28 |
-| 12 | Live query over MCP | `vo_10-mcp` (9.1s) | **#2 live** — `mcp-query-take.mp4` (or `s06` still) | native, no move | `Managed MCP Server · read-only` | 9.7s | 2:38 |
-| 13 | Production | `vo_11-production` (8.4s) | `s07-ci-badges` → `s08-adr-list` → `chart-throughput-*` | static, pan, static | `100% coverage · 10 ADRs · CI on every push` | 9.0s | 2:47 |
-| 14 | Close | `vo_12-close` (5.7s) | `demo-cards/signoff-{dark,light}.png` | **static** | `The memory outlived the failure.` | 7.7s | **2:55** |
+| 5 | Normal operation | `vo_03-normal` (14.6s) | **`beats/beat05-timeline.png`** (2400×1350) | **editor zoom**, 100% → 105% — rendering it shimmered, see `beats/README.md` | `Titan embed → C-SPANN search → Claude` | 15.6s | 1:09 |
+| 6 | **The kill** | `vo_04-kill` (7.9s) — starts at 1:12.0 | **#1 live** — clip 0:00–0:12.4, terminal dying mid-line at 0:11 | native, no move | `chaos_kill.py — SIGKILL, no graceful shutdown` | 12.4s | 1:21 |
+| 7 | **State survived** | `vo_05-survives` (9.9s) | **#1 live** — clip 0:12.4–0:25.4, the row in `executing` | native, **hold 3s+** | `status: executing — and nothing is alive` | 13.0s | 1:34 |
+| 8 | **The resume** | `vo_06-resume` (14.3s) — starts at 1:35.0 | **#1 live** — clip 0:25.4–0:42.0, JSON lands at 0:36 | native, no move | `resumed: true · same step_index · executed once` | 16.6s | 1:51 |
+| 9 | Not once — fifty times | `vo_07-scale` (11.7s) | `chart-kill-storm-*-16x9.png` | **static** | `50 kills · 0 duplicated · 0 lost` | 12.3s | 2:03 |
+| 10 | AWS kills it | `vo_08-aws` (11.5s) | `chart-lambda-timeout-*` → `s09-lambda-console` | static ×2 | `AWS terminated the function — it still resumed` | 12.1s | 2:15 |
+| 11 | The index earns its place | `vo_09-vector` (11.2s) | `chart-vector-scale-*` → `s05-explain-plan` | static ×2 | `100 → 10,000 vectors · C-SPANN stays flat` | 11.8s | 2:27 |
+| 12 | Live query over MCP | `vo_10-mcp` (9.1s) | **#2 live** — `mcp-query-take.mp4` 0:00.8–0:10.5 (or `s06` still) | native, no move | `Managed MCP Server · read-only` | 9.7s | 2:37 |
+| 13 | Production | `vo_11-production` (8.4s) | `s07-ci-badges` → **`s10-codecov`** → **`beats/beat13-adr.mp4`** → `chart-throughput-*` | static, static, pre-rendered pan, static | `100% coverage · 10 ADRs · CI on every push` | 11.0s | 2:48 |
+| 14 | Close | `vo_12-close` (5.7s) | `demo-cards/signoff-{dark,light}.png` | **static** | `The memory outlived the failure.` | 7.7s | **2:56** |
+
+Beats 6–8 carry **measured** durations, not budgeted ones: `kill-recover-take.mp4` is 42.0s and the
+three beats consume it contiguously, so they cannot sum to anything else. Two voiceover clips start
+*after* their beat does, because the picture has a fixed landmark the narration has to meet —
+`vo_04-kill` ends as the terminal dies at 1:20.1, and `vo_06-resume` is 10.1s in when the resume JSON
+renders at 1:45.1. Every other clip starts on its beat boundary.
 
 **Never hold a single static frame longer than ~15 s** under continuous narration — that's the real
 ceiling on how long any still can sit on screen, moving or not. If the cut runs short, extend beats
@@ -645,8 +713,10 @@ ceiling on how long any still can sit on screen, moving or not. If the cut runs 
 
 ## Assembly (Clipchamp on Win11, or CapCut)
 
-You'll have **11 images** (opening card, `s01`–`s09` as used, the architecture PNG, four chart PNGs,
-closing card) and **2 video files** (`kill-recover-take.mp4`, `mcp-query-take.mp4`).
+You'll have **13 images** (opening card, `s03`, `s05`, `s07`, `s10`, `beat05-timeline.png`, the
+architecture PNG, four chart PNGs, the Lambda console frame, closing card) and **5 video files**
+(three beat clips, `kill-recover-take.mp4`, `mcp-query-take.mp4`). `s01`, `s02`, `s04` and `s08` are
+not placed directly — they are the sources the beat clips were rendered from.
 
 **Before laying anything down**, set the project canvas background to match your chosen theme —
 `#0d0d0d` (dark) or `#ffffff` (light) — so any letterboxed still sits on matching colour instead of
@@ -657,10 +727,10 @@ Drop in this order. Beats 6–8 come from the **same** take — trim, don't re-c
 | Track pos | Beat | Asset | Motion |
 | --- | --- | --- | --- |
 | 1 | 1 | `banner-{dark,light}.png` | static |
-| 2 | 2 | `s01-readme-top` | pan down |
-| 3 | 3 | `s02-console-idle` → `s03-space-url` | static ×2 |
+| 2 | 2 | `beats/beat02-readme.mp4` | pre-rendered |
+| 3 | 3 | `beats/beat03-console.mp4` → `s03-space-url` | pre-rendered, static |
 | 4 | 4 | `architecture-diagram-{dark,light}-16x9.png` | static |
-| 5 | 5 | `s04-timeline-executing` | push-in |
+| 5 | 5 | `beats/beat05-timeline.png` | **editor zoom** 100% → 105% |
 | 6 | **6** | **`kill-recover-take.mp4`** — the kill | native |
 | 7 | **7** | **same take** — the `executing` row | native, hold |
 | 8 | **8** | **same take** — the resume | native |
@@ -668,7 +738,7 @@ Drop in this order. Beats 6–8 come from the **same** take — trim, don't re-c
 | 10 | 10 | `chart-lambda-timeout-*` → `s09-lambda-console` | static ×2 |
 | 11 | 11 | `chart-vector-scale-*` → `s05-explain-plan` | static ×2 |
 | 12 | 12 | `mcp-query-take.mp4` | native |
-| 13 | 13 | `s07-ci-badges` → `s08-adr-list` → `chart-throughput-*` | static, pan, static |
+| 13 | 13 | `s07-ci-badges` → `s10-codecov` → `beats/beat13-adr.mp4` → `chart-throughput-*` | static ×2, pre-rendered, static |
 | 14 | 14 | `signoff-{dark,light}.png` | static |
 
 Then drop the thirteen `vo_NN` clips onto the audio track underneath, each at its **Starts at** time
@@ -753,23 +823,24 @@ These matter more than polish. A judge who catches one overstatement discounts e
       **do not run `make resilience-bench` today**; it aborts on a Cloud DSN and burns the demo
       cluster if forced
 - [ ] `make voiceover` current — narration table in this doc matches the committed MP3s
-- [ ] OBS: 1920×1080 base *and* output, 30 fps, CBR 12–16 Mbps, MKV, **mic Disabled**, desktop audio ON
+- [ ] OBS: 1920×1080 base *and* output, 30 fps, CBR 12–16 Mbps, Hybrid MP4, **mic Disabled**, desktop audio ON
 - [ ] OBS: Start/Stop **hotkeys bound** — OBS's own window never appears on camera
 - [ ] Display Capture (not Window Capture), Capture Cursor on
 - [ ] Focus Assist on, tabs closed, bookmarks hidden, scrollback cleared, terminal ≥ 16 pt
 
 **Shoot**
 
-- [ ] Recording #1 is **one continuous take** covering beats 6–8, remuxed to `kill-recover-take.mp4`
+- [ ] Recording #1 is **one continuous take** covering beats 6–8, saved as `kill-recover-take.mp4`
 - [ ] Every take **`ffprobe`d**: 1920×1080, 30/1, h264 — not the monitor's native resolution
 - [ ] The interrupted step reads **`executing`** in the take — verified before cutting
 - [ ] Kill is local (`--via-api` + `chaos_kill.py`); **resume is `--via-lambda`** and the dead
       terminal stays in frame. If the resume fell back to `--via-api`, `vo_06-resume` was re-recorded
       to match
 - [ ] Recording #2 shot, or beat 12 consciously falls back to the `s06` still
-- [ ] The remaining **8** stills captured at the right type and viewport into
-      `assets/demo-video/statics/` — `s03` is no longer pre-satisfied; the frame that covered it was
-      deleted as stale on 2026-08-08
+- [x] Stills captured into `assets/demo-video/statics/` — **`s01`–`s05`, `s07`, `s08` on
+      2026-08-11**, and `s09` served by `provider-evidence/09.lambda-configuration.png`. Every one
+      declared in `scripts/redact_evidence.py`; `s03` carries the only mask (the signed-in avatar,
+      measured off that file). `s06` is deliberately not captured — it is the Recording #2 fallback
 - [ ] `python scripts/build_obs_assets.py` run **only if** beat 3 uses the full-page
       `01.space-console-full-page.png`; the browser-chrome frames are already 1920×1080
 - [ ] One theme held throughout — UI, cards, diagram, charts

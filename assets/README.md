@@ -65,10 +65,16 @@ and stating which numbers it deliberately does **not** have as separate files �
 badge row was already in frame). A number absent because it is contained in another frame is not a
 missing shot, but only saying so makes that checkable.
 
-**Every screenshot must be declared in [`../scripts/redact_evidence.py`](../scripts/redact_evidence.py)**,
-with an empty region tuple if it needs no mask. `make redact-evidence --check` fails on an
-undeclared file as well as an unmasked one — a raw 1920×1080 window capture carries the signed-in
-user's profile photograph, and on AWS pages an account id.
+**Every screenshot *and every demo-video file* must be declared in
+[`../scripts/redact_evidence.py`](../scripts/redact_evidence.py)**, with an empty region tuple if it
+needs no mask. `make redact-evidence --check` fails on an undeclared file as well as an unmasked one
+— a raw 1920×1080 window capture carries the signed-in user's profile photograph, and on AWS pages
+an account id.
+
+The video files are covered because the screenshot gate did not catch them: `mcp-query-take.mp4`
+shipped with that photograph in every one of its frames, and nothing complained, because the gate
+walked PNGs. Videos are checked by sampling frames at 10%, 50% and 90% — browser chrome does not
+appear partway through, so three samples settle it without making `--check` cost minutes.
 
 **Only `chaos-run/` carries screenshots.** `resilience-run/`, `deploy-restart-run/` and the
 benchmark suites are machine-evidenced by design: their results are counts and JSON, whose visual
@@ -118,7 +124,7 @@ a judge to discover. See ADR 008 and its addendum for the account-level quota hi
 | [`architecture/`](architecture/) | Mermaid source + brand-themed SVG/PNG renders of the README diagrams |
 | [`charts/`](charts/) | **Generated** — theme-aware benchmark charts from the newest evidence run (`make charts`). SVG for docs, PNG at 1920×1080 for the video timeline |
 | [`demo-cards/`](demo-cards/) | README banner + sign-off cards (light/dark) |
-| [`demo-video/`](demo-video/) | Final cut, captions, per-beat takes, and static flash-cut frames |
+| [`demo-video/`](demo-video/) | Final cut, captions, per-beat takes, the still frames, and the beat clips rendered from them |
 | [`demo-voiceover/`](demo-voiceover/) | **Generated** — Amazon Polly narration, one clip per beat (`make voiceover`) |
 | [`resilience-run/`](resilience-run/) | Correctness-under-adversity evidence — kill storms, Lambda timeouts, exactly-once, vector scale |
 | [`provider-evidence/`](provider-evidence/) | All four providers reporting the same facts the application reports about itself — CockroachDB Cloud (plan, region, live write traffic), Hugging Face (the running Space), Amazon Bedrock (invocation counts and per-call latency per model) and AWS Lambda (no provisioned concurrency, and a cold environment reading incident state back out of the database in CloudWatch's own log). Platform provenance, not per-run proof; see that folder's README for what each frame does and does not establish |

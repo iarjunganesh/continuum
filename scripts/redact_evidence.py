@@ -33,6 +33,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import io
+import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -68,6 +72,14 @@ PLACEHOLDER = (199, 199, 204)
 AVATAR = (1752, 47, 1777, 72)
 # Edge's toolbar avatar sits on identical pixels in every 1920x1080 capture, so the box is
 # named once rather than repeated per file and drifting.
+
+# ...except in the OBS recordings, where it does not. Measured off `mcp-query-take.mp4` rather
+# than assumed from AVATAR: the disc there spans x=1755..1778, y=48..71 — three pixels right of
+# where the DevTools captures put it, because OBS records the desktop rather than the viewport.
+# Reusing AVATAR would leave column 1778 showing, which is the same one-pixel crescent this
+# file's history already records once. The box below inscribes an ellipse with a pixel of margin
+# on every side.
+AVATAR_TAKE = (1754, 47, 1780, 73)
 
 # The AWS console's account tooltip: "iarjunganesh (<account-id>) v" in the top-right nav.
 # Only the parenthesised account id is covered — the username is the same public handle as the
@@ -185,7 +197,185 @@ REDACTIONS: dict[str, tuple[Region, ...]] = {
         Region(AVATAR, PHOTO, circle=True),
         Region(AWS_ACCOUNT_ID_LOGS_SEARCH, ACCOUNT, fill=AWS_TOOLTIP_BG),
     ),
+    # --- demo-video stills, cut into the video's beats, 2026-08-11 ----------
+    # s02 and s04 are DevTools full-page captures (2400px wide, DPR 2) taken with the device
+    # toolbar on, so they carry no browser chrome: no Edge toolbar, no avatar, no account id.
+    # The Hugging Face badge in the corner is HF's own logo, not a photograph.
+    "demo-video/statics/s02-console-idle.png": (),
+    "demo-video/statics/s04-timeline-executing.png": (),
+    # s03 is the one window capture in the set — it exists to show the Space's real URL in the
+    # address bar, which means it also carries the Edge toolbar and the signed-in avatar.
+    # Measured off this file rather than assumed: the photograph's widest row spans x=1755..1774
+    # and it occupies y=48..71, which AVATAR's inscribed ellipse covers with margin on all sides.
+    "demo-video/statics/s03-space-url.png": (Region(AVATAR, PHOTO, circle=True),),
+    # Codecov's own page, corroborating the 100% the beat-13 caption claims. A full-page DevTools
+    # capture, so it carries no browser chrome and no avatar — and it was taken signed *out*
+    # ("Log in" / "Start Free Trial" in the nav, "Viewing as visitor" beside the repo name), which
+    # is worth more than a signed-in view: it demonstrates a judge can open the same page. Nothing
+    # here may be masked. The repo name, branch, source commit and every coverage figure are the
+    # entire point of the frame, and the account handle is the same public one as the GitHub org.
+    "demo-video/statics/s10-codecov.png": (),
+    # s01/s07/s08 are crops out of one signed-out full-page capture of the GitHub repo
+    # (1280 viewport, DPR 2). Signed out, so the header carries "Sign in / Sign up" rather than an
+    # avatar — and every crop starts well below the header regardless. No chrome, nothing to mask.
+    "demo-video/statics/s01-readme-top.png": (),
+    "demo-video/statics/s07-ci-badges.png": (),
+    "demo-video/statics/s08-adr-list.png": (),
+    # s05 is a terminal capture — no browser chrome, so no avatar and no account id. The DSN never
+    # reaches the screen: the runner reads it from the environment and prints only the query plan.
+    "demo-video/statics/s05-explain-plan.png": (),
 }
+
+
+# The demo video's own footage. This exists because the screenshot gate above did not catch it:
+# `mcp-query-take.mp4` shipped with the signed-in user's photograph in the browser toolbar of
+# every one of its 315 frames, and nothing complained, because `SCREENSHOT_GLOBS` walks PNGs.
+# A frame that appears in a submitted video is exactly as judge-facing as one in
+# `provider-evidence/` — more so, since the video is the thing a judge watches first and the
+# only artifact here that cannot be quietly re-uploaded after someone notices.
+#
+# Same rules as above: an empty tuple means someone looked and it needs nothing.
+VIDEO_GLOBS = ("demo-video/*.mp4", "demo-video/beats/*.mp4")
+
+VIDEO_REDACTIONS: dict[str, tuple[Region, ...]] = {
+    "demo-video/mcp-query-take.mp4": (Region(AVATAR_TAKE, PHOTO, circle=True),),
+    # Two PowerShell panes and nothing else — no browser chrome, so no avatar. The AWS account id
+    # would have appeared had the `--via-lambda` leg hit AccessDenied on camera; it did not, and
+    # the frames were swept for it before this was declared.
+    "demo-video/kill-recover-take.mp4": (),
+    # Rendered from the statics, which are declared above and already masked.
+    "demo-video/beats/beat02-readme.mp4": (),
+    "demo-video/beats/beat03-console.mp4": (),
+    "demo-video/beats/beat13-adr.mp4": (),
+}
+
+# Frames sampled per video when checking. Three is enough because these regions are browser
+# chrome: it does not appear partway through, so a mask that holds at the start, middle and end
+# holds throughout. Sampling every frame would make `--check` cost minutes for no more certainty.
+VIDEO_SAMPLES = (0.1, 0.5, 0.9)
+
+
+def _ffmpeg() -> str:
+    exe = shutil.which("ffmpeg")
+    if exe is None:
+        raise SystemExit("ffmpeg is not on PATH — needed to check the demo video's frames")
+    return exe
+
+
+def _duration(path: Path) -> float:
+    probe = shutil.which("ffprobe")
+    if probe is None:
+        raise SystemExit("ffprobe is not on PATH — needed to sample the demo video's frames")
+    out = subprocess.run(
+        [probe, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return float(out.stdout.strip())
+
+
+def _frame_at(path: Path, seconds: float) -> Image.Image:
+    out = subprocess.run(
+        [
+            _ffmpeg(),
+            "-v",
+            "error",
+            "-ss",
+            f"{seconds:.3f}",
+            "-i",
+            str(path),
+            "-frames:v",
+            "1",
+            "-f",
+            "image2pipe",
+            "-vcodec",
+            "png",
+            "-",
+        ],
+        capture_output=True,
+        check=True,
+    )
+    return Image.open(io.BytesIO(out.stdout)).convert("RGB")
+
+
+def _mask_video(path: Path, regions: tuple[Region, ...]) -> None:
+    """Composite the placeholder over every frame, then replace the file.
+
+    The mask is drawn once as an RGBA overlay and burned in by ffmpeg rather than frame by frame
+    in Pillow: one re-encode instead of a decode/encode round trip per frame, and the result is
+    bit-identical across runs.
+    """
+    probe = _frame_at(path, 0.0)
+    overlay = Image.new("RGBA", probe.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    for region in regions:
+        fill = (*(region.fill or PLACEHOLDER), 255)
+        if region.circle:
+            draw.ellipse(region.box, fill=fill)
+        else:
+            draw.rectangle(region.box, fill=fill)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        mask = Path(tmp) / "mask.png"
+        overlay.save(mask)
+        dest = Path(tmp) / path.name
+        subprocess.run(
+            [
+                _ffmpeg(),
+                "-y",
+                "-v",
+                "error",
+                "-i",
+                str(path),
+                "-i",
+                str(mask),
+                "-filter_complex",
+                "[0][1]overlay=0:0",
+                "-an",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "slow",
+                "-crf",
+                "16",
+                "-pix_fmt",
+                "yuv420p",
+                str(dest),
+            ],
+            check=True,
+        )
+        shutil.copyfile(dest, path)
+
+
+def _is_masked_in_video(im: Image.Image, region: Region, tolerance: int = 6) -> bool:
+    """Same question as `_is_flat`, asked of a frame that has been through H.264.
+
+    The exact-equality test `_is_flat` uses cannot work here: yuv420p subsamples chroma, so a
+    disc drawn as (199, 199, 204) decodes as (199, 198, 203) and an equality check would report
+    the mask missing on a video that is correctly masked — which would re-encode the file on
+    every run, stacking a generation of loss each time. Tolerance is deliberately tight: 6 is
+    far below the distance to any photograph, so this still fails loudly on an unmasked frame.
+    """
+    patch = im.crop(region.box).convert("RGB")
+    colours = patch.getcolors(maxcolors=1 << 16)
+    if colours is None:
+        return False
+    want = region.fill or PLACEHOLDER
+    near = sum(
+        count for count, colour in colours if max(abs(a - b) for a, b in zip(colour, want, strict=True)) <= tolerance
+    )
+    total = sum(count for count, _ in colours)
+    # An inscribed ellipse leaves the box's corners untouched, so the fill covers ~pi/4 of it.
+    return near / total > 0.6 if region.circle else near / total > 0.98
+
+
+def _undeclared_videos() -> list[str]:
+    found: set[str] = set()
+    for pattern in VIDEO_GLOBS:
+        for path in ASSETS.glob(pattern):
+            found.add(path.relative_to(ASSETS).as_posix())
+    return sorted(found - set(VIDEO_REDACTIONS))
 
 
 def _undeclared() -> list[str]:
@@ -262,7 +452,37 @@ def apply(check_only: bool) -> int:
         elif not check_only:
             print(f"  [ok  ] {name} — already redacted")
 
-    undeclared = _undeclared()
+    for name, regions in VIDEO_REDACTIONS.items():
+        path = ASSETS / name
+        if not path.exists():
+            print(f"  [skip] {name} — not present")
+            continue
+        if not regions:
+            if not check_only:
+                print(f"  [none] {name} — declared, nothing to mask")
+            continue
+
+        duration = _duration(path)
+        unmasked = [
+            region
+            for region in regions
+            for at in VIDEO_SAMPLES
+            if not _is_masked_in_video(_frame_at(path, duration * at), region)
+        ]
+        if not unmasked:
+            if not check_only:
+                print(f"  [ok  ] {name} — already redacted")
+            continue
+        if check_only:
+            for region in dict.fromkeys(unmasked):
+                missing.append(f"{name}: {region.why} at {region.box}")
+            continue
+        _mask_video(path, regions)
+        changed.append(name)
+        for region in regions:
+            print(f"  [mask] {name} — {region.why}")
+
+    undeclared = _undeclared() + _undeclared_videos()
 
     if check_only:
         if missing:
@@ -277,7 +497,10 @@ def apply(check_only: bool) -> int:
         if missing or undeclared:
             print("\nRun: python scripts/redact_evidence.py")
             return 1
-        print(f"All declared regions are redacted; {len(REDACTIONS)} screenshot(s) declared.")
+        print(
+            f"All declared regions are redacted; {len(REDACTIONS)} screenshot(s) "
+            f"and {len(VIDEO_REDACTIONS)} video(s) declared."
+        )
         return 0
 
     if undeclared:

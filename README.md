@@ -413,6 +413,7 @@ continuum/
 │   ├── resilience_bench.py    # correctness under adversity → docs/RESILIENCE.md
 │   ├── deploy_restart_drill.py           # redeploy under an open incident, prove the resume
 │   ├── evidence.py            # run-scoped evidence folders + provenance manifest
+│   ├── build_beat_clips.py    # the demo video's moving beats, rendered from the committed stills
 │   ├── build_charts.py        # theme-aware charts from the newest evidence run
 │   ├── build_obs_assets.py    # 1080p OBS sources from provider-evidence (pans, never downscales)
 │   ├── redact_evidence.py     # mask a face or an account id in evidence PNGs — declared, idempotent
@@ -444,7 +445,7 @@ continuum/
 │   ├── deploy-restart-run/    # the code swapped under an open incident, and the resume
 │   ├── demo-cards/            # banner + sign-off cards (SVG source, 16:9 video PNGs)
 │   ├── demo-voiceover/        # generated Polly narration, one clip per beat
-│   ├── demo-video/            # final cut, captions, per-beat takes
+│   ├── demo-video/            # final cut, captions, per-beat takes, stills and rendered beat clips
 │   └── logo.svg
 ├── notebooks/
 │   ├── DEMO_RUNBOOK.ipynb     # run the recovery demo against a live cluster, no local setup

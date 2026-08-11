@@ -24,6 +24,10 @@ venv/
 data/synthetic/*.generated.jsonl
 data/runs/
 
+# Raw OBS captures. The takes that survive are copied into assets/demo-video/ under the
+# names submission/DEMO_SCRIPT.md gives them; everything else here is a discarded attempt.
+.takes/
+
 # Logs
 *.log
 

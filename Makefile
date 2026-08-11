@@ -1,4 +1,4 @@
-.PHONY: clean-clone-check chaos-capture-lambda chaos-capture-pause charts voiceover obs-assets redact-evidence check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo chaos-capture benchmark resilience-bench local-cluster local-cluster-down local-cluster-status probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
+.PHONY: clean-clone-check chaos-capture-lambda chaos-capture-pause charts voiceover beat-clips obs-assets redact-evidence check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo chaos-capture benchmark resilience-bench local-cluster local-cluster-down local-cluster-status probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -157,6 +157,13 @@ charts:
 # (AWS_PROFILE=continuum-admin; the default bedrock-only identity gets AccessDenied).
 voiceover:
 	python scripts/generate_demo_voiceover.py
+
+# Render the demo video's moving beats from the committed stills (assets/demo-video/beats/).
+# Two of those stills are over 12,000px tall and cannot be placed in a 16:9 timeline at all;
+# this decides which window is on screen when, as reviewable keyframes rather than as an
+# editor's drag handles. Needs ffmpeg on PATH.
+beat-clips:
+	python scripts/build_beat_clips.py
 
 # Fails when a doc disagrees with the repo: version fields, future-dated
 # claims, stated test/ADR counts, broken links, stale generated files.
