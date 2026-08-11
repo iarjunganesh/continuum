@@ -2,16 +2,19 @@
 
 > **Target 2:50–2:55** (hard cap **3:00**, disqualifying if over) · **public** on YouTube · 1920×1080 / 30 fps ·
 > no copyrighted music · synthetic data only (ADR 005).
-> **Status: both takes shot 2026-08-11; only the cut remains.** Committed and ready: narration
+> **Status: shot, cut and published.** Committed and ready: narration
 > (13 clips), captions, charts, cards, both diagrams, the CockroachDB, Space, Bedrock and Lambda
 > frames under `assets/provider-evidence/` (2026-08-08) — one of which,
 > `09.lambda-configuration.png`, satisfies the `s09` beat outright — every still the timeline needs
 > (`s01`–`s05`, `s07`, `s08`, `s10` in [`../assets/demo-video/statics/`](../assets/demo-video/statics/)),
 > the four beat outputs in [`../assets/demo-video/beats/`](../assets/demo-video/beats/), and **both
 > live takes**: `kill-recover-take.mp4` (42.0s) and `mcp-query-take.mp4` (10.5s). `s06` is not needed
-> — Recording #2 was shot, so the fallback it exists for never triggered. **Outstanding: the cut.**
+> — Recording #2 was shot, so the fallback it exists for never triggered.
+> **Cut, exported and published 2026-08-12: https://youtu.be/LwD8__sKqa0** (2:55.7). What remains
+> is not production work — confirm Visibility reads Public, confirm the caption file uploaded,
+> and watch it once with audio off and once with video off.
 
-**Time budget — this is a one-day shoot, and the deadline is the only hard constraint.** Everything
+**Time budget — kept as the plan the 2026-08-11 shoot actually ran to, not as outstanding work.** Everything
 below is written to make each beat correct on the first attempt, not to be worked through in order
 on the day. Plan roughly: OBS + desktop setup **30 min** · Step 0 prep **20 min** · Recording #1
 **45 min** including retakes · assembly and export **90 min**. Session C and the stills are both
@@ -139,20 +142,28 @@ record a *classic* MP4, which is finalised on stop and is therefore unrecoverabl
 
 ### Desktop hygiene — do this before the first take, not between takes
 
-- [ ] **Windows Focus Assist → Do Not Disturb.** One Teams toast in the middle of the kill beat
+**Applied for the 2026-08-11 shoot.** Ticked against the exported cut rather than from memory:
+every frame was swept, and no notification, unrelated tab, personal content, credential or
+connection string appears in any of them.
+
+- [x] **Windows Focus Assist → Do Not Disturb.** One Teams toast in the middle of the kill beat
       costs you the whole take.
-- [ ] Close Slack, mail, Discord, Steam, and anything with a badge that can update.
-- [ ] Single monitor, or at minimum make sure the captured display has nothing personal on it.
-- [ ] Browser: a clean profile or a new window — **bookmarks bar hidden** (`Ctrl+Shift+B`), no
+- [x] Close Slack, mail, Discord, Steam, and anything with a badge that can update.
+- [x] Single monitor, or at minimum make sure the captured display has nothing personal on it.
+- [x] Browser: a clean profile or a new window — **bookmarks bar hidden** (`Ctrl+Shift+B`), no
       extension icons you can't explain, **and every tab closed except the ones being filmed**. A
       row of unrelated tabs is the single most common thing that makes a demo look unrehearsed.
-- [ ] Desktop wallpaper: neutral. It will be visible for a moment somewhere.
-- [ ] Terminal: **one full-screen window**, font **16–18 pt**, high-contrast theme, **scrollback
+- [x] Desktop wallpaper: neutral. It will be visible for a moment somewhere.
+- [x] Terminal: **one full-screen window**, font **16–18 pt**, high-contrast theme, **scrollback
       cleared** (`Clear-Host`). The structlog JSON is the star of beats 6–8; if a judge can't read it
       at 1080p in a small player, the beat has failed.
-- [ ] Secrets off screen: `.env` closed, connection strings out of scrollback, no cluster console
+- [x] Secrets off screen: `.env` closed, connection strings out of scrollback, no cluster console
       tab showing credentials.
-- [ ] Commands **pre-typed into shell history** so you recall them with ↑ and never type on camera.
+- [ ] ~~Commands **pre-typed into shell history** so you recall them with ↑~~ — **don't.** Pre-typing
+      cost a stray incident on 2026-08-11: an Enter instead of `Esc` fired an alert against the demo
+      cluster minutes before rolling, and it had to be driven to `resolved` before the take could
+      start. Paste each command from the runbook when you reach it instead. Left unticked because
+      the practice is superseded, not completed.
 
 **Mouse discipline** — move **deliberately**, click **confidently**, **pause** on anything a judge is
 meant to read. No rapid scrolling, no hovering, no idle cursor circling, no tab-switching mid-beat.
@@ -534,8 +545,8 @@ predict.
 
 Save everything to `assets/demo-video/statics/`.
 
-**All of these are captured as of 2026-08-11** except `s06`, which is only needed if Recording #2 is
-cut. `s09` never needed a capture at all — `09.lambda-configuration.png` satisfies it outright; see
+**All of these are captured** — `s01`–`s05`, `s07`, `s08` on 2026-08-11 and `s10` on 2026-08-12 —
+except `s06`, which was only needed if Recording #2 were cut, and it was not. `s09` never needed a capture at all — `09.lambda-configuration.png` satisfies it outright; see
 *Already captured: provider evidence* below. The table records how each was taken, so a re-shoot
 reproduces it rather than re-deriving it.
 
@@ -695,7 +706,7 @@ video.
 | 9 | Not once — fifty times | `vo_07-scale` (11.7s) | `chart-kill-storm-*-16x9.png` | **static** | `50 kills · 0 duplicated · 0 lost` | 12.3s | 2:03 |
 | 10 | AWS kills it | `vo_08-aws` (11.5s) | `chart-lambda-timeout-*` → `s09-lambda-console` | static ×2 | `AWS terminated the function — it still resumed` | 12.1s | 2:15 |
 | 11 | The index earns its place | `vo_09-vector` (11.2s) | `chart-vector-scale-*` → `s05-explain-plan` | static ×2 | `100 → 10,000 vectors · C-SPANN stays flat` | 11.8s | 2:27 |
-| 12 | Live query over MCP | `vo_10-mcp` (9.1s) | **#2 live** — `mcp-query-take.mp4` 0:00.8–0:10.5 (or `s06` still) | native, no move | `Managed MCP Server · read-only` | 9.7s | 2:37 |
+| 12 | Live query over MCP | `vo_10-mcp` (9.1s) | **#2 live** — `mcp-query-take.mp4` 0:00.8–0:10.5 | native, no move | `Managed MCP Server · read-only` | 9.7s | 2:37 |
 | 13 | Production | `vo_11-production` (8.4s) | `s07-ci-badges` → **`s10-codecov`** → **`beats/beat13-adr.mp4`** → `chart-throughput-*` | static, static, pre-rendered pan, static | `100% coverage · 10 ADRs · CI on every push` | 11.0s | 2:48 |
 | 14 | Close | `vo_12-close` (5.7s) | `demo-cards/signoff-{dark,light}.png` | **static** | `The memory outlived the failure.` | 7.7s | **2:56** |
 
@@ -778,7 +789,7 @@ These matter more than polish. A judge who catches one overstatement discounts e
   evidence run carrying its own run id. Say "fifty interrupted incidents", not "we just ran fifty".
 - **Never cut between the kill and the resume.** Beyond being the strongest moment, an edit there is
   exactly where a sceptic assumes the sleight of hand happened.
-- **Beat 12 only airs as video if you actually recorded a live query.** If you fall back to the `s06`
+- **Beat 12 airs as video because the live query was recorded.** Had it fallen back to the `s06`
   still, that's fine and honest — a still of a real answer is as truthful as filming one. What's not
   allowed is a still where the *change* is the claim.
 - **Never show anything resembling real infrastructure.** All services are fictional (ADR 005).
@@ -810,40 +821,55 @@ These matter more than polish. A judge who catches one overstatement discounts e
 
 ## Production checklist
 
-**Not yet shot.** Tick these against the *exported file*, not the timeline.
+**Shot, cut and published 2026-08-12** — https://youtu.be/LwD8__sKqa0. Ticked against the
+*exported file* and the durable rows, not against the timeline. Items that could not be
+verified from outside YouTube Studio, or that were simply not done, are left unticked and say so.
 
 **Prep**
 
-- [ ] **`$env:AWS_PROFILE = "continuum-admin"` set in the recording shell, static keys cleared** —
-      then `python scripts/demo_run.py --tick --via-lambda --new` prints `runtime: lambda`. The
-      default identity cannot invoke the function, and the failure would land inside Recording #1
-- [ ] `make probe-bedrock` green, `reasoning_source` reads `bedrock` on screen, output saved to evidence
-- [ ] `make check-drift` clean — nothing stale can appear in beat 13
-- [ ] Charts present and committed (`assets/charts/*-16x9.png`, from evidence run `e765a3c5`) —
-      **do not run `make resilience-bench` today**; it aborts on a Cloud DSN and burns the demo
-      cluster if forced
-- [ ] `make voiceover` current — narration table in this doc matches the committed MP3s
-- [ ] OBS: 1920×1080 base *and* output, 30 fps, CBR 12–16 Mbps, Hybrid MP4, **mic Disabled**, desktop audio ON
-- [ ] OBS: Start/Stop **hotkeys bound** — OBS's own window never appears on camera
-- [ ] Display Capture (not Window Capture), Capture Cursor on
-- [ ] Focus Assist on, tabs closed, bookmarks hidden, scrollback cleared, terminal ≥ 16 pt
+- [x] **`$env:AWS_PROFILE = "continuum-admin"` set in the recording shell, static keys cleared** —
+      and it mattered: the throwaway `--via-lambda` tick returned `AccessDeniedException` from a
+      second pane that had not had the block applied. Caught in rehearsal rather than on camera,
+      which is what that step exists for. Note `runtime` is **persisted, not printed** — the JSON
+      shows `correlation_source`/`reasoning_source`; `runtime: lambda` is read from the durable row
+- [x] `make probe-bedrock` green **2026-08-11** — OK on all five candidate regions × both models;
+      every tick that day returned `correlation_source`/`reasoning_source` of `bedrock`
+- [x] `make check-drift` clean before the shoot and again before this release
+- [x] Charts present and committed (`assets/charts/*-16x9.png`, from evidence run `e765a3c5`) —
+      and `make resilience-bench` was **not** run on shoot day, so the demo cluster was never burned
+- [x] `make voiceover` current — regenerated with `--table` after the cut, so the caption track
+      matches the exported audio and no clip was re-synthesised under a finished video
+- [x] OBS: 1920×1080 base *and* output, 30 fps, CBR 16 Mbps, Hybrid MP4, mic Disabled, desktop
+      audio ON — confirmed by `ffprobe` on both raw takes, not by trusting the settings dialog
+- [x] OBS: Start/Stop hotkeys bound. OBS *did* appear at the head and tail of both raw takes and
+      was trimmed out; the exported cut was swept frame by frame and contains none
+- [x] Display Capture (not Window Capture), Capture Cursor on — the killed pane stays visible
+- [x] Focus Assist on, tabs closed, bookmarks hidden, scrollback cleared, terminal ≥ 16 pt — no
+      notification or stray window appears in either take
 
 **Shoot**
 
-- [ ] Recording #1 is **one continuous take** covering beats 6–8, saved as `kill-recover-take.mp4`
-- [ ] Every take **`ffprobe`d**: 1920×1080, 30/1, h264 — not the monitor's native resolution
-- [ ] The interrupted step reads **`executing`** in the take — verified before cutting
-- [ ] Kill is local (`--via-api` + `chaos_kill.py`); **resume is `--via-lambda`** and the dead
-      terminal stays in frame. If the resume fell back to `--via-api`, `vo_06-resume` was re-recorded
-      to match
-- [ ] Recording #2 shot, or beat 12 consciously falls back to the `s06` still
-- [x] Stills captured into `assets/demo-video/statics/` — **`s01`–`s05`, `s07`, `s08` on
-      2026-08-11**, and `s09` served by `provider-evidence/09.lambda-configuration.png`. Every one
+- [x] Recording #1 is **one take** covering beats 6–8, saved as `kill-recover-take.mp4` (42.0s).
+      One splice, at 0:06, removes idle *before* the kill; pane 1 is frozen at
+      `step_checkpoint_start` across it, so the cut is invisible. **Nothing is spliced between
+      the kill and the resume** — that stretch is untouched, and the dead terminal holds for 13s
+- [x] Every take **`ffprobe`d**: 1920×1080, 30/1, h264 — both takes and the final cut
+- [x] The interrupted step read **`executing`** in CockroachDB while the take was still open —
+      queried directly, not inferred from the footage
+- [x] Kill is local (`--via-api` + `chaos_kill.py`); **resume is `--via-lambda`** and the dead
+      terminal stays in frame throughout. No fallback was needed, so `vo_06-resume` stands as
+      recorded. The durable row records `runtime: lambda`, taken from the function's own
+      `AWS_LAMBDA_FUNCTION_NAME` — so the resume provably executed inside the deployed function
+- [x] Recording #2 shot (10.5s), immediately after #1 while that incident was still open — so
+      the MCP answer names the incident the judge has just watched being killed and recovered
+- [x] Stills captured into `assets/demo-video/statics/` — **`s01`–`s05`, `s07`, `s08`, `s10` on
+      2026-08-11/12**, and `s09` served by `provider-evidence/09.lambda-configuration.png`. Every one
       declared in `scripts/redact_evidence.py`; `s03` carries the only mask (the signed-in avatar,
-      measured off that file). `s06` is deliberately not captured — it is the Recording #2 fallback
-- [ ] `python scripts/build_obs_assets.py` run **only if** beat 3 uses the full-page
-      `01.space-console-full-page.png`; the browser-chrome frames are already 1920×1080
-- [ ] One theme held throughout — UI, cards, diagram, charts
+      measured off that file). `s06` is deliberately not captured — it is the Recording #2 fallback,
+      and #2 was shot
+- [x] `python scripts/build_obs_assets.py` **not needed** — beat 3 uses `beats/beat03-console.mp4`,
+      rendered from `s02`, not the full-page provider frame
+- [x] One theme held throughout — light, across UI, cards, diagram and charts
 
 **Session C — evidence capture (not filmed)** — ✅ **complete 2026-08-09, nothing to do on shoot day**
 
@@ -859,13 +885,26 @@ These matter more than polish. A judge who catches one overstatement discounts e
 
 **Cut & publish**
 
-- [ ] Canvas background set to `#0d0d0d` / `#ffffff` before assembly
-- [ ] Exported file is **1920×1080, 30 fps, under 3:00** — check the *file*, not the timeline
-- [ ] `continuum.srt` uploaded alongside
+- [ ] Canvas background set to `#0d0d0d` / `#ffffff` before assembly — **not done.** The editor
+      canvas was left at its default dark grey, which is why the cut opens with a ~0.75s fade up
+      from dark and carries a 0.13s dip through black at 2:48 going into the closing card. Both
+      were measured with `blackdetect` and judged acceptable — a fade into a closing card is
+      ordinary grammar — but re-exporting for it would have cost a generation of picture quality
+      for two fifths of a second. Left unticked because it was not done, not because it was fine
+- [x] Exported file is **1920×1080, 30 fps, 2:55.7** — `ffprobe`d on the file. Audio normalised
+      to **−14 LUFS / −1.5 dBTP** (YouTube's own target; the export measured −24.1 LUFS, and
+      YouTube only turns loud content down, never up) with the video stream copied — MD5 of the
+      video stream is identical before and after, so the picture was not re-encoded
+- [ ] `continuum.srt` uploaded alongside — **confirm in YouTube Studio → Subtitles.** Auto-captions
+      mangle *CockroachDB*, *C-SPANN*, *structlog* and *SIGKILL*, which is most of the claim
 - [ ] Watched once with audio off, once with video off — both pass
 - [ ] Watched start to finish in a phone-sized window — captions still legible?
-- [ ] Uploaded **public** (not unlisted), thumbnail set to `banner-{dark,light}.png`
-- [ ] Link added to the README Live Demo table, `submission/SUBMISSION.md`, and `submission/DEVPOST.md`
+- [ ] Uploaded **public** (not unlisted), thumbnail set to `banner-light.png` — an unauthenticated
+      fetch with no cookies resolves the title and channel, which proves it is **not private**.
+      Public and Unlisted are indistinguishable from outside YouTube Studio, so this stays
+      unticked until the Visibility radio is read directly
+- [x] Link added to the README Live Demo table and its `▶ Watch` badge, `submission/SUBMISSION.md`,
+      `submission/DEVPOST.md` and `assets/demo-video/README.md`; the Devpost mirror regenerated
 
 ---
 
