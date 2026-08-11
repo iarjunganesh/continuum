@@ -39,6 +39,14 @@ deploy-mid-incident tile and the five-tile Proven-Under-Failure panel.
 `03`, `04`, `05` and `06` were re-captured **2026-08-08** and are each a single, unedited
 1920×1080 screenshot with the URL bar in frame.
 
+> **The usage counters in these frames are dated photographs of moving numbers, and are meant to
+> read lower than the docs.** `03` shows `5.72 million / 100 million` Request Units and
+> `28.69 MiB / 10 GiB`; [`submission/COSTS.md`](../../submission/COSTS.md) cites **5.82M / 34.36 MiB**
+> from 2026-08-10. Neither is stale — the meter only goes up, and the two chaos captures on
+> 2026-08-09 are the difference. A frame re-shot to agree with a document would be worth less than
+> one that disagrees with it for a reason you can name; the same applies to the KPI tiles in `01`.
+> Statement counts in `05` move the same way, and for the same reason.
+
 | # | File | What it establishes |
 | --- | --- | --- |
 | `03` | `03.crdb-cluster-overview-eu-central-1.png` | The best single CockroachDB frame, **Cluster settings** drawer open: `Plan Basic` · `Cloud AWS` · `Region Frankfurt (eu-central-1) PRIMARY` · `v26.2.5` · `Compute 100 million RUs` · `Storage 10 GiB` · `Cluster created on 4 Jul 2026, 17:56 UTC`. The requirement that CockroachDB runs on AWS in the region ADR 007 claims, stated by Cockroach Labs' own UI — alongside `5.72 million / 100 million` Request Units and `28.69 MiB / 10 GiB` storage, and two months of throughput and p99 latency |

@@ -114,7 +114,7 @@ Nothing here is a placeholder — an unanswerable field says so explicitly.
   > "Refresh" to load live state from CockroachDB.** Auto-refresh is disabled on purpose — a
   > Request-Unit audit measured the polling timer at roughly 50 RU per refresh per open browser tab,
   > which over a four-week judging period would consume a large share of the cluster's monthly
-  > allowance while nobody was watching. Manual refresh is the trade we chose.
+  > allowance while nobody was watching. Manual refresh is the trade I chose.
   >
   > What you'll see: seeded synthetic incidents with their remediation timelines, each step carrying
   > provenance badges read directly from durable columns — the embedding and reasoning model ids, the
@@ -169,8 +169,8 @@ Nothing here is a placeholder — an unanswerable field says so explicitly.
   > wrong: joining `incidents` in the same statement as the `<->` ordering made the planner fall back
   > to `spans: FULL SCAN`. Results stayed correct, so nothing failed and nothing looked wrong while
   > the headline integration sat idle. A CTE restored it, and a second test fails deliberately if a
-  > future CockroachDB version makes that workaround unnecessary. Second, we measured whether the
-  > retrieval *meant* anything: the seeded vectors were originally deterministic hashes our own
+  > future CockroachDB version makes that workaround unnecessary. Second, I measured whether the
+  > retrieval *meant* anything: the seeded vectors were originally deterministic hashes my own
   > generator documents as "not semantically meaningful", scoring **precision@1 of 55%**. Real Titan
   > vectors took it to **98%** — 39 of 40 nearest neighbours sharing the failure mode. At 10,000
   > vectors the index is **7.5× faster than the equivalent full scan**.
@@ -200,7 +200,7 @@ Nothing here is a placeholder — an unanswerable field says so explicitly.
   > let a throttled account produce a demo that looks fine while never calling Bedrock, **every step
   > persists `correlation_source` / `reasoning_source` and the model ids it actually used**. A step
   > that fell back names no model at all. So "Bedrock ran" is a column you can query, not a sentence
-  > in our README.
+  > in my README.
   >
   > **How they compose.** The differentiating property is the join of the two databases-in-one:
   > `SERIALIZABLE` incident state and the vector index live in the same CockroachDB store, so a step
@@ -254,6 +254,45 @@ Nothing here is a placeholder — an unanswerable field says so explicitly.
   > Embeddings V2 run inside the product itself** via Amazon Bedrock — they are runtime components
   > of the agent, not authoring tools.
 
+- [x] **Describe your contribution** *(public)*
+
+  > **Solo build — architecture, code, tests, infrastructure, evidence and documentation are all
+  > mine.** 67 commits, one author, public history from an empty repository on 2026-07-04 through
+  > the submission release, entirely inside the Submission Period.
+  >
+  > **What I built:**
+  >
+  > - **The recovery mechanic itself** — the two-phase `SERIALIZABLE` step checkpoint that commits
+  >   `executing` *before* the execution window and `executed` after, with the forward-step claim as
+  >   `INSERT … ON CONFLICT DO NOTHING`. This is the whole project: it is what makes a hard kill land
+  >   on durable state, and what makes the resume exactly-once under concurrent invocations.
+  > - **Five agents behind one write path** — orchestrator (recovery-read-first control flow),
+  >   correlation, remediation, memory, query. Only `memory_agent.py` may write incident state, so a
+  >   resuming invocation can trust everything it reads.
+  > - **Both CockroachDB integrations** — the `VECTOR(1024)` C-SPANN schema and the correlation query
+  >   that filters and ANN-ranks in one round trip, and the application's own MCP client against the
+  >   Cloud Managed MCP Server.
+  > - **The AWS side** — SAM template, Bedrock Titan and Claude call paths with silent-degradation
+  >   handling and durable provenance columns, least-privilege IAM, and deploy-on-tag from CI over
+  >   GitHub OIDC with no stored keys.
+  > - **The apparatus that tries to disprove the claim** — chaos-kill and capture harnesses, the
+  >   resilience bench (kill storms, AWS-initiated Lambda timeouts, 50-way concurrency, vector search
+  >   to 10,000 vectors), the deploy-restart drill, the clean-clone check, and a docs-drift checker.
+  >   **That tooling is ~7,000 lines against ~2,000 lines of application code** — deliberately, because
+  >   a resilience claim nobody tried to break is a slogan.
+  > - **The judgment calls, and the retractions** — 10 ADRs, including the decision to *cut* a third
+  >   CockroachDB tool rather than add it thinly. Several sections of this submission exist because I
+  >   found my own claims wrong and said so: the vector index that was provably used over vectors that
+  >   meant nothing (precision@1 55% → 98%), the query plan that had silently fallen back to a full
+  >   scan, and a cluster outage I misdiagnosed from an error message instead of the billing page.
+  >
+  > **On AI assistance, since the rules ask.** I used **Claude Code** (Anthropic) throughout, for
+  > implementation, refactoring, test authoring and documentation. It wrote code at my direction; it
+  > did not decide what to build, what to measure, or what to throw away. Every architectural
+  > decision — and every decision to reject something — is mine and is recorded in `docs/adr/` with
+  > its reasoning, which is the audit trail for that claim. No pre-existing code, starter template or
+  > scaffold was used, from any prior project of mine or anyone else's.
+
 ---
 
 ## Judging Alignment
@@ -299,9 +338,9 @@ Five agents, one write path: `orchestrator.py` (recovery-read-first control flow
 
 ### Challenges we ran into
 
-**A demo that wasn't actually testing what it claimed.** The first version of the chaos-kill demo fired one alert to completion, then killed an unrelated idle process and fired a second alert — the "resume" only looked correct because the first run had already finished. We redesigned the remediation loop so each step has a real, interruptible execution window (`STEP_EXECUTION_SECONDS`), with the status committed to CockroachDB *before* execution starts — so a kill genuinely lands mid-step, and the fix is provable, not just claimed.
+**A demo that wasn't actually testing what it claimed.** The first version of the chaos-kill demo fired one alert to completion, then killed an unrelated idle process and fired a second alert — the "resume" only looked correct because the first run had already finished. I redesigned the remediation loop so each step has a real, interruptible execution window (`STEP_EXECUTION_SECONDS`), with the status committed to CockroachDB *before* execution starts — so a kill genuinely lands mid-step, and the fix is provable, not just claimed.
 
-**A vector index that was provably used, over vectors that meant nothing.** The demo cluster's 40 embeddings were `synthetic-deterministic` — SHA-256 bytes normalised to a unit vector, which our own generator documents as *"deliberately NOT semantically meaningful — nearest-neighbour ordering is arbitrary."* `EXPLAIN` proved C-SPANN was being used; the benchmark proved it was fast; and the precedent it retrieved was a coin flip. Worse, Claude then wrote confident rationales over that precedent — *"identical symptoms... provides direct precedent"* — because the arbitrary draw happened to land on a plausible row. Measured properly: **precision@1 of 55%**, and even that was only duplicate summary strings hashing to identical vectors. We captured real Titan vectors into a committed fixture and replaced them — **precision@1 98%**, 39 of 40 nearest neighbours sharing the failure mode, symptom separation +0.1043 → +0.4585.
+**A vector index that was provably used, over vectors that meant nothing.** The demo cluster's 40 embeddings were `synthetic-deterministic` — SHA-256 bytes normalised to a unit vector, which my own generator documents as *"deliberately NOT semantically meaningful — nearest-neighbour ordering is arbitrary."* `EXPLAIN` proved C-SPANN was being used; the benchmark proved it was fast; and the precedent it retrieved was a coin flip. Worse, Claude then wrote confident rationales over that precedent — *"identical symptoms... provides direct precedent"* — because the arbitrary draw happened to land on a plausible row. Measured properly: **precision@1 of 55%**, and even that was only duplicate summary strings hashing to identical vectors. I captured real Titan vectors into a committed fixture and replaced them — **precision@1 98%**, 39 of 40 nearest neighbours sharing the failure mode, symptom separation +0.1043 → +0.4585.
 
 **Titan v2's dimension ceiling.** The initial schema assumed 1536-dim embeddings (an OpenAI-shaped assumption); Amazon Titan Text Embeddings V2 tops out at 1024. Caught before it became a runtime surprise — `VECTOR(1024)` throughout, with `embedding_dimensions` centralized in config so schema and embedding calls can't drift apart again.
 
@@ -311,9 +350,9 @@ Five agents, one write path: `orchestrator.py` (recovery-read-first control flow
 
 - A resilience guarantee that's actually exercised end-to-end by CI — 85 unit tests pin the exact recovery semantics (read-before-write, transactional step checkpoints, re-execute-if-interrupted, claim-exactly-once-under-concurrency, resolve-after-final-step), and integration tests run that same contract against a real CockroachDB instance CI provisions on every push — one of them literally hard-killing a live orchestrator subprocess mid-step and asserting it resumes exactly once — not just asserted in a README
 - One CockroachDB store doing double duty as both the transactional system of record and the vector index, with a single statement that filters on structured columns *and* ranks by `<->` distance
-- Recovery proven under failure modes we don't control — including **AWS terminating the Lambda mid-step**, where nothing in the process gets a signal or a chance to checkpoint, and the next cold invocation still resumes that exact step exactly once — and **the deployed code being replaced mid-incident**, where the step is resumed on a build that did not exist when it began, with the durable CockroachDB row as the only thing bridging the two versions
-- Tool claims a judge can verify **by querying our database rather than trusting our README**: every incident card renders provenance badges — the embedding and reasoning model, the C-SPANN recall rank and distance, the runtime, and whether a cold invocation resumed that step after a kill — each read from a durable column, with a legend naming which column. A step that fell back names no model, because it invoked none; a distance renders only beside the `embedding_model_id` that produced it, because distances from different vector spaces are not comparable
-- Catching that our own headline CockroachDB integration wasn't running. The correlation query joined `incidents` in the same statement as the `<->` ordering, which made the planner fall back to `spans: FULL SCAN` — **results stayed correct, so nothing failed and nothing looked wrong**, while "Distributed Vector Indexing" was a load-bearing claim in this submission. It surfaced only because a scale benchmark produced the wrong *shape* of curve. Fixed with a CTE, and pinned by an integration test that reads the query plan, plus a second test that fails deliberately if a future CockroachDB version makes the workaround unnecessary
+- Recovery proven under failure modes I don't control — including **AWS terminating the Lambda mid-step**, where nothing in the process gets a signal or a chance to checkpoint, and the next cold invocation still resumes that exact step exactly once — and **the deployed code being replaced mid-incident**, where the step is resumed on a build that did not exist when it began, with the durable CockroachDB row as the only thing bridging the two versions
+- Tool claims a judge can verify **by querying my database rather than trusting my README**: every incident card renders provenance badges — the embedding and reasoning model, the C-SPANN recall rank and distance, the runtime, and whether a cold invocation resumed that step after a kill — each read from a durable column, with a legend naming which column. A step that fell back names no model, because it invoked none; a distance renders only beside the `embedding_model_id` that produced it, because distances from different vector spaces are not comparable
+- Catching that my own headline CockroachDB integration wasn't running. The correlation query joined `incidents` in the same statement as the `<->` ordering, which made the planner fall back to `spans: FULL SCAN` — **results stayed correct, so nothing failed and nothing looked wrong**, while "Distributed Vector Indexing" was a load-bearing claim in this submission. It surfaced only because a scale benchmark produced the wrong *shape* of curve. Fixed with a CTE, and pinned by an integration test that reads the query plan, plus a second test that fails deliberately if a future CockroachDB version makes the workaround unnecessary
 - A demo script honest enough to admit its own earlier bug and fix the root cause instead of hiding it
 
 ### What we learned

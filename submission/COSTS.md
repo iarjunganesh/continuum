@@ -101,7 +101,7 @@ same cluster with no data loss, and the org moved from a one-off trial credit on
 | | Value |
 | --- | --- |
 | Free allowance | **50M Request Units + 10 GiB**, reset monthly |
-| Measured usage, current cycle | **5.72M RU · 28.69 MiB** — 11% of the free RU allowance, 0.3% of storage (console reading, **2026-08-08**) |
+| Measured usage, current cycle | **5.82M RU · 34.36 MiB** — 11.6% of the free RU allowance, 0.34% of storage (console reading, **2026-08-10**) |
 | Resource limits set | **100M RU/mo · 10 GiB/mo** |
 | Gross ceiling in console | **$25.00/mo** (100M × $0.20/M + 10 GiB × $0.50/GiB) |
 | Net worst case after the credit | **≈ $10/mo** |
@@ -111,10 +111,17 @@ same cluster with no data loss, and the org moved from a one-off trial credit on
 had. The earlier reading of **3.42M RU** was taken on 2026-08-03 and predated the 2026-08-07 runs
 against Cloud — the full resilience bench (run `e765a3c5`: 50 injected interrupts, 10 real
 `SIGKILL`s, 15 Lambda timeouts, 100 exactly-once trials, a corpus grown to 10,000 vectors) and the
-deploy-restart drill (`dba642ed`). The 2026-08-08 reading of **5.72M RU** includes both. So the
+deploy-restart drill (`dba642ed`). The 2026-08-08 reading of **5.72M RU** included both. So the
 single heaviest day of consumption in the project's life cost roughly **2.3M Request Units**,
 about 4.6% of one month's free allowance, and the conclusion the old figure supported survives
 contact with the data rather than merely being assumed to.
+
+The two days since sharpen it further. Between 2026-08-08 and 2026-08-10 the project drove both
+screenshotted chaos captures, a Lambda-timeout run, and the evidence queries behind them — and the
+meter moved from **5.72M to 5.82M**, roughly **0.1M RU**. That is the real shape of the cost model:
+a demo-shaped workload is close to free, and essentially all measurable consumption comes from
+deliberately adversarial benchmarking, which is exactly what `docs/CLUSTER_OPS.md` sends to a local
+cluster.
 
 The console displays this against the **100M resource limit**, not the 50M free allowance — the
 two are different numbers and it is worth knowing which one you are reading. It remains a
