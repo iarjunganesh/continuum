@@ -264,8 +264,12 @@ Nothing here is a placeholder — an unanswerable field says so explicitly.
 - [x] **Describe your contribution** *(public)*
 
   > **Solo build — architecture, code, tests, infrastructure, evidence and documentation are all
-  > mine.** 70+ commits, one author, public history from an empty repository on 2026-07-04 through
-  > the `v1.0.0` submission release, entirely inside the Submission Period.
+  > mine.** The number that describes how it was built: **~7,700 lines of harness whose only purpose
+  > is to try to break this system, against ~2,100 lines of application code.** I spent more than
+  > three times as much effort attacking the claim as making it, because a resilience guarantee
+  > nobody tried to falsify is a slogan. One author, 70+ commits, public history from an empty
+  > repository on 2026-07-04 through the `v1.0.0` submission release, entirely inside the
+  > Submission Period.
   >
   > **What I built:**
   >
@@ -285,8 +289,10 @@ Nothing here is a placeholder — an unanswerable field says so explicitly.
   > - **The apparatus that tries to disprove the claim** — chaos-kill and capture harnesses, the
   >   resilience bench (kill storms, AWS-initiated Lambda timeouts, 50-way concurrency, vector search
   >   to 10,000 vectors), the deploy-restart drill, the clean-clone check, and a docs-drift checker.
-  >   **That tooling is ~7,500 lines against ~2,100 lines of application code** — deliberately, because
-  >   a resilience claim nobody tried to break is a slogan.
+  >   That is where the ~7,700 lines above went. It also covers the claims themselves: `make
+  >   precision-check` recomputes the retrieval-quality figure this submission quotes, because a
+  >   number measured once by hand and then repeated in five documents is exactly the kind of
+  >   unchecked assertion the rest of this apparatus exists to catch.
   > - **The judgment calls, and the retractions** — 10 ADRs, including the decision to *cut* a third
   >   CockroachDB tool rather than add it thinly. Several sections of this submission exist because I
   >   found my own claims wrong and said so: the vector index that was provably used over vectors that
