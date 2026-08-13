@@ -340,7 +340,8 @@ Kept because a stale function is invisible from the repo, and the one thing that
 | 2026-08-08 17:39 UTC | `fnkZoLML…` → `FM6pWpgA…` | not re-measured | CI deploy, `v0.9.6` final, [run 31269972300](https://github.com/iarjunganesh/continuum/actions/runs/31269972300). The build both chaos captures in `assets/chaos-run/lambda-*/` were taken against |
 | 2026-08-10 15:31 UTC | `FM6pWpgA…` → `zSustj1W…` | not re-measured | CI deploy, tag `v0.9.7`, [run 31403924394](https://github.com/iarjunganesh/continuum/actions/runs/31403924394). Confirmed live against `get-function-configuration` immediately after the run. No application code changed in this tag — docs, the drift checker and the Devpost mirror generator only — so `CodeSha256` moved because `CodeUri: ../` packages the repo root, not because the function behaves differently. `Timeout` verified back at 60 s |
 | 2026-08-11 23:52 UTC | `zSustj1W…` → `Fdyjdg8K…` | not re-measured | CI deploy, tag `v1.0.0`, [run 31548123128](https://github.com/iarjunganesh/continuum/actions/runs/31548123128). The video-release sweep; no application code changed |
-| 2026-08-11 23:58 UTC | `Fdyjdg8K…` → `fN4/fBis…` | not re-measured | CI deploy, `v1.0.0` re-pushed after the tag was re-pointed onto the CI fix (`ffmpeg` for the video redaction gate), [run 31548502260](https://github.com/iarjunganesh/continuum/actions/runs/31548502260). **This is the build currently live**, read back from `get-function-configuration` with `--query CodeSha256` after the run. Still no application code in the diff — a workflow file and `CHANGELOG.md` — so the hash moved only because `CodeUri: ../` packages the repo root |
+| 2026-08-11 23:58 UTC | `Fdyjdg8K…` → `fN4/fBis…` | not re-measured | CI deploy, `v1.0.0` re-pushed after the tag was re-pointed onto the CI fix (`ffmpeg` for the video redaction gate), [run 31548502260](https://github.com/iarjunganesh/continuum/actions/runs/31548502260). Read back from `get-function-configuration` with `--query CodeSha256` after the run. Still no application code in the diff — a workflow file and `CHANGELOG.md` — so the hash moved only because `CodeUri: ../` packages the repo root |
+| 2026-08-13 11:30 UTC | `fN4/fBis…` → `1Dsdy2sM…` | not re-measured | CI deploy, `v1.0.0` re-pointed a second time, [run 31695682879](https://github.com/iarjunganesh/continuum/actions/runs/31695682879). **This is the build currently live**, read back from `get-function-configuration` with `--query CodeSha256` after the run; `Timeout` verified back at 60 s. The tag moved onto a claims audit — a precision@1 checker, its tests, and four documentation corrections — so again **no application code changed**, and the hash moved only because `CodeUri: ../` packages the repo root. Validated after the deploy by six cold invocations driving two incidents to `resolved`, every durable step recording `runtime: lambda` with both Bedrock model ids |
 
 **From `v0.9.5` onward the hashes come from the CI deploy**, which prints them into the workflow
 run summary ([ADR 010](adr/010-deploy-on-tag-from-ci.md)) — but **CI does not write this table; a
@@ -357,12 +358,12 @@ the time cannot be recovered afterwards, only overwritten by the next deploy.
 *before* is the row above it.
 
 **Cold start: 1806 ms init, 130 MB of 512 MB**, measured on `9SwDKNSy…` (tag `v0.9.5`) on
-2026-08-08. It has **not** been re-sampled on the live `FM6pWpgA…` build, and the figure is
+2026-08-08. It has **not** been re-sampled on the live `1Dsdy2sM…` build, and the figure is
 published as a characteristic of the function rather than of one artifact: the long-published
 **1719 ms** figure was measured on `cfj/1z90…`, and both sit inside the 1578–1806 ms spread every
-sampled build has shown, with `Max Memory Used` holding at 129–130 MB throughout. `v0.9.6` changed
-no application code — only scripts, docs and assets — so there is no reason to expect it to move.
-Re-sample if that stops being true. Raw REPORT lines: [`../assets/provider-evidence/12.lambda-cold-starts.txt`](../assets/provider-evidence/12.lambda-cold-starts.txt).
+sampled build has shown, with `Max Memory Used` holding at 129–130 MB throughout. Every tag since
+— `v0.9.6`, `v0.9.7` and both `v1.0.0` deploys — changed no application code, only scripts, docs,
+assets and tests, so there is no reason to expect it to move. Re-sample if that stops being true. Raw REPORT lines: [`../assets/provider-evidence/12.lambda-cold-starts.txt`](../assets/provider-evidence/12.lambda-cold-starts.txt).
 
 **A filtered `Init Duration` query returns only cold starts, so it cannot tell you how often one
 happens.** Back-to-back invocations *do* reuse a warm environment — three ticks driven on
