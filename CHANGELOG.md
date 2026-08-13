@@ -41,6 +41,23 @@ below close each one. No application code changed.
   retrieval quality and exactly-once recovery — plus the explicit statement that no MTTR number is
   claimed, and why quoting one off a corpus I generated would repeat the error the 55% → 98%
   retraction is about.
+- **`docs/DEPLOY.md` named a build that was no longer live — again.** The log still marked
+  `fN4/fBis…` as current after the 2026-08-13 CI deploy moved the function to `1Dsdy2sM…`. This is
+  the second time that exact drift has been caught in this file, which `CLAUDE.md` and `README.md`
+  both call *the authority on what is currently live*, and it has the same root cause written down
+  in the 0.9.7 entry below: **CI prints the hashes into the run summary but does not write the
+  table.** The row is added and read back from `get-function-configuration`; the cold-start note no
+  longer names a superseded build either.
+- **The contribution answer led with a commit count.** "70+ commits" measures activity, not
+  judgment, and it sat immediately before the strongest line in that answer. The falsification
+  ratio now leads — and was re-derived rather than carried over: the harness is **~7,700** lines
+  today against ~2,100 of application code, not the ~7,500 quoted at tag time.
+- **`CLAUDE.md` still listed finished work as remaining**, naming the YouTube visibility check and
+  the Devpost paste as open when both were done and verified. It also described the live build as
+  `v0.9.6`, and omitted `make precision-check` from its command list.
+- **ADR 004 shipped the literal token `TBD`**, in a sentence describing commands for an option that
+  was cut before build — harmless in context, and exactly the word this project's own rules say
+  must never ship.
 - **A self-directed to-do was shipping in a public repo.** `submission/DEVPOST.md` still instructed
   "Confirm Visibility reads Public" on a rules requirement that has in fact been met. Confirmed and
   recorded with its method: an unauthenticated fetch reports `"isUnlisted":false` in the watch
