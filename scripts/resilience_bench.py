@@ -196,6 +196,52 @@ def _provenance() -> dict:
     return _MEASURED_AT if _MEASURED_AT is not None else _code_provenance()
 
 
+def _cluster_kind() -> str:
+    """Cloud or local, for the cluster these numbers were actually measured on.
+
+    Suite C's headline multiple is a property of the *deployment* as much as of
+    the index. On a single-node local cluster the baseline full scan is far
+    cheaper, so identical, correct index behaviour produces a much smaller
+    ratio — this corpus measured 7.5x on Cloud and 1.6x on one node in Docker.
+
+    The published figure said neither. A reader following this file's own
+    "reproduce with `make resilience-bench`" instruction defaults to a local
+    cluster, gets a number nearly 5x smaller, and has nothing on the page to
+    explain it — which reads as an inflated claim rather than a different
+    baseline. Derived from the run's own manifest rather than asserted, so it
+    cannot describe a cluster the numbers did not come from.
+    """
+    measured = (_MEASURED_AT or {}).get("cluster")
+    return "cloud" if _is_cloud(measured or settings.cockroach_database_url) else "local"
+
+
+def _suite_c_notes() -> str:
+    """The two sentences of suite C that are only true for one kind of cluster."""
+    if _cluster_kind() == "cloud":
+        return (
+            "The cold columns carry a ~340 ms floor of TLS and\n"
+            "serverless routing over the public internet that has nothing to do with\n"
+            "indexing — reported because it is what production actually pays, but the warm\n"
+            "columns are where the index's behaviour is visible.\n"
+            "\n"
+            "**These numbers were measured against a CockroachDB Cloud cluster.** The multiple\n"
+            "below is therefore a property of that deployment as well as of the index: on a\n"
+            "single-node local cluster the full scan it has to beat is far cheaper, so the same\n"
+            "correct behaviour yields a visibly smaller ratio. Reproducing this with\n"
+            "`make local-cluster` should be expected to narrow the gap, not to reproduce it."
+        )
+    return (
+        "There is no TLS or public-internet floor in the cold\n"
+        "columns here, so cold can come out *faster* than warm — the opposite of what the\n"
+        "same run shows against a remote cluster.\n"
+        "\n"
+        "**These numbers were measured against a local single-node cluster.** The multiple below\n"
+        "understates what the index is worth on a distributed deployment: a full scan over one\n"
+        "node is an unusually cheap baseline to beat. For the figure this project publishes as\n"
+        "its headline, measure against CockroachDB Cloud."
+    )
+
+
 def _code_ref() -> str:
     p = _provenance()
     if p["measured_dirty"]:
@@ -1057,10 +1103,7 @@ measures C-SPANN against a forced full scan (`@primary`) over the same data.
 
 Measured two ways. **Warm** reuses one connection and isolates what the *query*
 costs; **cold** opens a fresh connection per call, matching the Lambda's
-per-invocation pattern. The cold columns carry a ~340 ms floor of TLS and
-serverless routing over the public internet that has nothing to do with
-indexing — reported because it is what production actually pays, but the warm
-columns are where the index's behaviour is visible.
+per-invocation pattern. {_suite_c_notes()}
 
 | Vectors | C-SPANN warm p50 | full scan warm p50 | C-SPANN cold p50 | full scan cold p50 |
 | --- | --- | --- | --- | --- |
@@ -1220,6 +1263,10 @@ def main() -> None:
                 "from_manifest": True,
                 "granular": "measured_dirty" in code,
                 "dirty_flag": code.get("working_tree_dirty", False),
+                # Which cluster the numbers came from, so suite C's caveat
+                # describes THAT run rather than whatever $COCKROACH_DATABASE_URL
+                # happens to point at while re-rendering.
+                "cluster": man.get("environment", {}).get("cluster", ""),
             }
         else:
             p.error(f"{run_dir} has no manifest.json — cannot attribute these numbers to a commit")

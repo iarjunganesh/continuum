@@ -186,7 +186,7 @@ Judging-criteria mapping and full submission narrative: [`submission/DEVPOST.md`
 | **Backend** | [![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](https://www.python.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/) [![psycopg](https://img.shields.io/badge/psycopg-3.3-336791?logo=postgresql&logoColor=white)](https://www.psycopg.org/psycopg3/) | Versioned gateway (`/api/v1`) around the orchestrator; psycopg 3 because psycopg2 has no 3.14 wheels |
 | **Demo UI** | [![Gradio](https://img.shields.io/badge/Gradio-6.22-F97316?logo=gradio&logoColor=white)](https://gradio.app/) [![HF Spaces](https://img.shields.io/badge/🤗_Spaces-live-FFD21E)](https://huggingface.co/spaces/iarjunganesh/continuum) | Live incident console with recovery-timeline replay, the recalled precedent per step, and the committed failure evidence — reading straight from CockroachDB, in the viewer's own light or dark theme. Every card carries provenance badges naming the CockroachDB and AWS features that produced it (`⟲ resumed after kill`, `⌖ recalled #N of M`, the embedding and reasoning models, the runtime), and a legend names the **column each one is read from** — so the tool claims are checkable against the database, not taken on trust |
 | **Observability** | [![structlog](https://img.shields.io/badge/structlog-JSON-4A90E2)](https://www.structlog.org/) | Structured event logging across every agent — no bare `print` |
-| **Quality** | [![Ruff](https://img.shields.io/badge/Ruff-lint%20%2B%20format-D7FF64?logo=ruff&logoColor=111827)](https://docs.astral.sh/ruff/) [![Mypy](https://img.shields.io/badge/Mypy-type_checked-2A6DB2?logo=python&logoColor=white)](https://mypy-lang.org/) [![pytest](https://img.shields.io/badge/pytest-9.1-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/) | Lint → format → types → 85 unit + 9 integration tests → 100% coverage against a 90% gate → Codecov |
+| **Quality** | [![Ruff](https://img.shields.io/badge/Ruff-lint%20%2B%20format-D7FF64?logo=ruff&logoColor=111827)](https://docs.astral.sh/ruff/) [![Mypy](https://img.shields.io/badge/Mypy-type_checked-2A6DB2?logo=python&logoColor=white)](https://mypy-lang.org/) [![pytest](https://img.shields.io/badge/pytest-9.1-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/) | Lint → format → types → 88 unit + 9 integration tests → 100% coverage against a 90% gate → Codecov |
 
 ---
 
@@ -377,7 +377,7 @@ on every commit, is in [`README.md`](https://github.com/iarjunganesh/continuum/b
 ```text
 push → ruff lint → ruff format --check → mypy → Devpost mirror freshness
      → ephemeral single-node CockroachDB → schema apply
-     → pytest (85 unit + 9 integration) → coverage (≥90% gate, 100% measured) → Codecov
+     → pytest (88 unit + 9 integration) → coverage (≥90% gate, 100% measured) → Codecov
 push to main → auto-sync to Hugging Face Space (public demo)
 tag v*.*.*   → GitHub Release, notes pulled from CHANGELOG.md
              → deploy the orchestrator to AWS Lambda (OIDC, no stored keys)
@@ -388,7 +388,7 @@ tag v*.*.*   → GitHub Release, notes pulled from CHANGELOG.md
 
 See [`.github/workflows/ci.yml`](https://github.com/iarjunganesh/continuum/blob/main/.github/workflows/ci.yml), [`.github/workflows/deploy.yml`](https://github.com/iarjunganesh/continuum/blob/main/.github/workflows/deploy.yml), [`.github/workflows/release.yml`](https://github.com/iarjunganesh/continuum/blob/main/.github/workflows/release.yml), and [`docs/DEPLOY.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/DEPLOY.md).
 
-The unit suite (85 tests, one file per agent/module, 100% measured coverage against a 90% CI gate) pins the properties the demo depends on: recovery read happens before any write, each step commits inside an explicit `SERIALIZABLE` transaction, interrupted steps are re-executed (never skipped, never duplicated), a forward step is claimed exactly once under concurrent invocations, and incidents resolve atomically with the final step.
+The unit suite (88 tests, one file per agent/module, 100% measured coverage against a 90% CI gate) pins the properties the demo depends on: recovery read happens before any write, each step commits inside an explicit `SERIALIZABLE` transaction, interrupted steps are re-executed (never skipped, never duplicated), a forward step is claimed exactly once under concurrent invocations, and incidents resolve atomically with the final step. Three of them measure *retrieval quality* rather than control flow — recomputing the precision@1 figure this README quotes, so a claim about what the vector index means cannot go stale unnoticed (`make precision-check`).
 
 [`tests/integration/test_recovery_e2e.py`](https://github.com/iarjunganesh/continuum/blob/main/tests/integration/test_recovery_e2e.py) drives that same resume-and-exactly-once contract against the real schema on a real CockroachDB instance CI spins up — not just against mocks — and [`tests/integration/test_chaos_kill_e2e.py`](https://github.com/iarjunganesh/continuum/blob/main/tests/integration/test_chaos_kill_e2e.py) goes one step further: it spawns the orchestrator as a real subprocess and hard-kills it mid-step with [`scripts/chaos_kill.py`](https://github.com/iarjunganesh/continuum/blob/main/scripts/chaos_kill.py) (a real `SIGKILL`/`TerminateProcess`, no graceful shutdown), then asserts a cold restart resumes the interrupted step exactly once from CockroachDB. The same script drives the literal process-kill beat live in the demo.
 
@@ -408,7 +408,7 @@ Speed is the less interesting half. The claim this project exists to make is abo
 | **Deploy mid-incident — the code replaced underneath an open step** | `sam deploy` swapped the artifact · **resumed on the new build, exactly once** |
 | Exactly-once under concurrent claimants | 100 trials, 5 levels up to 50-way · **0 violations** |
 | Concurrent agents | 10 / 50 / 100 · 53.7 completed/s · **0 failures** |
-| C-SPANN vector search, 100 → 10,000 vectors | 43 → 77 ms vs full scan 40 → 582 ms — **7.5× faster** |
+| C-SPANN vector search, 100 → 10,000 vectors | 43 → 77 ms vs full scan 40 → 582 ms — **7.5× faster**, against CockroachDB Cloud (a single-node local cluster narrows this — see [`RESILIENCE.md`](https://github.com/iarjunganesh/continuum/blob/main/docs/RESILIENCE.md)) |
 
 The Lambda-timeout row is the one that can't be argued with: the process isn't killed by our own script but by **AWS terminating the function**, with no signal the runtime can catch and no opportunity to checkpoint. Every one of those recovered exactly once.
 

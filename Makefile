@@ -1,4 +1,4 @@
-.PHONY: clean-clone-check chaos-capture-lambda chaos-capture-pause charts voiceover beat-clips obs-assets redact-evidence check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo chaos-capture benchmark resilience-bench local-cluster local-cluster-down local-cluster-status probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
+.PHONY: precision-check clean-clone-check chaos-capture-lambda chaos-capture-pause charts voiceover beat-clips obs-assets redact-evidence check-drift export-memory restore-memory deploy-restart-drill install migrate seed-data seed-data-offline run-api run-ui demo chaos-demo chaos-capture benchmark resilience-bench local-cluster local-cluster-down local-cluster-status probe-bedrock preflight-deploy deploy test lint format typecheck load-test devpost-readme coverage
 
 install:
 	pip install -r requirements.txt
@@ -93,6 +93,13 @@ obs-assets:
 # document cites. Idempotent; --check exits 1 if a declared region is unmasked.
 redact-evidence:
 	python scripts/redact_evidence.py
+
+# Does the vector index retrieve precedent that shares the failure mode? Offline
+# — committed fixture, pure-function baseline, no AWS and no cluster. Recomputes
+# the precision@1 figure the README and both submission documents quote, which
+# was measured once by hand and then never checked again.
+precision-check:
+	python scripts/precision_check.py
 
 # Latency benchmarks against $COCKROACH_DATABASE_URL — writes docs/BENCHMARKS.md.
 benchmark:
