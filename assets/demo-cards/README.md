@@ -10,7 +10,7 @@ one design to edit rather than two kept manually in sync.
 | `banner-dark.png` · `banner-light.png` | Demo video beat 1 (0:00) — title card | 16:9 (1920×1080), letterboxed |
 | `banner-dark-native.png` · `banner-light-native.png` | Raster reference at the SVG's native size | 1000×410 |
 | `signoff-dark.svg` · `signoff-light.svg` | README closing sign-off | vector, `<picture>` embed |
-| `signoff-dark.png` · `signoff-light.png` | Demo video beat 6 (2:40) — closing card | 16:9 (1920×1080), letterboxed |
+| `signoff-dark.png` · `signoff-light.png` | Demo video beat 14 (2:48) — closing card | 16:9 (1920×1080), letterboxed |
 | `signoff-dark-native.png` · `signoff-light-native.png` | Raster reference at the SVG's native size | 1000×450 |
 
 The 16:9 video cards **letterbox** the SVG (no crop) — the surrounding canvas is filled with the

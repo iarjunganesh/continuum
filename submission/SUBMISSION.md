@@ -95,12 +95,15 @@ box here is the honest state, not an oversight.
         on screen are the providers' own consoles, which is what the evidence beats are
   - [x] **README badge wrapped in the YouTube URL** and the mirror regenerated.
         `check_drift.py` cannot catch this — a badge is an image URL, not a claim it parses
-  - [ ] No credentials or account IDs in any frame — for **still** frames this is now mechanical:
+  - [x] No credentials or account IDs in any frame. For **stills** this is mechanical:
         `scripts/redact_evidence.py` requires every judge-facing screenshot to be declared (an
         empty region tuple if it needs no mask) and `--check` fails on an undeclared file or an
-        unmasked region. It covers `provider-evidence/`, both `chaos-run/*/screenshots/` and
-        `demo-video/statics/`. Unticked because the *video* itself is not yet shot, and moving
-        footage is not something this check can see
+        unmasked region. **The gate now covers video too** — added 2026-08-12 after
+        `mcp-query-take.mp4` shipped with the signed-in user's photograph in every frame because the
+        globs matched only PNGs. The exported cut was additionally swept by hand: the three frames
+        carrying browser chrome (`s03` at 0:36, the Lambda console at 2:11, the MCP take at 2:32)
+        were checked visually and all masks survived — a mask burned into a PNG travels with its
+        pixels, so the editor's slight scaling moves mask and content together
 - [x] **Text description of features and functionality** — [`DEVPOST.md`](DEVPOST.md) +
       [`DEVPOST_README.md`](DEVPOST_README.md) (paste-ready mirror with absolute URLs)
 - [x] **Every field on the Devpost submission form answered** — [`DEVPOST.md` § Devpost Form
@@ -132,7 +135,12 @@ box here is the honest state, not an oversight.
       **HTTP 200** to a request carrying no cookies, no session and no `Authorization` header on
       2026-08-09. Re-check on submission day: an account setting can make a Space private long after
       it was verified public
-- [ ] Video watched start to finish, verified under 3:00 on the **exported file**
+- [ ] Video watched start to finish — **duration is verified**, the viewing passes are not.
+      `ffprobe` on the exported file reports **2:55.7**, 1920×1080, 30 fps, and the audio is
+      normalised to −14 LUFS. What remains is the two passes `DEMO_SCRIPT.md` asks for: once
+      with audio off (the story must survive on picture and captions alone) and once with video
+      off (the narration must stand up alone). Ticking this on the measurement alone would be
+      exactly the decorative checkbox this file warns about
 - [x] All CI gates green: ruff lint, ruff format, mypy, Devpost mirror freshness, 85 unit +
       9 integration tests, 100% coverage against a 90% gate
 - [x] No broken links repo-wide (markdown links and HTML `src`/`srcset`/`href`)

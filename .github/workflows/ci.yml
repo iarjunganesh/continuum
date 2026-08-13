@@ -54,12 +54,19 @@ jobs:
       - name: Documentation agrees with the repo
         run: python scripts/check_drift.py
 
+      # The redaction gate covers video as well as PNGs, and samples video
+      # frames by shelling out to ffmpeg/ffprobe. Neither is present on a
+      # GitHub runner, and the gate raises rather than skipping — a video
+      # check that quietly no-ops on the one machine that runs on every push
+      # is the same hole that let an unmasked face ship in the first place.
+      - name: Install ffmpeg (the redaction gate samples video frames)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       # Judge-facing evidence frames carry a real person's photograph and an AWS
       # account id, both masked by declared regions. Nothing else notices if a
       # re-captured frame lands unredacted: the image renders fine, every other
-      # gate is green, and the only symptom is a face shipping to judges. This
-      # is a pure-Python pixel check with no cluster or AWS dependency, so it
-      # costs a second and runs on every push.
+      # gate is green, and the only symptom is a face shipping to judges. No
+      # cluster or AWS dependency, so it runs on every push.
       - name: Evidence frames are redacted
         run: python scripts/redact_evidence.py --check
 

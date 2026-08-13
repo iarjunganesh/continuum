@@ -258,8 +258,8 @@ Nothing here is a placeholder — an unanswerable field says so explicitly.
 - [x] **Describe your contribution** *(public)*
 
   > **Solo build — architecture, code, tests, infrastructure, evidence and documentation are all
-  > mine.** 67 commits, one author, public history from an empty repository on 2026-07-04 through
-  > the submission release, entirely inside the Submission Period.
+  > mine.** 70+ commits, one author, public history from an empty repository on 2026-07-04 through
+  > the `v1.0.0` submission release, entirely inside the Submission Period.
   >
   > **What I built:**
   >
@@ -279,7 +279,7 @@ Nothing here is a placeholder — an unanswerable field says so explicitly.
   > - **The apparatus that tries to disprove the claim** — chaos-kill and capture harnesses, the
   >   resilience bench (kill storms, AWS-initiated Lambda timeouts, 50-way concurrency, vector search
   >   to 10,000 vectors), the deploy-restart drill, the clean-clone check, and a docs-drift checker.
-  >   **That tooling is ~7,000 lines against ~2,000 lines of application code** — deliberately, because
+  >   **That tooling is ~7,500 lines against ~2,100 lines of application code** — deliberately, because
   >   a resilience claim nobody tried to break is a slogan.
   > - **The judgment calls, and the retractions** — 10 ADRs, including the decision to *cut* a third
   >   CockroachDB tool rather than add it thinly. Several sections of this submission exist because I

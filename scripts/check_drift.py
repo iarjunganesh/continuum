@@ -12,7 +12,7 @@ So the sweep is a gate now. Each check below exists because that exact thing
 went stale at least once:
 
   1. Version fields agree (pyproject, api/main.py, CHANGELOG's top release)
-  2. No date anywhere is in the future
+  2. No date anywhere is in the future (one day of slack — CI is UTC, this repo is not)
   3. Stated test counts match what pytest actually collects
   4. Stated ADR count matches docs/adr/
   5. Every relative markdown link resolves
@@ -118,7 +118,15 @@ def check_no_future_dates() -> list[Failure]:
     today. They must be *known*, which forces a new one to be justified rather
     than waved through, and keeps this check from becoming noise people ignore.
     """
+    # One day of slack, because "today" is not a global fact. This repo is written in UTC+2 and
+    # CI runs in UTC, so anything committed after local midnight is genuinely dated tomorrow from
+    # the runner's point of view: the v1.0.0 sweep passed here at 01:40 CET and failed in CI at
+    # 23:38 UTC on five correctly-dated lines. Without the slack the same commit passes or fails
+    # depending on which side of a timezone it is checked from, which is a defect in the check
+    # rather than drift in the docs. A date more than a day out still fails, so the changelog
+    # heading four days early that this check exists for is still caught.
     today = dt.date.today()
+    latest_allowed = today + dt.timedelta(days=1)
     pattern = re.compile(r"\b(20\d{2})-(\d{2})-(\d{2})\b")
     fails: list[Failure] = []
     for path in _text_files():
@@ -137,7 +145,7 @@ def check_no_future_dates() -> list[Failure]:
                     found = dt.date(int(y), int(mo), int(d))
                 except ValueError:
                     continue
-                if found <= today:
+                if found <= latest_allowed:
                     continue
                 iso = found.isoformat()
                 if iso in KNOWN_FUTURE_DATES:
@@ -145,9 +153,10 @@ def check_no_future_dates() -> list[Failure]:
                 fails.append(
                     (
                         "future-dates",
-                        f"{rel}:{lineno} references {iso} (today is {today}). If this is a "
-                        f"deadline, add it to KNOWN_FUTURE_DATES with a reason; if it describes "
-                        f"completed work, the date is wrong.",
+                        f"{rel}:{lineno} references {iso} (today is {today}; one day of "
+                        f"timezone slack allowed). If this is a deadline, add it to "
+                        f"KNOWN_FUTURE_DATES with a reason; if it describes completed work, "
+                        f"the date is wrong.",
                     )
                 )
     return fails

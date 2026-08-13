@@ -5,6 +5,104 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-08-12 — the video exists, and the gate that guards it had a hole
+
+The submission's last missing artifact. Everything a judge can be shown without running the code is
+now shown, and the one claim that a still cannot carry — a process dying and something else picking
+up the exact step it died on — is on camera in a single take.
+
+### Added
+
+- **The demo video: https://youtu.be/LwD8__sKqa0** — 2:55.7, 1920×1080/30, captions from
+  `assets/demo-video/continuum.srt`. Beats 6–8 are one take: a real `SIGKILL` against a live
+  orchestrator, the step left durably `executing` with nothing alive to own it, and a cold invocation
+  of the deployed Lambda resuming that same `step_index` exactly once. The durable row records
+  `runtime: lambda`, read from the function's own `AWS_LAMBDA_FUNCTION_NAME`, so the resume is proven
+  to have executed inside the deployed function rather than asserted. **Nothing is spliced between
+  the kill and the resume** — the one edit in that take removes idle *before* the kill, across which
+  the killed pane is frozen at `step_checkpoint_start`. Recording #2 was shot immediately afterwards
+  while that incident was still open, so the live MCP query names the incident the judge has just
+  watched being killed and recovered; on a clean cluster it would have returned `[]` under narration
+  saying "you can simply ask it".
+- **`scripts/build_beat_clips.py`** — the video's moving beats, rendered from the committed stills
+  rather than keyframed in an editor. `s02` and `s04` are filmstrips over 12,000 px tall, so a 16:9
+  window shows about 8% of one and *something* has to choose which window is on screen at each
+  moment. Here that decision is a table of `(time, rect)` keyframes that reads as the intent it
+  encodes; dragged in an editor it would be a move nobody can review, reproduce or explain.
+- **Every still the timeline needs**, in `assets/demo-video/statics/` — including `s10-codecov.png`,
+  Codecov's own page corroborating the `100% coverage` the beat-13 caption claims. Verified against a
+  local run of 315 statements and 0 missed *before* being added; had the page disagreed, the caption
+  would have changed rather than the evidence.
+- **The redaction gate now covers video**, by sampling frames at 10/50/90%.
+
+### Changed
+
+- **Beat 5 ships as a frame the editor zooms, not a rendered clip.** Rendered as a 100% → 105%
+  push-in it visibly shimmered: a push-in is the one move that resamples every frame at a *different*
+  scale, so glyph edges land on new sub-pixel positions and small text crawls. The pans in beats 2 and
+  13 hold scale constant and are clean. The fix is fewer resamples rather than more filtering — one
+  frame, transformed once by the editor, instead of 468 times by the renderer.
+- **`submission/DEMO_SCRIPT.md` records Hybrid MP4 and drops the remux step.** OBS's Hybrid MP4 is
+  crash-safe the way MKV is, so it removes the failure the MKV advice existed to prevent *and*
+  deletes a step from the sequence performed immediately after the one take that cannot be cheaply
+  redone.
+- **Audio normalised to −14 LUFS.** The export measured **−24.1 LUFS**, and YouTube only ever turns
+  loud content down — it does not lift quiet content — so the video would have played noticeably
+  quieter than everything around it. Corrected with the video stream copied: the MD5 of the video
+  stream is identical before and after, so the picture was not re-encoded.
+
+### Fixed
+
+- **The redaction gate walked PNGs, so the video kept the face.** `mcp-query-take.mp4` shipped with
+  the signed-in user's photograph in the browser toolbar of every one of its 315 frames, and nothing
+  complained, because `SCREENSHOT_GLOBS` matches `*.png` and a video is not a PNG. The stills beside
+  it were masked correctly the whole time, which is exactly what made the omission invisible. Two
+  things then had to be measured rather than assumed: the avatar sits **three pixels right** in an OBS
+  recording than in a DevTools capture, because OBS records the desktop rather than the viewport, so
+  reusing the existing box would have left the one-pixel crescent this file's comments already record
+  once; and the masked-check must tolerate a few units per channel, because yuv420p subsamples chroma
+  and a disc drawn as `(199,199,204)` decodes as `(199,198,203)` — an exact match reports a correctly
+  masked file as unmasked and re-encodes it on every run, stacking a generation of loss each time.
+  The gate was watched failing on the unmasked file before it was made to pass.
+- **The caption track was timed to a cut that never shipped.** Nine of the thirteen narration start
+  times predated the final timeline — `vo_04-kill` by 3.0 s — so every cue from 1:09 drifted against
+  the picture. The replacements are measured from the exported audio (speech onset minus each clip's
+  ~0.055 s lead-in) rather than copied from the plan, and regenerated with `--table` so Polly was
+  never called: re-synthesising would risk clip lengths shifting under a video that is already cut.
+- **`check_drift.py` failed or passed depending on the reader's timezone.** Its future-date check
+  compared against `date.today()` on whichever machine ran it. This repo is written in UTC+2 and CI
+  runs in UTC, so the v1.0.0 sweep passed locally at 01:40 CET and failed in CI twenty minutes
+  earlier at 23:38 UTC — five correctly-dated lines reported as describing work that had not
+  happened. The docs were right and the check was wrong, which is the narrow exception to this
+  project's rule against weakening a gate to make it pass: a check whose result depends on the
+  runner's clock is measuring the runner, not the repository. It now allows exactly one day of
+  slack, and that boundary was tested in both directions — `today+1` passes, `today+2` and
+  `today+4` still fail, so the changelog heading four days early that this check was written for is
+  still caught.
+- **The new video redaction gate could not run on the machine that runs it most.** Extending
+  `redact_evidence.py` to sample video frames made it shell out to `ffmpeg`/`ffprobe`, which are on
+  this dev machine and on no GitHub runner — so the step that exists to stop an unmasked face
+  reaching judges died with `ffprobe is not on PATH` on every push. CI now installs `ffmpeg` before
+  that step. The gate deliberately still **raises** rather than skipping when the binaries are
+  absent: a video check that quietly no-ops is indistinguishable from one that passes, which is the
+  precise shape of the hole it was written to close.
+
+- **Four errors in `submission/DEMO_SCRIPT.md` that would each have cost a take** — it claimed the
+  `--via-lambda` throwaway *prints* `runtime: lambda` (it is persisted, never printed, so a successful
+  Lambda invocation looks identical to a local one on stdout); it described the MCP panel as a text
+  field when `ask_via_mcp()` is a button; it said to capture the app's own pages at a 1920 viewport
+  when the Gradio container is ~1115 CSS px and fills 58% of that frame; and one line inverted which
+  of `s03`/`s09` was outstanding.
+
+### Known
+
+- The exported cut is **not committed**: at 252 MB it exceeds GitHub's 100 MB hard per-file limit, so
+  YouTube is the artifact and this repository carries the sources it was cut from.
+- Two items in `submission/SUBMISSION.md` remain deliberately unticked. An unauthenticated fetch
+  proves the video is not *private*, but **Public and Unlisted are indistinguishable from outside
+  YouTube Studio**, and the rules require Public. And the two viewing passes — once with audio off,
+  once with video off — are a human judgement no command can stand in for.
+
 ## [0.9.7] — 2026-08-10 — both kills photographed, and the clone a judge actually gets
 
 ### Added
