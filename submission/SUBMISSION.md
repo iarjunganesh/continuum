@@ -87,10 +87,11 @@ box here is the honest state, not an oversight.
         from the function's own `AWS_LAMBDA_FUNCTION_NAME`
   - [x] Shows the CockroachDB memory layer at work — the kill-and-resume beat, one continuous take
         with no cut between the kill and the resume
-  - [ ] **Public, not unlisted** — an unauthenticated fetch with no cookies resolves the title and
-        channel, which proves it is not *private*. It cannot prove *Public* rather than *Unlisted*:
-        the two are indistinguishable from outside. Confirm the Visibility radio in YouTube Studio
-        reads **Public** and tick this then
+  - [x] **Public, not unlisted** — verified 2026-08-13 by an unauthenticated fetch with no cookies.
+        Resolving the title and channel only proves it is not *private*; Public and Unlisted both
+        serve the page to a signed-out visitor. The watch page's own embedded player metadata
+        distinguishes them, and reports `"isUnlisted":false` alongside `"isPrivate":false` — so this
+        is settled from outside YouTube Studio rather than taken on trust
   - [x] No third-party trademarks / unlicensed music — no music at all; the only third-party marks
         on screen are the providers' own consoles, which is what the evidence beats are
   - [x] **README badge wrapped in the YouTube URL** and the mirror regenerated.
@@ -141,7 +142,7 @@ box here is the honest state, not an oversight.
       with audio off (the story must survive on picture and captions alone) and once with video
       off (the narration must stand up alone). Ticking this on the measurement alone would be
       exactly the decorative checkbox this file warns about
-- [x] All CI gates green: ruff lint, ruff format, mypy, Devpost mirror freshness, 85 unit +
+- [x] All CI gates green: ruff lint, ruff format, mypy, Devpost mirror freshness, 88 unit +
       9 integration tests, 100% coverage against a 90% gate
 - [x] No broken links repo-wide (markdown links and HTML `src`/`srcset`/`href`)
 - [x] No placeholder artifacts shipping as finished — pending items are marked pending explicitly

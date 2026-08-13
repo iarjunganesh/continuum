@@ -5,11 +5,47 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [1.0.0] — 2026-08-12 — the video exists, and the gate that guards it had a hole
+## [1.0.0] — 2026-08-13 — the video exists, and the claims now check themselves
 
 The submission's last missing artifact. Everything a judge can be shown without running the code is
 now shown, and the one claim that a still cannot carry — a process dying and something else picking
 up the exact step it died on — is on camera in a single take.
+
+First tagged 2026-08-12. The tag was re-pointed on 2026-08-13 after auditing this project's own
+claims the way it audits its code: four of them were asserted rather than checked, and the fixes
+below close each one. No application code changed.
+
+### Fixed
+
+- **`precision@1` was quoted in five documents and computed by nothing.** The 55% → 98% figure is
+  the evidence that the vector index retrieves precedent that *means* something — and it had been
+  measured once, by hand, and never recomputed. That is the same "trusted and unchecked" shape as
+  the bug it describes. `scripts/precision_check.py` (`make precision-check`) now re-derives both
+  arms from the committed fixture with no AWS call and no cluster, and `tests/unit/
+  test_precision_at_1.py` fails if the Titan arm drops below 90% or the deliberately-meaningless
+  baseline catches up. Verified against the real numbers first, then verified failing: feeding the
+  hash vectors in as the fixture scores 22/40 and trips the floor, as it must. This also makes true
+  a sentence in `submission/DEVPOST.md` that described this test before it existed.
+- **The `7.5×` vector-search figure never said which cluster produced it.** It is a CockroachDB
+  Cloud measurement; a single-node local cluster gives ~1.6×, because the baseline full scan it has
+  to beat costs 95 ms there instead of 582 ms. Since `docs/RESILIENCE.md` tells a reader to
+  reproduce with `make resilience-bench`, which defaults to a local cluster, a judge following the
+  instruction got a number nearly 5× smaller and nothing on the page explained it. `_cluster_kind()`
+  in `scripts/resilience_bench.py` now derives the caveat from the run's own `manifest.json` —
+  including the `~340 ms TLS floor` sentence, which is false for a local run where cold can beat
+  warm. Re-rendered from the committed run `e765a3c5` with `--render-from`: **no cluster access, no
+  new samples, and not one table row changed.** Nothing hand-written was added to that generated
+  file.
+- **The Real-World Impact claim asserted a measurable MTTR reduction.** Nothing measures MTTR and,
+  on a synthetic corpus (ADR 005), nothing can. Replaced with the two things that *are* measured —
+  retrieval quality and exactly-once recovery — plus the explicit statement that no MTTR number is
+  claimed, and why quoting one off a corpus I generated would repeat the error the 55% → 98%
+  retraction is about.
+- **A self-directed to-do was shipping in a public repo.** `submission/DEVPOST.md` still instructed
+  "Confirm Visibility reads Public" on a rules requirement that has in fact been met. Confirmed and
+  recorded with its method: an unauthenticated fetch reports `"isUnlisted":false` in the watch
+  page's own player metadata, which a plain 200 cannot establish. `submission/SUBMISSION.md`'s
+  checkbox is ticked on that evidence.
 
 ### Added
 

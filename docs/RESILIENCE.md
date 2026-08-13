@@ -134,6 +134,12 @@ serverless routing over the public internet that has nothing to do with
 indexing — reported because it is what production actually pays, but the warm
 columns are where the index's behaviour is visible.
 
+**These numbers were measured against a CockroachDB Cloud cluster.** The multiple
+below is therefore a property of that deployment as well as of the index: on a
+single-node local cluster the full scan it has to beat is far cheaper, so the same
+correct behaviour yields a visibly smaller ratio. Reproducing this with
+`make local-cluster` should be expected to narrow the gap, not to reproduce it.
+
 | Vectors | C-SPANN warm p50 | full scan warm p50 | C-SPANN cold p50 | full scan cold p50 |
 | --- | --- | --- | --- | --- |
 | 100 | 43 | 40 | 367 | 368 |
