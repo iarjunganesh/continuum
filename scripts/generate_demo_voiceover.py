@@ -138,21 +138,21 @@ NARRATION: list[Beat] = [
     Beat(
         4,
         "kill",
-        69.1,
+        72.1,
         "Now watch. The process is killed mid-step. No graceful shutdown. No checkpoint. "
         "Nothing gets a chance to clean up.",
     ),
     Beat(
         5,
         "survives",
-        82.0,
+        82.8,
         "The process is gone. The step is still there — sitting in executing, with nothing "
         "alive that owns it. That row is the agent's memory, and it outlived the agent.",
     ),
     Beat(
         6,
         "resume",
-        95.9,
+        95.1,
         # The take is a genuine hybrid — a local process is killed, and the deployed
         # Lambda in eu-central-1 resumes the row it left behind. "A different machine,
         # in a different region, with no memory of this" is the strongest true sentence
@@ -165,21 +165,21 @@ NARRATION: list[Beat] = [
     Beat(
         7,
         "scale",
-        112.2,
+        111.1,
         "That isn't one lucky take. Fifty interrupted incidents. Fifty clean resumes. "
         "Zero duplicated actions, zero lost steps — counted from the durable rows, not from a log.",
     ),
     Beat(
         8,
         "aws",
-        124.5,
+        123.4,
         "And it isn't only our own kill switch. Here, AWS terminates the function itself, "
         "mid-step, with no signal the process can catch. All fifteen recovered, exactly once.",
     ),
     Beat(
         9,
         "vector",
-        136.6,
+        135.5,
         # "Six times faster" understated the measured result. docs/RESILIENCE.md and
         # docs/BENCHMARKS.md both record 7.5x at 10,000 vectors (43 -> 77 ms against a
         # full scan's 40 -> 582 ms). Spelled out rather than written "7.5x" so Polly
@@ -191,7 +191,7 @@ NARRATION: list[Beat] = [
     Beat(
         10,
         "mcp",
-        148.4,
+        147.3,
         # The weakest beat in the original: "queryable live, read-only, called by the
         # application itself" is three facts and no reason to care. Leading with the
         # consequence — one database, so you can just ask it — gives a viewer who has
@@ -202,14 +202,14 @@ NARRATION: list[Beat] = [
     Beat(
         11,
         "production",
-        158.1,
+        157.0,
         "Type-checked, linted and gated in CI, with the recovery contract pinned by tests "
         "that hard-kill a real process on every push.",
     ),
     Beat(
         12,
         "close",
-        167.1,
+        168.0,
         "Agents will keep dying mid-task. Continuum is the one that picks up exactly where it left off.",
     ),
 ]

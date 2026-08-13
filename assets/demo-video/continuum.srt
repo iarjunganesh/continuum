@@ -99,166 +99,166 @@ before it runs,
 not after.
 
 22
-00:01:09,100 --> 00:01:10,227
+00:01:12,100 --> 00:01:13,227
 Now watch.
 
 23
-00:01:10,227 --> 00:01:12,311
+00:01:13,227 --> 00:01:15,311
 The process is killed mid-step.
 
 24
-00:01:12,311 --> 00:01:13,999
+00:01:15,311 --> 00:01:16,999
 No graceful shutdown.
 
 25
-00:01:13,999 --> 00:01:15,302
+00:01:16,999 --> 00:01:18,302
 No checkpoint.
 
 26
-00:01:15,302 --> 00:01:17,044
+00:01:18,302 --> 00:01:20,044
 Nothing gets a chance to clean up.
 
 27
-00:01:22,000 --> 00:01:23,862
+00:01:22,800 --> 00:01:24,662
 The process is gone.
 
 28
-00:01:23,862 --> 00:01:26,559
+00:01:24,662 --> 00:01:27,359
 The step is still there —
 sitting in executing,
 
 29
-00:01:26,559 --> 00:01:28,619
+00:01:27,359 --> 00:01:29,419
 with nothing alive that owns it.
 
 30
-00:01:28,619 --> 00:01:31,912
+00:01:29,419 --> 00:01:32,712
 That row is the agent's memory,
 and it outlived the agent.
 
 31
-00:01:35,900 --> 00:01:38,641
+00:01:35,100 --> 00:01:37,841
 A cold Lambda invocation —
 a different machine,
 
 32
-00:01:38,641 --> 00:01:41,339
+00:01:37,841 --> 00:01:40,539
 in a different region,
 with no memory of this.
 
 33
-00:01:41,339 --> 00:01:44,704
+00:01:40,539 --> 00:01:43,904
 It reads CockroachDB first,
 finds the interrupted step,
 
 34
-00:01:44,704 --> 00:01:46,131
+00:01:43,904 --> 00:01:45,331
 and re-runs it.
 
 35
-00:01:46,131 --> 00:01:47,767
+00:01:45,331 --> 00:01:46,967
 Not from scratch.
 
 36
-00:01:47,767 --> 00:01:49,031
+00:01:46,967 --> 00:01:48,231
 Not skipped.
 
 37
-00:01:49,031 --> 00:01:50,204
+00:01:48,231 --> 00:01:49,404
 Not duplicated.
 
 38
-00:01:52,200 --> 00:01:54,194
+00:01:51,100 --> 00:01:53,094
 That isn't one lucky take.
 
 39
-00:01:54,194 --> 00:01:56,355
+00:01:53,094 --> 00:01:55,255
 Fifty interrupted incidents.
 
 40
-00:01:56,355 --> 00:01:58,182
+00:01:55,255 --> 00:01:57,082
 Fifty clean resumes.
 
 41
-00:01:58,182 --> 00:02:00,937
+00:01:57,082 --> 00:01:59,837
 Zero duplicated actions,
 zero lost steps —
 
 42
-00:02:00,937 --> 00:02:03,888
+00:01:59,837 --> 00:02:02,788
 counted from the durable rows,
 not from a log.
 
 43
-00:02:04,500 --> 00:02:07,097
+00:02:03,400 --> 00:02:05,997
 And it isn't only our own kill switch.
 
 44
-00:02:07,097 --> 00:02:10,084
+00:02:05,997 --> 00:02:08,984
 Here,
 AWS terminates the function itself,
 
 45
-00:02:10,084 --> 00:02:13,406
+00:02:08,984 --> 00:02:12,306
 mid-step,
 with no signal the process can catch.
 
 46
-00:02:13,406 --> 00:02:16,020
+00:02:12,306 --> 00:02:14,920
 All fifteen recovered,
 exactly once.
 
 47
-00:02:16,600 --> 00:02:18,797
+00:02:15,500 --> 00:02:17,697
 And the memory scales with it.
 
 48
-00:02:18,797 --> 00:02:21,583
+00:02:17,697 --> 00:02:20,483
 From one hundred incidents to ten
 thousand,
 
 49
-00:02:21,583 --> 00:02:25,629
+00:02:20,483 --> 00:02:24,529
 CockroachDB's vector index stays flat
 while a full scan climbs away —
 
 50
-00:02:25,629 --> 00:02:27,784
+00:02:24,529 --> 00:02:26,684
 seven and a half times faster.
 
 51
-00:02:28,400 --> 00:02:32,082
+00:02:27,300 --> 00:02:30,982
 And because it's all one database,
 you can simply ask it —
 
 52
-00:02:32,082 --> 00:02:34,736
+00:02:30,982 --> 00:02:33,636
 the app querying its own memory,
 live,
 
 53
-00:02:34,736 --> 00:02:37,544
+00:02:33,636 --> 00:02:36,444
 through CockroachDB's managed MCP server.
 
 54
-00:02:38,100 --> 00:02:40,688
+00:02:37,000 --> 00:02:39,588
 Type-checked,
 linted and gated in CI,
 
 55
-00:02:40,688 --> 00:02:45,521
+00:02:39,588 --> 00:02:44,421
 with the recovery contract pinned by tests
 that hard-kill a real process on every
 
 56
-00:02:45,521 --> 00:02:46,476
+00:02:44,421 --> 00:02:45,376
 push.
 
 57
-00:02:47,100 --> 00:02:49,451
+00:02:48,000 --> 00:02:50,351
 Agents will keep dying mid-task.
 
 58
-00:02:49,451 --> 00:02:52,788
+00:02:50,351 --> 00:02:53,688
 Continuum is the one that picks up exactly
 where it left off.

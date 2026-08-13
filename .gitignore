@@ -24,6 +24,10 @@ venv/
 data/synthetic/*.generated.jsonl
 data/runs/
 
+# Raw OBS captures. The takes that survive are copied into assets/demo-video/ under the
+# names submission/DEMO_SCRIPT.md gives them; everything else here is a discarded attempt.
+.takes/
+
 # Logs
 *.log
 
@@ -34,3 +38,7 @@ data/runs/
 # Windows Explorer folder-view metadata — created whenever a folder is customised
 desktop.ini
 Thumbs.db
+
+# The exported cut. 252 MB, over GitHub's 100 MB hard per-file limit, so the artifact is the
+# YouTube upload and this repo carries the sources it was cut from. See assets/demo-video/README.md.
+assets/demo-video/continuum.mp4

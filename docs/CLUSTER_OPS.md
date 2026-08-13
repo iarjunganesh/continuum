@@ -19,7 +19,7 @@ captures and the integration suite go to `make local-cluster`.
 | Cluster limits set | **100M RU/mo**, **10 GiB/mo** |
 | Gross ceiling shown in console | **$25.00/mo** (100M × $0.20/M + 10 GiB × $0.50/GiB) |
 | Net worst case after the free credit | **≈ $10/mo ≈ 105 SEK** |
-| Measured usage, current cycle (2026-08-08) | **5.72M RU, 28.69 MiB** — *includes* the 2026-08-07 Cloud bench (`e765a3c5`) and deploy-restart drill (`dba642ed`), which together cost ≈2.3M RU |
+| Measured usage, current cycle (2026-08-10) | **5.82M RU, 34.36 MiB** — *includes* the 2026-08-07 Cloud bench (`e765a3c5`), the deploy-restart drill (`dba642ed`) and both screenshotted chaos captures. The bench and drill alone cost ≈2.3M RU; everything since 2026-08-08 — two `--pause` captures, a Lambda-timeout run and the evidence queries behind them — cost **≈0.1M**, which is what a demo-shaped workload actually costs |
 
 So even a month containing the heaviest day this project has ever run uses about **11% of one
 month's free allowance**, and the cap exists only to bound an accident. Note the console shows
