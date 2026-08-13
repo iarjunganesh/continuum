@@ -341,7 +341,8 @@ Kept because a stale function is invisible from the repo, and the one thing that
 | 2026-08-10 15:31 UTC | `FM6pWpgA…` → `zSustj1W…` | not re-measured | CI deploy, tag `v0.9.7`, [run 31403924394](https://github.com/iarjunganesh/continuum/actions/runs/31403924394). Confirmed live against `get-function-configuration` immediately after the run. No application code changed in this tag — docs, the drift checker and the Devpost mirror generator only — so `CodeSha256` moved because `CodeUri: ../` packages the repo root, not because the function behaves differently. `Timeout` verified back at 60 s |
 | 2026-08-11 23:52 UTC | `zSustj1W…` → `Fdyjdg8K…` | not re-measured | CI deploy, tag `v1.0.0`, [run 31548123128](https://github.com/iarjunganesh/continuum/actions/runs/31548123128). The video-release sweep; no application code changed |
 | 2026-08-11 23:58 UTC | `Fdyjdg8K…` → `fN4/fBis…` | not re-measured | CI deploy, `v1.0.0` re-pushed after the tag was re-pointed onto the CI fix (`ffmpeg` for the video redaction gate), [run 31548502260](https://github.com/iarjunganesh/continuum/actions/runs/31548502260). Read back from `get-function-configuration` with `--query CodeSha256` after the run. Still no application code in the diff — a workflow file and `CHANGELOG.md` — so the hash moved only because `CodeUri: ../` packages the repo root |
-| 2026-08-13 11:30 UTC | `fN4/fBis…` → `1Dsdy2sM…` | not re-measured | CI deploy, `v1.0.0` re-pointed a second time, [run 31695682879](https://github.com/iarjunganesh/continuum/actions/runs/31695682879). **This is the build currently live**, read back from `get-function-configuration` with `--query CodeSha256` after the run; `Timeout` verified back at 60 s. The tag moved onto a claims audit — a precision@1 checker, its tests, and four documentation corrections — so again **no application code changed**, and the hash moved only because `CodeUri: ../` packages the repo root. Validated after the deploy by six cold invocations driving two incidents to `resolved`, every durable step recording `runtime: lambda` with both Bedrock model ids |
+| 2026-08-13 11:30 UTC | `fN4/fBis…` → `1Dsdy2sM…` | not re-measured | CI deploy, `v1.0.0` re-pointed a second time, [run 31695682879](https://github.com/iarjunganesh/continuum/actions/runs/31695682879). The tag moved onto a claims audit — a precision@1 checker, its tests, and four documentation corrections — so again **no application code changed**, and the hash moved only because `CodeUri: ../` packages the repo root. Validated after the deploy by six cold invocations driving two incidents to `resolved`, every durable step recording `runtime: lambda` with both Bedrock model ids |
+| 2026-08-13 11:52 UTC | `1Dsdy2sM…` → `K1MJQelo…` | not re-measured | CI deploy, `v1.0.0` re-pointed a third time onto the documentation sweep, [run 31697312375](https://github.com/iarjunganesh/continuum/actions/runs/31697312375). **This is the build currently live**, read back from `get-function-configuration` with `--query CodeSha256` after the run; `Timeout` verified at 60 s, `State: Active`. Markdown only in the diff — including the row above this one |
 
 **From `v0.9.5` onward the hashes come from the CI deploy**, which prints them into the workflow
 run summary ([ADR 010](adr/010-deploy-on-tag-from-ci.md)) — but **CI does not write this table; a
@@ -353,9 +354,18 @@ authority on what is currently live*. It was recoverable only because the run lo
 hashes; the `2026-08-07 18:44` row shows what happens when they don't — a hash nobody recorded at
 the time cannot be recovered afterwards, only overwritten by the next deploy.
 
-**Copying the summary into this table is part of tagging, not follow-up work.** The `v0.9.5` and
-`v0.9.6` *after* hashes were both read back live from `aws lambda get-function-configuration`; each
-*before* is the row above it.
+**Copying the summary into this table is the last step of tagging, not follow-up work.** The
+`v0.9.5` and `v0.9.6` *after* hashes were both read back live from `aws lambda
+get-function-configuration`; each *before* is the row above it.
+
+**The final row cannot live inside the tag it describes, and chasing that is a loop.** The tag
+*causes* the deploy, so the resulting `CodeSha256` does not exist until after the tag is pushed —
+recording it means a commit on `main` that the tag does not contain, and re-pointing the tag to
+include that commit triggers another deploy with another new hash. On 2026-08-13 that loop was
+entered once before being written down here. The rule that ends it: **record the row on `main`
+after the deploy and leave the tag where it is.** Nothing is lost, because `CodeUri: ../` means a
+docs-only commit changes the artifact hash without changing a line of what the function runs — the
+tag still names the code that is deployed, which is the whole of what ADR 010 guarantees.
 
 **Cold start: 1806 ms init, 130 MB of 512 MB**, measured on `9SwDKNSy…` (tag `v0.9.5`) on
 2026-08-08. It has **not** been re-sampled on the live `1Dsdy2sM…` build, and the figure is
